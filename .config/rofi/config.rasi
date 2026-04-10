@@ -1,0 +1,13 @@
+configuration {
+    modi: "drun,run,window";
+    show-icons: true;
+    drun-display-format: "{name}";
+    icon-theme: "Papirus";
+    font: "JetBrainsMono Nerd Font 12";
+    disable-history: false;
+    hover-select: true;
+    me-select-entry: "MousePrimary";
+    me-accept-entry: "MouseDPrimary";
+}
+
+@theme "bitbeast"

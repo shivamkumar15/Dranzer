@@ -1,0 +1,111 @@
+#!/bin/sh
+
+set -eu
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+STATE_DIR="$CONFIG_HOME/bitbeast"
+THEMES_DIR="$CONFIG_HOME/bitbeasts"
+HYPR_DIR="$CONFIG_HOME/hypr"
+WAYBAR_DIR="$CONFIG_HOME/waybar"
+KITTY_DIR="$CONFIG_HOME/kitty"
+ROFI_DIR="$CONFIG_HOME/rofi"
+CAVA_DIR="$CONFIG_HOME/cava"
+
+usage() {
+    printf 'Usage: bitbeast <theme-name>\n' >&2
+    printf 'Available themes:\n' >&2
+    list_themes >&2
+}
+
+list_themes() {
+    for dir in "$THEMES_DIR"/*; do
+        [ -d "$dir" ] || continue
+        basename "$dir"
+    done | LC_ALL=C sort
+}
+
+require_file() {
+    file_path=$1
+    if [ ! -f "$file_path" ]; then
+        printf 'Missing required file: %s\n' "$file_path" >&2
+        exit 1
+    fi
+}
+
+theme_name=${1:-}
+
+if [ $# -ne 1 ] || [ -z "$theme_name" ]; then
+    usage
+    exit 1
+fi
+
+theme_name=$(printf '%s' "$theme_name" | tr '[:upper:]' '[:lower:]')
+theme_dir="$THEMES_DIR/$theme_name"
+
+if [ ! -d "$theme_dir" ]; then
+    printf 'Unknown BitBeast theme: %s\n' "$theme_name" >&2
+    usage
+    exit 1
+fi
+
+require_file "$theme_dir/colors.conf"
+require_file "$theme_dir/hyprland.conf"
+require_file "$theme_dir/waybar.css"
+require_file "$theme_dir/kitty.conf"
+require_file "$theme_dir/rofi.rasi"
+require_file "$theme_dir/cava.conf"
+require_file "$theme_dir/wallpaper.conf"
+
+mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR"
+
+cp "$theme_dir/colors.conf" "$STATE_DIR/current.conf"
+cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
+cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
+cp "$theme_dir/kitty.conf" "$KITTY_DIR/bitbeast.conf"
+cp "$theme_dir/rofi.rasi" "$ROFI_DIR/bitbeast.rasi"
+cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
+cp "$theme_dir/wallpaper.conf" "$STATE_DIR/wallpaper.conf"
+printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
+
+wallpaper_path=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*//p' "$STATE_DIR/wallpaper.conf" | tail -n 1)
+wallpaper_path=$(printf '%s' "$wallpaper_path" | sed 's/^"//; s/"$//')
+
+if [ -z "$wallpaper_path" ]; then
+    printf 'Wallpaper path is empty in %s\n' "$STATE_DIR/wallpaper.conf" >&2
+    exit 1
+fi
+
+if [ ! -f "$wallpaper_path" ]; then
+    printf 'Wallpaper file not found: %s\n' "$wallpaper_path" >&2
+    exit 1
+fi
+
+if command -v swww >/dev/null 2>&1; then
+    if ! pgrep -x swww-daemon >/dev/null 2>&1; then
+        swww-daemon --format xrgb >/dev/null 2>&1 &
+        sleep 1
+    fi
+    swww img "$wallpaper_path" --transition-type any --transition-duration 1 >/dev/null 2>&1 || \
+        printf 'Warning: failed to set wallpaper with swww.\n' >&2
+else
+    printf 'Warning: swww is not installed; wallpaper not changed.\n' >&2
+fi
+
+if command -v kitty >/dev/null 2>&1; then
+    kitty @ set-colors -a "$KITTY_DIR/bitbeast.conf" >/dev/null 2>&1 || true
+fi
+
+if command -v hyprctl >/dev/null 2>&1; then
+    hyprctl reload >/dev/null 2>&1 || printf 'Warning: failed to reload Hyprland.\n' >&2
+else
+    printf 'Warning: hyprctl is not installed; Hyprland not reloaded.\n' >&2
+fi
+
+if command -v waybar >/dev/null 2>&1; then
+    pkill -x waybar >/dev/null 2>&1 || true
+    waybar >/dev/null 2>&1 &
+else
+    printf 'Warning: waybar is not installed; Waybar not restarted.\n' >&2
+fi
+
+printf 'BitBeast theme activated: %s\n' "$theme_name"
