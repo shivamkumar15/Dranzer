@@ -13,7 +13,8 @@
 }
 
 window#waybar {
-    background: transparent;
+    background: alpha(@bg, 0.85);
+    border-bottom: 2px solid alpha(@accent, 0.1);
     color: @text;
 }
 

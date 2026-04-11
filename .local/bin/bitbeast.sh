@@ -244,20 +244,21 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Try swww first (supports transitions), then swaybg as fallback
-    if command -v swww >/dev/null 2>&1; then
-        if apply_wallpaper_swww "$wallpaper_path"; then
-            return 0
-        fi
-    fi
-
+    # Use swaybg as requested (alternative to swww)
     if command -v swaybg >/dev/null 2>&1; then
         if apply_wallpaper_swaybg "$wallpaper_path"; then
             return 0
         fi
     fi
 
-    warn 'No wallpaper backend available. Install swww or swaybg.'
+    # Fallback to swww only if swaybg is missing
+    if command -v swww >/dev/null 2>&1; then
+        if apply_wallpaper_swww "$wallpaper_path"; then
+            return 0
+        fi
+    fi
+
+    warn 'No wallpaper backend available. Install swaybg or swww.'
     return 1
 }
 
