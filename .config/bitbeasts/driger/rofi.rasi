@@ -1,11 +1,11 @@
 * {
-    bg: #081209f2;
-    bg-alt: #122014;
+    bg: #081209e6;
+    bg-alt: #1a321c;
     primary: #59d74d;
     secondary: #21441f;
     accent: #e0b14a;
     text: #f6fbef;
-    muted: #a9c991;
+    muted: #8fb88a;
     urgent: #85e55e;
     border: 2px;
     spacing: 14px;
@@ -28,11 +28,11 @@ entry { placeholder: "Stalk the wilds"; placeholder-color: @muted; text-color: @
 listview { lines: 8; columns: 1; fixed-height: false; border: 0px; background-color: transparent; scrollbar: false; }
 element { padding: 14px 16px; border-radius: 16px; background-color: transparent; text-color: @text; }
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: @bg; }
-element selected.active { background-color: @primary; text-color: @bg; }
-element selected.urgent { background-color: @urgent; text-color: @bg; }
+element selected.normal { background-color: @accent; text-color: #081209; }
+element selected.active { background-color: @primary; text-color: #081209; }
+element selected.urgent { background-color: @urgent; text-color: #081209; }
 element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }
 mode-switcher { spacing: 10px; background-color: transparent; }
 button { padding: 10px 14px; border-radius: 999px; background-color: @bg-alt; text-color: @muted; }
-button selected { background-color: @primary; text-color: @bg; }
+button selected { background-color: @primary; text-color: #081209; }

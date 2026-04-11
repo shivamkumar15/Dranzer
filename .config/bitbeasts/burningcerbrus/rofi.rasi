@@ -1,11 +1,11 @@
 * {
-    bg: #120807f2;
-    bg-alt: #241111;
+    bg: #120807e6;
+    bg-alt: #2e1414;
     primary: #ee5a21;
     secondary: #7c3ab4;
     accent: #ffb37a;
     text: #faecff;
-    muted: #d8b4d8;
+    muted: #c49a8e;
     urgent: #ff8257;
     border: 2px;
     spacing: 14px;
@@ -28,11 +28,11 @@ entry { placeholder: "Unchain the inferno"; placeholder-color: @muted; text-colo
 listview { lines: 8; columns: 1; fixed-height: false; border: 0px; background-color: transparent; scrollbar: false; }
 element { padding: 14px 16px; border-radius: 16px; background-color: transparent; text-color: @text; }
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: @bg; }
-element selected.active { background-color: @primary; text-color: @bg; }
-element selected.urgent { background-color: @urgent; text-color: @bg; }
+element selected.normal { background-color: @accent; text-color: #120807; }
+element selected.active { background-color: @primary; text-color: #faecff; }
+element selected.urgent { background-color: @urgent; text-color: #120807; }
 element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }
 mode-switcher { spacing: 10px; background-color: transparent; }
 button { padding: 10px 14px; border-radius: 999px; background-color: @bg-alt; text-color: @muted; }
-button selected { background-color: @secondary; text-color: @text; }
+button selected { background-color: @primary; text-color: #faecff; }

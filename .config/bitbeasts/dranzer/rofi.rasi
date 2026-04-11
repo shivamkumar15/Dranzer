@@ -1,11 +1,11 @@
 * {
-    bg: #150608f2;
-    bg-alt: #2c0d0f;
+    bg: #150608e6;
+    bg-alt: #3a1214;
     primary: #e8450c;
     secondary: #7b120f;
     accent: #ffd166;
     text: #fff1dd;
-    muted: #cfa77f;
+    muted: #c49a72;
     urgent: #ff7f32;
     border: 2px;
     spacing: 14px;
@@ -66,9 +66,9 @@ element {
 }
 
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: @bg; }
-element selected.active { background-color: @primary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: @bg; }
+element selected.normal { background-color: @accent; text-color: #150608; }
+element selected.active { background-color: @primary; text-color: #fff1dd; }
+element selected.urgent { background-color: @urgent; text-color: #150608; }
 
 element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }
@@ -82,4 +82,4 @@ button {
     text-color: @muted;
 }
 
-button selected { background-color: @primary; text-color: @text; }
+button selected { background-color: @primary; text-color: #fff1dd; }

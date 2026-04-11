@@ -1,11 +1,11 @@
 * {
-    bg: #08111ff2;
-    bg-alt: #0e1d34;
+    bg: #08111fe6;
+    bg-alt: #122844;
     primary: #2d66df;
     secondary: #158fc7;
     accent: #89ebff;
     text: #ecf7ff;
-    muted: #84b9dd;
+    muted: #7a9db8;
     urgent: #4c83f6;
     border: 2px;
     spacing: 14px;
@@ -28,11 +28,11 @@ entry { placeholder: "Ride the storm"; placeholder-color: @muted; text-color: @t
 listview { lines: 8; columns: 1; fixed-height: false; border: 0px; background-color: transparent; scrollbar: false; }
 element { padding: 14px 16px; border-radius: 16px; background-color: transparent; text-color: @text; }
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: @bg; }
-element selected.active { background-color: @primary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: @bg; }
+element selected.normal { background-color: @accent; text-color: #08111f; }
+element selected.active { background-color: @primary; text-color: #ecf7ff; }
+element selected.urgent { background-color: @urgent; text-color: #08111f; }
 element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }
 mode-switcher { spacing: 10px; background-color: transparent; }
 button { padding: 10px 14px; border-radius: 999px; background-color: @bg-alt; text-color: @muted; }
-button selected { background-color: @primary; text-color: @text; }
+button selected { background-color: @primary; text-color: #ecf7ff; }

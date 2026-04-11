@@ -192,7 +192,6 @@ fallback_wallpaper_path() {
 
 ensure_swww_daemon() {
     if ! command -v swww >/dev/null 2>&1; then
-        warn 'swww is not installed; wallpaper not changed.'
         return 1
     fi
 
@@ -204,13 +203,8 @@ ensure_swww_daemon() {
     return 0
 }
 
-apply_wallpaper() {
+apply_wallpaper_swww() {
     wallpaper_path=$1
-
-    if [ ! -f "$wallpaper_path" ]; then
-        warn "wallpaper file not found: $wallpaper_path"
-        return 1
-    fi
 
     ensure_swww_daemon || return 1
 
@@ -224,7 +218,46 @@ apply_wallpaper() {
         attempt=$((attempt + 1))
     done
 
-    warn 'failed to set wallpaper with swww.'
+    return 1
+}
+
+apply_wallpaper_swaybg() {
+    wallpaper_path=$1
+
+    if ! command -v swaybg >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Kill any existing swaybg instance
+    pkill -x swaybg >/dev/null 2>&1 || true
+    sleep 0.2
+
+    swaybg -i "$wallpaper_path" -m fill >/dev/null 2>&1 &
+    return 0
+}
+
+apply_wallpaper() {
+    wallpaper_path=$1
+
+    if [ ! -f "$wallpaper_path" ]; then
+        warn "wallpaper file not found: $wallpaper_path"
+        return 1
+    fi
+
+    # Try swww first (supports transitions), then swaybg as fallback
+    if command -v swww >/dev/null 2>&1; then
+        if apply_wallpaper_swww "$wallpaper_path"; then
+            return 0
+        fi
+    fi
+
+    if command -v swaybg >/dev/null 2>&1; then
+        if apply_wallpaper_swaybg "$wallpaper_path"; then
+            return 0
+        fi
+    fi
+
+    warn 'No wallpaper backend available. Install swww or swaybg.'
     return 1
 }
 
@@ -345,17 +378,34 @@ pick_theme() {
         while IFS= read -r theme_name; do
             [ -n "$theme_name" ] || continue
             wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name")
-            printf '%s\t%s\n' "$theme_name" "$(basename "$wallpaper_path")"
+            # Present strictly the wallpaper name options to the user
+            printf '%s\n' "$(basename "$wallpaper_path")"
         done <<EOF_LIST
 $(list_themes)
 EOF_LIST
     )
 
-    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Wallpaper / Theme")
-    chosen_theme=$(printf '%s' "$choice" | cut -f1)
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
+    chosen_wallpaper=$(printf '%s' "$choice")
 
-    [ -n "$chosen_theme" ] || exit 0
-    activate_theme "$chosen_theme"
+    [ -n "$chosen_wallpaper" ] || exit 0
+    
+    # Map the selected wallpaper back to the corresponding theme automatically
+    chosen_theme=""
+    while IFS= read -r theme_name; do
+        [ -n "$theme_name" ] || continue
+        wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name")
+        if [ "$(basename "$wallpaper_path")" = "$chosen_wallpaper" ]; then
+            chosen_theme="$theme_name"
+            break
+        fi
+    done <<EOF_LIST
+$(list_themes)
+EOF_LIST
+
+    if [ -n "$chosen_theme" ]; then
+        activate_theme "$chosen_theme"
+    fi
 }
 
 cycle_style() {

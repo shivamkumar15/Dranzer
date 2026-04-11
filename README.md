@@ -4,6 +4,14 @@ A modular Hyprland theme system inspired by Beyblade BitBeasts.
 
 Each BitBeast is a self-contained profile stored in `~/.config/bitbeasts/<theme>/`. The `bitbeast` CLI promotes one of those profiles into the active Hyprland, Waybar, Kitty, Rofi, Cava, and wallpaper config files.
 
+## Dependencies
+
+Before installing, ensure you have a wallpaper daemon installed:
+- **`swww`**: Recommended. Supports live transitions and effects. (AUR: `yay -S swww`).
+- **`swaybg`**: Supported fallback. Simpler and very stable. (`sudo pacman -S swaybg`).
+
+The system will automatically detect which one is installed and use it.
+
 ## Installation
 
 Clone the repo and run:
@@ -27,17 +35,18 @@ What the installer does:
 - installs the `bitbeast` CLI to `~/.local/bin/bitbeast`
 - copies the Hyprland, Waybar, Kitty, and Rofi config files into `~/.config/`
 - installs the shipped Waybar style variants into `~/.config/waybar/styles/`
-- activates your selected theme
+- activates your selected theme with improved visibility and contrast
 - backs up replaced files into `~/.local/state/bitbeast-installer/backups/` unless you use `--force`
 
 If you use `--apply`, the installer also reapplies the selected theme to the live session right away.
 
 ## Included themes
 
+All themes have been optimized for maximum visibility and contrast:
 - `dranzer`
 - `dragoon`
 - `driger`
-- `draciel`
+- `draciel` (Updated with a new steel-blue palette for better visibility)
 - `galeon`
 - `burningcerbrus`
 
@@ -157,14 +166,14 @@ What `bitbeast <theme-name>` does:
 - verifies the required files are present
 - copies the selected theme into the active config locations
 - updates `~/.config/bitbeast/current.conf`, `current.style`, `current.theme`, and `wallpaper.conf`
-- restores the wallpaper with `swww`
+- restores the wallpaper with swww (or swaybg if swww is missing)
 - reloads Hyprland with `hyprctl reload`
 - restarts Waybar without leaving duplicate bars behind
 - applies Kitty colors when `kitty @` is available
 
 Notes:
 
-- `bitbeast pick` opens a Rofi picker for the built-in wallpaper and theme set
+- `bitbeast pick` opens a Rofi picker populated with the names of your local wallpapers. Once you select a wallpaper, the system automatically detects and applies the matching BitBeast theme!
 - `bitbeast pick-style` opens a Rofi picker for the shipped Waybar style variants
 - `bitbeast style cycle` rotates through the installed Waybar looks and restarts Waybar
 - clicking the `beast`, `style`, and `wall` modules in Waybar gives quick access to theme switching, style cycling, and wallpaper restore
@@ -188,7 +197,7 @@ The default Hyprland config includes:
 - `SUPER + 1..8` to switch workspaces
 - `SUPER + SHIFT + 1..8` to move the active window to a workspace
 - `SUPER + r` to open Rofi drun
-- `SUPER + w` to open the BitBeast wallpaper and theme picker
+- `SUPER + w` to open the Rofi picker to select your BitBeast wallpaper!
 - `SUPER + b` to open the browser
 - `SUPER + Return` to open the terminal
 - `SUPER + q` to kill the active window

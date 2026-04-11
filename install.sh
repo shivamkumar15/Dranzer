@@ -145,7 +145,7 @@ install_file "$REPO_DIR/.config/waybar/bitbeast-style.css" "$CONFIG_HOME/waybar/
 install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config.jsonc"
 install_file "$REPO_DIR/.config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
 install_file "$REPO_DIR/.config/rofi/config.rasi" "$CONFIG_HOME/rofi/config.rasi"
-install_file "$REPO_DIR/.local/bin/bitbeast" "$BIN_DIR/bitbeast"
+install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
 chmod +x "$BIN_DIR/bitbeast"
 
 if [ "$APPLY_RUNTIME" -eq 1 ]; then

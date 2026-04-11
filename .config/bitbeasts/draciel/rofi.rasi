@@ -1,11 +1,11 @@
 * {
-    bg: #0f0d14f2;
-    bg-alt: #1b1622;
-    primary: #4f433b;
-    secondary: #5b6c84;
+    bg: #0f0d14e6;
+    bg-alt: #231e2e;
+    primary: #6b94c4;
+    secondary: #3d5a7a;
     accent: #b17dff;
     text: #f6f2ff;
-    muted: #b3abc9;
+    muted: #9c8ab3;
     urgent: #927ad4;
     border: 2px;
     spacing: 14px;
@@ -28,11 +28,11 @@ entry { placeholder: "Fortify the shell"; placeholder-color: @muted; text-color:
 listview { lines: 8; columns: 1; fixed-height: false; border: 0px; background-color: transparent; scrollbar: false; }
 element { padding: 14px 16px; border-radius: 16px; background-color: transparent; text-color: @text; }
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: @bg; }
-element selected.active { background-color: @secondary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: @bg; }
+element selected.normal { background-color: @accent; text-color: #0f0d14; }
+element selected.active { background-color: @primary; text-color: #f6f2ff; }
+element selected.urgent { background-color: @urgent; text-color: #0f0d14; }
 element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }
 mode-switcher { spacing: 10px; background-color: transparent; }
 button { padding: 10px 14px; border-radius: 999px; background-color: @bg-alt; text-color: @muted; }
-button selected { background-color: @secondary; text-color: @text; }
+button selected { background-color: @accent; text-color: #0f0d14; }
