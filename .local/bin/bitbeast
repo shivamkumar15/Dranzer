@@ -3,6 +3,7 @@
 set -eu
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 STATE_DIR="$CONFIG_HOME/bitbeast"
 THEMES_DIR="$CONFIG_HOME/bitbeasts"
 HYPR_DIR="$CONFIG_HOME/hypr"
@@ -10,10 +11,13 @@ WAYBAR_DIR="$CONFIG_HOME/waybar"
 KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
+WALLPAPER_DIR="${BITBEAST_WALLPAPER_DIR:-$DATA_HOME/bitbeast/wallpapers}"
 
 usage() {
-    printf 'Usage: bitbeast <theme-name>\n' >&2
-    printf 'Available themes:\n' >&2
+    printf 'Usage: bitbeast <theme-name>
+' >&2
+    printf 'Available themes:
+' >&2
     list_themes >&2
 }
 
@@ -27,9 +31,29 @@ list_themes() {
 require_file() {
     file_path=$1
     if [ ! -f "$file_path" ]; then
-        printf 'Missing required file: %s\n' "$file_path" >&2
+        printf 'Missing required file: %s
+' "$file_path" >&2
         exit 1
     fi
+}
+
+resolve_wallpaper_path() {
+    wallpaper_value=$1
+
+    case $wallpaper_value in
+        @wallpapers/*)
+            printf '%s/%s
+' "$WALLPAPER_DIR" "${wallpaper_value#@wallpapers/}"
+            ;;
+        ~/*)
+            printf '%s/%s
+' "$HOME" "${wallpaper_value#~/}"
+            ;;
+        *)
+            printf '%s
+' "$wallpaper_value"
+            ;;
+    esac
 }
 
 theme_name=${1:-}
@@ -43,7 +67,8 @@ theme_name=$(printf '%s' "$theme_name" | tr '[:upper:]' '[:lower:]')
 theme_dir="$THEMES_DIR/$theme_name"
 
 if [ ! -d "$theme_dir" ]; then
-    printf 'Unknown BitBeast theme: %s\n' "$theme_name" >&2
+    printf 'Unknown BitBeast theme: %s
+' "$theme_name" >&2
     usage
     exit 1
 fi
@@ -64,20 +89,33 @@ cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
 cp "$theme_dir/kitty.conf" "$KITTY_DIR/bitbeast.conf"
 cp "$theme_dir/rofi.rasi" "$ROFI_DIR/bitbeast.rasi"
 cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
-cp "$theme_dir/wallpaper.conf" "$STATE_DIR/wallpaper.conf"
-printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
+printf '%s
+' "$theme_name" > "$STATE_DIR/current.theme"
 
-wallpaper_path=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*//p' "$STATE_DIR/wallpaper.conf" | tail -n 1)
+wallpaper_path=$(sed -n 's/^[[:space:]]*wallpaper[[:space:]]*=[[:space:]]*//p' "$theme_dir/wallpaper.conf" | tail -n 1)
 wallpaper_path=$(printf '%s' "$wallpaper_path" | sed 's/^"//; s/"$//')
 
 if [ -z "$wallpaper_path" ]; then
-    printf 'Wallpaper path is empty in %s\n' "$STATE_DIR/wallpaper.conf" >&2
+    printf 'Wallpaper path is empty in %s
+' "$theme_dir/wallpaper.conf" >&2
     exit 1
 fi
 
+wallpaper_path=$(resolve_wallpaper_path "$wallpaper_path")
+
 if [ ! -f "$wallpaper_path" ]; then
-    printf 'Wallpaper file not found: %s\n' "$wallpaper_path" >&2
+    printf 'Wallpaper file not found: %s
+' "$wallpaper_path" >&2
     exit 1
+fi
+
+printf 'wallpaper="%s"
+' "$wallpaper_path" > "$STATE_DIR/wallpaper.conf"
+
+if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
+    printf 'BitBeast theme activated: %s
+' "$theme_name"
+    exit 0
 fi
 
 if command -v swww >/dev/null 2>&1; then
@@ -85,10 +123,11 @@ if command -v swww >/dev/null 2>&1; then
         swww-daemon --format xrgb >/dev/null 2>&1 &
         sleep 1
     fi
-    swww img "$wallpaper_path" --transition-type any --transition-duration 1 >/dev/null 2>&1 || \
-        printf 'Warning: failed to set wallpaper with swww.\n' >&2
+    swww img "$wallpaper_path" --transition-type any --transition-duration 1 >/dev/null 2>&1 ||         printf 'Warning: failed to set wallpaper with swww.
+' >&2
 else
-    printf 'Warning: swww is not installed; wallpaper not changed.\n' >&2
+    printf 'Warning: swww is not installed; wallpaper not changed.
+' >&2
 fi
 
 if command -v kitty >/dev/null 2>&1; then
@@ -96,16 +135,20 @@ if command -v kitty >/dev/null 2>&1; then
 fi
 
 if command -v hyprctl >/dev/null 2>&1; then
-    hyprctl reload >/dev/null 2>&1 || printf 'Warning: failed to reload Hyprland.\n' >&2
+    hyprctl reload >/dev/null 2>&1 || printf 'Warning: failed to reload Hyprland.
+' >&2
 else
-    printf 'Warning: hyprctl is not installed; Hyprland not reloaded.\n' >&2
+    printf 'Warning: hyprctl is not installed; Hyprland not reloaded.
+' >&2
 fi
 
 if command -v waybar >/dev/null 2>&1; then
     pkill -x waybar >/dev/null 2>&1 || true
     waybar >/dev/null 2>&1 &
 else
-    printf 'Warning: waybar is not installed; Waybar not restarted.\n' >&2
+    printf 'Warning: waybar is not installed; Waybar not restarted.
+' >&2
 fi
 
-printf 'BitBeast theme activated: %s\n' "$theme_name"
+printf 'BitBeast theme activated: %s
+' "$theme_name"

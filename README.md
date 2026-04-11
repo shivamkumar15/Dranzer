@@ -4,6 +4,33 @@ A modular Hyprland theme system inspired by Beyblade BitBeasts.
 
 Each BitBeast is a self-contained theme profile stored in `~/.config/bitbeasts/<theme>/`. The `bitbeast` CLI promotes one of those profiles into the active Hyprland, Waybar, Kitty, Rofi, Cava, and wallpaper config files.
 
+## Installation
+
+Clone the repo and run:
+
+```sh
+chmod +x install.sh
+./install.sh
+```
+
+Optional:
+
+```sh
+./install.sh --theme dragoon
+./install.sh --theme dranzer --apply
+```
+
+What the installer does:
+
+- copies the BitBeast profiles into `~/.config/bitbeasts/`
+- installs wallpapers into `~/.local/share/bitbeast/wallpapers/`
+- installs the `bitbeast` CLI to `~/.local/bin/bitbeast`
+- copies the Hyprland, Waybar, Kitty, and Rofi config files into `~/.config/`
+- activates your selected theme
+- backs up replaced files into `~/.local/state/bitbeast-installer/backups/` unless you use `--force`
+
+If you use `--apply`, the installer also reloads the live Hyprland session components right away.
+
 ## Included themes
 
 - `dranzer`
@@ -104,7 +131,7 @@ The switcher will:
 Notes:
 
 - `cava` reads the updated config on next launch; if it is already running, restart it once after switching themes
-- wallpapers are always local file paths from this repository
+- wallpapers are installed into `~/.local/share/bitbeast/wallpapers/`
 
 ## Hyprland integration
 
@@ -145,7 +172,7 @@ Cava reads:
 1. Copy any existing folder from `~/.config/bitbeasts/`.
 2. Rename it to the new theme name.
 3. Update `colors.conf`, `hyprland.conf`, `waybar.css`, `kitty.conf`, `rofi.rasi`, `cava.conf`, and `wallpaper.conf`.
-4. Point `wallpaper.conf` to an existing local image path.
+4. Put the image in the repo root and set `wallpaper.conf` to `@wallpapers/<image-name>`.
 5. Run `bitbeast <new-theme>`.
 
 No script changes are needed as long as the new folder follows the same file layout.
