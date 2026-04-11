@@ -36,6 +36,7 @@ tooltip label {
 #pulseaudio,
 #network,
 #battery,
+#backlight,
 #custom-style,
 #custom-wallpaper,
 #tray {
@@ -73,6 +74,7 @@ tooltip label {
 #pulseaudio:hover,
 #network:hover,
 #battery:hover,
+#backlight:hover,
 #custom-style:hover,
 #custom-wallpaper:hover,
 #tray:hover {
@@ -121,6 +123,7 @@ tooltip label {
 #network,
 #pulseaudio,
 #battery,
+#backlight,
 #tray {
     color: alpha(@text, 0.92);
 }
