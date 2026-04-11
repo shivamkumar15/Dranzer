@@ -26,6 +26,7 @@ What the installer does:
 - installs wallpapers into `~/.local/share/bitbeast/wallpapers/`
 - installs the `bitbeast` CLI to `~/.local/bin/bitbeast`
 - copies the Hyprland, Waybar, Kitty, and Rofi config files into `~/.config/`
+- installs the shipped Waybar style variants into `~/.config/waybar/styles/`
 - activates your selected theme
 - backs up replaced files into `~/.local/state/bitbeast-installer/backups/` unless you use `--force`
 
@@ -40,6 +41,14 @@ If you use `--apply`, the installer also reapplies the selected theme to the liv
 - `galeon`
 - `burningcerbrus`
 
+## Included Waybar styles
+
+- `ember`
+- `glacier`
+- `forge`
+- `eclipse`
+- `throne`
+
 ## Folder structure
 
 ```text
@@ -47,6 +56,7 @@ If you use `--apply`, the installer also reapplies the selected theme to the liv
 ├── .config
 │   ├── bitbeast
 │   │   ├── current.conf
+│   │   ├── current.style
 │   │   ├── current.theme
 │   │   └── wallpaper.conf
 │   ├── bitbeasts
@@ -71,8 +81,15 @@ If you use `--apply`, the installer also reapplies the selected theme to the liv
 │   │   └── config.rasi
 │   └── waybar
 │       ├── bitbeast.css
+│       ├── bitbeast-style.css
 │       ├── config.jsonc
-│       └── style.css
+│       ├── style.css
+│       └── styles
+│           ├── eclipse.css
+│           ├── ember.css
+│           ├── forge.css
+│           ├── glacier.css
+│           └── throne.css
 └── .local
     └── bin
         └── bitbeast
@@ -95,10 +112,12 @@ Every profile in `~/.config/bitbeasts/<theme>/` includes:
 The switcher copies one BitBeast profile into these active files:
 
 - `~/.config/bitbeast/current.conf`
+- `~/.config/bitbeast/current.style`
 - `~/.config/bitbeast/current.theme`
 - `~/.config/bitbeast/wallpaper.conf`
 - `~/.config/hypr/bitbeast-theme.conf`
 - `~/.config/waybar/bitbeast.css`
+- `~/.config/waybar/bitbeast-style.css`
 - `~/.config/kitty/bitbeast.conf`
 - `~/.config/rofi/bitbeast.rasi`
 - `~/.config/cava/config`
@@ -122,6 +141,12 @@ Other available commands:
 ```sh
 bitbeast list
 bitbeast pick
+bitbeast style list
+bitbeast style ember
+bitbeast style cycle
+bitbeast pick-style
+bitbeast current-theme
+bitbeast current-style
 bitbeast restore-wallpaper
 bitbeast session-init
 ```
@@ -131,7 +156,7 @@ What `bitbeast <theme-name>` does:
 - validates the requested theme exists
 - verifies the required files are present
 - copies the selected theme into the active config locations
-- updates `~/.config/bitbeast/current.conf`, `current.theme`, and `wallpaper.conf`
+- updates `~/.config/bitbeast/current.conf`, `current.style`, `current.theme`, and `wallpaper.conf`
 - restores the wallpaper with `swww`
 - reloads Hyprland with `hyprctl reload`
 - restarts Waybar without leaving duplicate bars behind
@@ -140,9 +165,12 @@ What `bitbeast <theme-name>` does:
 Notes:
 
 - `bitbeast pick` opens a Rofi picker for the built-in wallpaper and theme set
+- `bitbeast pick-style` opens a Rofi picker for the shipped Waybar style variants
+- `bitbeast style cycle` rotates through the installed Waybar looks and restarts Waybar
+- clicking the `beast`, `style`, and `wall` modules in Waybar gives quick access to theme switching, style cycling, and wallpaper restore
 - choosing a wallpaper from the picker automatically applies the matching theme
 - `bitbeast restore-wallpaper` restores the saved wallpaper from the current BitBeast state
-- `bitbeast session-init` is intended for Hyprland startup and restores the wallpaper before restarting Waybar
+- `bitbeast session-init` restores the wallpaper before restarting Waybar
 - `cava` reads the updated config on next launch; if it is already running, restart it once after switching themes
 - wallpapers are installed into `~/.local/share/bitbeast/wallpapers/`
 
@@ -168,9 +196,15 @@ Waybar reads:
 
 - `~/.config/waybar/style.css`
 - `~/.config/waybar/bitbeast.css`
+- `~/.config/waybar/bitbeast-style.css`
 - `~/.config/waybar/config.jsonc`
 
-The shipped Waybar config keeps workspaces `1` through `8` visible as persistent workspace buttons.
+The shipped Waybar config now includes:
+
+- persistent workspace buttons for `1` through `8`
+- clickable `beast`, `style`, and `wall` controls
+- extra `cpu` and `ram` status modules
+- five switchable style variants layered on top of each BitBeast color palette
 
 ## App integration
 

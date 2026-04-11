@@ -1,0 +1,30 @@
+window#waybar {
+    background: alpha(@bg-alt, 0.58);
+    border: 1px solid alpha(@text, 0.14);
+    border-radius: 22px;
+    box-shadow: 0 10px 28px alpha(@bg, 0.22);
+}
+
+#custom-theme,
+#workspaces,
+#clock,
+#cpu,
+#memory,
+#pulseaudio,
+#network,
+#battery,
+#custom-style,
+#custom-wallpaper,
+#tray {
+    background: alpha(@bg, 0.24);
+    border: 1px solid alpha(@text, 0.1);
+}
+
+#workspaces button:hover {
+    background: alpha(@text, 0.14);
+}
+
+#workspaces button.active {
+    background: alpha(@text, 0.92);
+    color: @bg;
+}

@@ -42,8 +42,7 @@ EOF
 ensure_theme_exists() {
     theme_dir=$1
     if [ ! -d "$THEMES_SRC_DIR/$theme_dir" ]; then
-        printf 'Unknown BitBeast theme: %s
-' "$theme_dir" >&2
+        printf 'Unknown BitBeast theme: %s\n' "$theme_dir" >&2
         exit 1
     fi
 }
@@ -101,8 +100,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         --theme)
             [ $# -ge 2 ] || {
-                printf 'Missing value for --theme
-' >&2
+                printf 'Missing value for --theme\n' >&2
                 exit 1
             }
             THEME_NAME=$2
@@ -121,8 +119,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            printf 'Unknown option: %s
-' "$1" >&2
+            printf 'Unknown option: %s\n' "$1" >&2
             usage >&2
             exit 1
             ;;
@@ -135,13 +132,16 @@ ensure_theme_exists "$THEME_NAME"
 mkdir -p "$BIN_DIR" "$STATE_DIR" "$WALLPAPER_DEST_DIR"
 
 install_dir "$THEMES_SRC_DIR" "$THEMES_DEST_DIR"
+install_dir "$REPO_DIR/.config/waybar/styles" "$CONFIG_HOME/waybar/styles"
 
 for wallpaper_name in $WALLPAPER_SRC_FILES; do
     install_file "$REPO_DIR/$wallpaper_name" "$WALLPAPER_DEST_DIR/$wallpaper_name"
 done
 
+install_file "$REPO_DIR/.config/bitbeast/current.style" "$STATE_DIR/current.style"
 install_file "$REPO_DIR/.config/hypr/hyprland.conf" "$CONFIG_HOME/hypr/hyprland.conf"
 install_file "$REPO_DIR/.config/waybar/style.css" "$CONFIG_HOME/waybar/style.css"
+install_file "$REPO_DIR/.config/waybar/bitbeast-style.css" "$CONFIG_HOME/waybar/bitbeast-style.css"
 install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config.jsonc"
 install_file "$REPO_DIR/.config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
 install_file "$REPO_DIR/.config/rofi/config.rasi" "$CONFIG_HOME/rofi/config.rasi"
@@ -154,28 +154,21 @@ else
     BITBEAST_SKIP_RUNTIME=1 "$BIN_DIR/bitbeast" "$THEME_NAME"
 fi
 
-printf '
-Installed BitBeast to %s
-' "$CONFIG_HOME"
-printf 'Default theme: %s
-' "$THEME_NAME"
-printf 'Wallpapers: %s
-' "$WALLPAPER_DEST_DIR"
-printf 'CLI: %s
-' "$BIN_DIR/bitbeast"
+printf '\nInstalled BitBeast to %s\n' "$CONFIG_HOME"
+printf 'Default theme: %s\n' "$THEME_NAME"
+printf 'Default Waybar style: %s\n' "$(sed -n '1p' "$STATE_DIR/current.style")"
+printf 'Wallpapers: %s\n' "$WALLPAPER_DEST_DIR"
+printf 'CLI: %s\n' "$BIN_DIR/bitbeast"
 
 if [ "$BACKUPS_CREATED" -eq 1 ]; then
-    printf 'Backups: %s
-' "$BACKUP_ROOT"
+    printf 'Backups: %s\n' "$BACKUP_ROOT"
 fi
 
 if [ "$APPLY_RUNTIME" -eq 0 ]; then
-    printf 'Run `bitbeast %s` after login if you want to reload the live session immediately.
-' "$THEME_NAME"
+    printf 'Run `bitbeast %s` after login if you want to reload the live session immediately.\n' "$THEME_NAME"
 fi
 
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
-    *) printf 'Add %s to your PATH if `bitbeast` is not found in new shells.
-' "$BIN_DIR" ;;
+    *) printf 'Add %s to your PATH if `bitbeast` is not found in new shells.\n' "$BIN_DIR" ;;
 esac

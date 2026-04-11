@@ -8,10 +8,12 @@ STATE_DIR="$CONFIG_HOME/bitbeast"
 THEMES_DIR="$CONFIG_HOME/bitbeasts"
 HYPR_DIR="$CONFIG_HOME/hypr"
 WAYBAR_DIR="$CONFIG_HOME/waybar"
+WAYBAR_STYLES_DIR="$WAYBAR_DIR/styles"
 KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
 WALLPAPER_DIR="${BITBEAST_WALLPAPER_DIR:-$DATA_HOME/bitbeast/wallpapers}"
+DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-ember}"
 
 usage() {
     cat >&2 <<EOF_USAGE
@@ -19,12 +21,23 @@ Usage:
   bitbeast <theme-name>
   bitbeast list
   bitbeast pick
+  bitbeast style <style-name>
+  bitbeast style list
+  bitbeast style cycle
+  bitbeast pick-style
+  bitbeast current-theme
+  bitbeast current-style
   bitbeast restore-wallpaper
   bitbeast session-init
 
 Available themes:
 EOF_USAGE
     list_themes >&2
+    cat >&2 <<EOF_STYLES
+
+Available Waybar styles:
+EOF_STYLES
+    list_styles >&2
 }
 
 warn() {
@@ -35,6 +48,13 @@ list_themes() {
     for dir in "$THEMES_DIR"/*; do
         [ -d "$dir" ] || continue
         basename "$dir"
+    done | LC_ALL=C sort
+}
+
+list_styles() {
+    for file_path in "$WAYBAR_STYLES_DIR"/*.css; do
+        [ -f "$file_path" ] || continue
+        basename "$file_path" .css
     done | LC_ALL=C sort
 }
 
@@ -59,6 +79,20 @@ resolve_wallpaper_path() {
         *)
             printf '%s\n' "$wallpaper_value"
             ;;
+    esac
+}
+
+theme_wallpaper_filename() {
+    theme_name=$1
+
+    case $theme_name in
+        burningcerbrus) printf 'BurningCerbrus.png\n' ;;
+        draciel) printf 'Dracel.png\n' ;;
+        dragoon) printf 'Dragoon.png\n' ;;
+        dranzer) printf 'Dranzer.png\n' ;;
+        driger) printf 'Drigger.png\n' ;;
+        galeon) printf 'Galeon.png\n' ;;
+        *) return 1 ;;
     esac
 }
 
@@ -91,6 +125,47 @@ current_theme_name() {
     fi
 }
 
+current_style_name() {
+    if [ -f "$STATE_DIR/current.style" ]; then
+        sed -n '1p' "$STATE_DIR/current.style" | tr '[:upper:]' '[:lower:]'
+        return 0
+    fi
+
+    printf '%s\n' "$DEFAULT_WAYBAR_STYLE"
+}
+
+style_variant_path() {
+    style_name=$1
+    style_name=$(printf '%s' "$style_name" | tr '[:upper:]' '[:lower:]')
+    style_path="$WAYBAR_STYLES_DIR/$style_name.css"
+
+    if [ ! -f "$style_path" ]; then
+        printf 'Unknown Waybar style: %s\n' "$style_name" >&2
+        return 1
+    fi
+
+    printf '%s\n' "$style_path"
+}
+
+write_active_style() {
+    style_name=$1
+    style_file=$(style_variant_path "$style_name") || return 1
+
+    mkdir -p "$STATE_DIR" "$WAYBAR_DIR"
+    cp "$style_file" "$WAYBAR_DIR/bitbeast-style.css"
+    printf '%s\n' "$(basename "$style_file" .css)" > "$STATE_DIR/current.style"
+}
+
+ensure_waybar_style() {
+    style_name=$(current_style_name)
+
+    if write_active_style "$style_name" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    write_active_style "$DEFAULT_WAYBAR_STYLE"
+}
+
 saved_wallpaper_path() {
     if [ ! -f "$STATE_DIR/wallpaper.conf" ]; then
         return 1
@@ -101,6 +176,18 @@ saved_wallpaper_path() {
 
     [ -n "$wallpaper_value" ] || return 1
     resolve_wallpaper_path "$wallpaper_value"
+}
+
+fallback_wallpaper_path() {
+    theme_name=$(current_theme_name || true)
+    [ -n "$theme_name" ] || return 1
+
+    wallpaper_name=$(theme_wallpaper_filename "$theme_name" || true)
+    [ -n "$wallpaper_name" ] || return 1
+
+    wallpaper_path="$WALLPAPER_DIR/$wallpaper_name"
+    [ -f "$wallpaper_path" ] || return 1
+    printf '%s\n' "$wallpaper_path"
 }
 
 ensure_swww_daemon() {
@@ -127,10 +214,18 @@ apply_wallpaper() {
 
     ensure_swww_daemon || return 1
 
-    swww img "$wallpaper_path" --transition-type any --transition-duration 1 >/dev/null 2>&1 || {
-        warn 'failed to set wallpaper with swww.'
-        return 1
-    }
+    attempt=1
+    while [ "$attempt" -le 5 ]; do
+        if swww img "$wallpaper_path" --transition-type any --transition-duration 1 >/dev/null 2>&1; then
+            return 0
+        fi
+
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    warn 'failed to set wallpaper with swww.'
+    return 1
 }
 
 restore_wallpaper() {
@@ -139,8 +234,12 @@ restore_wallpaper() {
 
     if [ -z "$wallpaper_path" ] || [ ! -f "$wallpaper_path" ]; then
         if [ -n "$theme_name" ] && [ -d "$THEMES_DIR/$theme_name" ]; then
-            wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name")
+            wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name" || true)
         fi
+    fi
+
+    if [ -z "$wallpaper_path" ] || [ ! -f "$wallpaper_path" ]; then
+        wallpaper_path=$(fallback_wallpaper_path || true)
     fi
 
     [ -n "$wallpaper_path" ] || return 1
@@ -177,6 +276,20 @@ restart_waybar() {
     waybar >/dev/null 2>&1 &
 }
 
+activate_style() {
+    style_name=$1
+
+    write_active_style "$style_name"
+
+    if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
+        printf 'Waybar style activated: %s\n' "$(current_style_name)"
+        return 0
+    fi
+
+    restart_waybar || true
+    printf 'Waybar style activated: %s\n' "$(current_style_name)"
+}
+
 activate_theme() {
     theme_name=$1
     theme_name=$(printf '%s' "$theme_name" | tr '[:upper:]' '[:lower:]')
@@ -207,6 +320,7 @@ activate_theme() {
 
     wallpaper_path=$(theme_wallpaper_path "$theme_dir")
     printf 'wallpaper="%s"\n' "$wallpaper_path" > "$STATE_DIR/wallpaper.conf"
+    ensure_waybar_style || warn 'failed to sync Waybar style.'
 
     if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
         printf 'BitBeast theme activated: %s\n' "$theme_name"
@@ -244,7 +358,69 @@ EOF_LIST
     activate_theme "$chosen_theme"
 }
 
+cycle_style() {
+    styles=$(list_styles)
+    [ -n "$styles" ] || {
+        printf 'No Waybar styles available in %s\n' "$WAYBAR_STYLES_DIR" >&2
+        exit 1
+    }
+
+    current_style=$(current_style_name)
+    next_style=
+    first_style=
+    found_current=0
+
+    for style_name in $styles; do
+        [ -n "$first_style" ] || first_style=$style_name
+
+        if [ "$found_current" -eq 1 ]; then
+            next_style=$style_name
+            break
+        fi
+
+        if [ "$style_name" = "$current_style" ]; then
+            found_current=1
+        fi
+    done
+
+    [ -n "$next_style" ] || next_style=$first_style
+    activate_style "$next_style"
+}
+
+pick_style() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast pick-style\n' >&2
+        exit 1
+    fi
+
+    current_style=$(current_style_name)
+    selection=$(
+        while IFS= read -r style_name; do
+            [ -n "$style_name" ] || continue
+            if [ "$style_name" = "$current_style" ]; then
+                printf '%s\tactive\n' "$style_name"
+            else
+                printf '%s\tstyle\n' "$style_name"
+            fi
+        done <<EOF_STYLE_LIST
+$(list_styles)
+EOF_STYLE_LIST
+    )
+
+    [ -n "$selection" ] || {
+        printf 'No Waybar styles available in %s\n' "$WAYBAR_STYLES_DIR" >&2
+        exit 1
+    }
+
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Waybar style")
+    chosen_style=$(printf '%s' "$choice" | cut -f1)
+
+    [ -n "$chosen_style" ] || exit 0
+    activate_style "$chosen_style"
+}
+
 session_init() {
+    ensure_waybar_style || true
     restore_wallpaper || true
     restart_waybar || true
 }
@@ -262,6 +438,37 @@ case $command_name in
         ;;
     pick)
         pick_theme
+        ;;
+    style)
+        if [ $# -lt 2 ]; then
+            usage
+            exit 1
+        fi
+
+        case $2 in
+            list)
+                list_styles
+                ;;
+            cycle)
+                cycle_style
+                ;;
+            *)
+                [ $# -eq 2 ] || {
+                    usage
+                    exit 1
+                }
+                activate_style "$2"
+                ;;
+        esac
+        ;;
+    pick-style)
+        pick_style
+        ;;
+    current-theme)
+        current_theme_name
+        ;;
+    current-style)
+        current_style_name
         ;;
     restore-wallpaper)
         restore_wallpaper

@@ -1,14 +1,22 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 34,
-  "spacing": 8,
-  "margin-top": 8,
-  "margin-left": 10,
-  "margin-right": 10,
-  "modules-left": ["hyprland/workspaces"],
+  "height": 40,
+  "spacing": 10,
+  "margin-top": 10,
+  "margin-left": 12,
+  "margin-right": 12,
+  "modules-left": ["custom/theme", "hyprland/workspaces"],
   "modules-center": ["clock"],
-  "modules-right": ["pulseaudio", "network", "battery", "tray"],
+  "modules-right": ["cpu", "memory", "network", "pulseaudio", "battery", "custom/style", "custom/wallpaper", "tray"],
+  "custom/theme": {
+    "format": "beast {}",
+    "exec": "~/.local/bin/bitbeast current-theme",
+    "interval": 2,
+    "tooltip": true,
+    "on-click": "~/.local/bin/bitbeast pick",
+    "on-click-right": "~/.local/bin/bitbeast restore-wallpaper"
+  },
   "hyprland/workspaces": {
     "disable-scroll": true,
     "all-outputs": true,
@@ -26,29 +34,58 @@
   },
   "clock": {
     "format": "{:%a %d %b  %H:%M}",
-    "tooltip-format": "<big>{:%Y-%m-%d}</big>\n<tt>{calendar}</tt>"
+    "format-alt": "{:%H:%M  |  week %V}",
+    "tooltip-format": "<big>{:%A, %d %B %Y}</big>\n<tt>{calendar}</tt>"
+  },
+  "cpu": {
+    "format": "cpu {usage}%",
+    "tooltip": false
+  },
+  "memory": {
+    "format": "ram {}%",
+    "tooltip-format": "Memory usage: {}%"
   },
   "pulseaudio": {
     "format": "{icon} {volume}%",
     "format-muted": "mute",
     "format-icons": {
       "default": ["vol", "vol", "vol"]
-    }
+    },
+    "tooltip": true,
+    "on-click": "pavucontrol"
   },
   "network": {
     "format-wifi": "wifi {essid}",
-    "format-ethernet": "eth",
-    "format-disconnected": "offline"
+    "format-ethernet": "eth {ipaddr}",
+    "format-disconnected": "offline",
+    "tooltip-format": "{ifname} via {gwaddr}"
   },
   "battery": {
-    "format": "{capacity}%",
+    "format": "bat {capacity}%",
     "format-charging": "chg {capacity}%",
+    "format-plugged": "ac {capacity}%",
     "states": {
       "warning": 30,
       "critical": 15
     }
   },
+  "custom/style": {
+    "format": "style {}",
+    "exec": "~/.local/bin/bitbeast current-style",
+    "interval": 2,
+    "tooltip": true,
+    "on-click": "sh -lc '~/.local/bin/bitbeast style cycle'",
+    "on-click-right": "~/.local/bin/bitbeast pick-style"
+  },
+  "custom/wallpaper": {
+    "format": "{}",
+    "exec": "printf 'wall'",
+    "interval": 86400,
+    "tooltip": true,
+    "on-click": "~/.local/bin/bitbeast restore-wallpaper",
+    "on-click-right": "~/.local/bin/bitbeast pick"
+  },
   "tray": {
-    "spacing": 10
+    "spacing": 12
   }
 }
