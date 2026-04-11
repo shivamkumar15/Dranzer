@@ -187,8 +187,13 @@ The default Hyprland config includes:
 - 8 persistent workspaces: `1` through `8`
 - `SUPER + 1..8` to switch workspaces
 - `SUPER + SHIFT + 1..8` to move the active window to a workspace
-- `SUPER + R` to open Rofi drun
-- `SUPER + W` to open the BitBeast wallpaper and theme picker
+- `SUPER + r` to open Rofi drun
+- `SUPER + w` to open the BitBeast wallpaper and theme picker
+- `SUPER + b` to open the browser
+- `SUPER + Return` to open the terminal
+- `SUPER + q` to kill the active window
+- `SUPER + f` to toggle fullscreen
+- `SUPER + space` to toggle floating
 
 ## Waybar integration
 
@@ -203,7 +208,9 @@ The shipped Waybar config now includes:
 
 - persistent workspace buttons for `1` through `8`
 - clickable `beast`, `style`, and `wall` controls
-- extra `cpu` and `ram` status modules
+- interactive `cpu` and `ram` status modules (click for a system monitor)
+- interactive `network` module (click for network manager UI)
+- interactive `backlight` brightness control (scroll over it to adjust screen brightness natively)
 - five switchable style variants layered on top of each BitBeast color palette
 
 ## App integration
