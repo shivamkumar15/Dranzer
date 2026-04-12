@@ -1,5 +1,5 @@
 * {
-    bg: #100d16e6;
+    bg: #100d167a;
     bg-alt: #272035;
     primary: #af91ea;
     secondary: #2d2d3f;
@@ -16,19 +16,19 @@ window {
     anchor: center;
     width: 720px;
     border: @border;
-    border-radius: 22px;
+    border-radius: 28px;
     border-color: @accent;
     background-color: @bg;
 }
 
-mainbox { children: [ inputbar, listview, mode-switcher ]; spacing: 18px; padding: 22px; background-color: transparent; }
-inputbar { children: [ prompt, entry ]; spacing: 12px; padding: 14px 18px; border-radius: 16px; background-color: @bg-alt; text-color: @text; }
+mainbox { children: [ inputbar, listview, mode-switcher ]; spacing: 18px; padding: 32px; background-color: transparent; }
+inputbar { children: [ prompt, entry ]; spacing: 12px; padding: 18px 22px; border-radius: 16px; background-color: @bg-alt; text-color: @text; }
 prompt { text-color: @accent; str: "Galeon"; }
 entry { placeholder: "Summon the hunt"; placeholder-color: @muted; text-color: @text; }
 listview { lines: 8; columns: 1; fixed-height: false; border: 0px; background-color: transparent; scrollbar: false; }
 element { padding: 14px 16px; border-radius: 16px; background-color: transparent; text-color: @text; }
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: #100d16; }
+element selected.normal { border: 1px; border-color: @primary; box-shadow: 0 4px 12px;  background-color: @accent; text-color: #100d16; }
 element selected.active { background-color: @primary; text-color: #100d16; }
 element selected.urgent { background-color: @urgent; text-color: #100d16; }
 element-icon { size: 28px; vertical-align: 0.5; }

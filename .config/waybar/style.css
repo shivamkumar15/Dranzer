@@ -4,31 +4,34 @@
 * {
     border: none;
     border-radius: 0;
-    font-family: "JetBrainsMono Nerd Font", monospace;
-    font-size: 13px;
+    font-family: "JetBrainsMono Nerd Font", "Font Awesome 6 Free", monospace;
+    font-size: 14px;
     min-height: 0;
-    transition-property: background-color, border-color, color, box-shadow;
-    transition-duration: 180ms;
-    transition-timing-function: ease;
+    transition-property: background-color, border-color, color, box-shadow, transform;
+    transition-duration: 250ms;
+    transition-timing-function: cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
+/* Make the overall bar literally float over the screen natively */
 window#waybar {
-    background: alpha(@bg, 0.85);
-    border-bottom: 2px solid alpha(@accent, 0.1);
+    background: transparent;
     color: @text;
 }
 
+/* Enhance Tooltips */
 tooltip {
-    background: alpha(@bg-alt, 0.96);
-    border: 1px solid alpha(@accent, 0.3);
-    border-radius: 14px;
+    background: alpha(@bg-alt, 0.90);
+    border: 2px solid alpha(@accent, 0.5);
+    border-radius: 20px;
+    box-shadow: 0 4px 15px alpha(@bg, 0.5);
     color: @text;
 }
-
 tooltip label {
-    padding: 2px 4px;
+    padding: 6px 10px;
+    font-weight: 600;
 }
 
+/* Glassmorphism Floating Pills */
 #custom-theme,
 #workspaces,
 #clock,
@@ -41,33 +44,78 @@ tooltip label {
 #custom-style,
 #custom-wallpaper,
 #tray {
-    margin: 6px 0;
-    min-height: 30px;
-    padding: 0 14px;
-    background: alpha(@secondary, 0.14);
-    border: 1px solid alpha(@accent, 0.16);
+    margin: 8px 5px;
+    min-height: 34px;
+    padding: 0 16px;
+    background: alpha(@bg, 0.70);
+    border: 1px solid alpha(@accent, 0.25);
     border-radius: 999px;
-    color: @text;
+    color: alpha(@text, 0.95);
+    box-shadow: 0 4px 12px alpha(#000000, 0.15);
 }
 
-#custom-theme,
-#custom-style,
-#custom-wallpaper {
-    font-weight: 700;
+/* Text coloring overrides for beauty */
+#clock {
+    color: @bg;
+    background: @accent; /* Pop the clock out! */
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    border: none;
 }
 
 #custom-theme {
     color: @accent;
+    font-weight: 900;
 }
 
-#custom-style {
+#workspaces {
+    padding: 0 8px;
+}
+#workspaces button {
+    min-width: 24px;
+    margin: 4px;
+    padding: 2px 8px;
+    background: transparent;
+    border-radius: 999px;
+    color: alpha(@text, 0.3);
+    font-size: 16px;
+}
+#workspaces button:hover {
+    color: @accent;
+    text-shadow: 0 0 10px alpha(@accent, 0.5);
+}
+#workspaces button.active {
     color: @primary;
+    text-shadow: 0 0 15px alpha(@primary, 0.8);
+    font-size: 18px; /* Slightly pop */
+}
+#workspaces button.urgent {
+    color: #ff3333;
+    animation: urgent-pulse 1s infinite alternate;
 }
 
-#custom-wallpaper {
-    color: alpha(@text, 0.9);
+/* System Monitor Blocks */
+#cpu {
+    color: #ff8b94;
+}
+#memory {
+    color: #ffaaa5;
+}
+#battery.charging,
+#battery.plugged {
+    color: #88d8b0;
+    text-shadow: 0 0 8px alpha(#88d8b0, 0.4);
+}
+#battery.warning:not(.charging) {
+    color: #ffcc5c;
+}
+#battery.critical:not(.charging) {
+    color: @bg;
+    background: #ff6f69;
+    animation: critical-pulse 1s infinite alternate;
 }
 
+/* Hover Glowing & Elevation Effects universally */
 #custom-theme:hover,
 #clock:hover,
 #cpu:hover,
@@ -79,93 +127,25 @@ tooltip label {
 #custom-style:hover,
 #custom-wallpaper:hover,
 #tray:hover {
-    background: alpha(@primary, 0.24);
-    border-color: alpha(@accent, 0.28);
-}
-
-#workspaces {
-    margin-left: 8px;
-    padding: 0 8px;
-}
-
-#workspaces button {
-    min-width: 22px;
-    margin: 4px 3px;
-    padding: 0 10px;
-    background: transparent;
-    border-radius: 999px;
-    color: alpha(@text, 0.65);
-    font-weight: 700;
-}
-
-#workspaces button:hover {
-    color: @text;
-    background: alpha(@primary, 0.28);
-}
-
-#workspaces button.active {
+    background: alpha(@primary, 0.40);
+    border-color: alpha(@accent, 0.80);
     color: @bg;
-    background: @accent;
+    box-shadow: 0 0 20px alpha(@accent, 0.3);
+    transform: translateY(-2px);
 }
 
-#workspaces button.urgent {
-    color: @text;
-    background: @primary;
-}
-
-#clock {
-    color: @accent;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-}
-
-#cpu,
-#memory,
-#network,
-#pulseaudio,
-#battery,
-#backlight,
+/* Unique Tray adjustments */
 #tray {
-    color: alpha(@text, 0.92);
+    margin-right: 18px;
+    padding: 0 12px;
 }
 
-#pulseaudio.muted,
-#network.disconnected {
-    color: alpha(@text, 0.55);
+@keyframes urgent-pulse {
+    from { color: alpha(#ff3333, 0.5); }
+    to { color: alpha(#ff3333, 1.0); text-shadow: 0 0 10px alpha(#ff3333, 0.8); }
 }
 
-#battery.charging,
-#battery.plugged {
-    color: @accent;
-}
-
-#battery.warning:not(.charging):not(.plugged),
-#battery.critical:not(.charging):not(.plugged) {
-    color: @bg;
-    background: @accent;
-}
-
-#battery.critical:not(.charging):not(.plugged) {
-    animation-name: bitbeast-alert;
-    animation-duration: 1.1s;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-}
-
-#tray {
-    margin-right: 8px;
-}
-
-@keyframes bitbeast-alert {
-    0% {
-        background: @accent;
-    }
-
-    50% {
-        background: @primary;
-    }
-
-    100% {
-        background: @accent;
-    }
+@keyframes critical-pulse {
+    from { background: #ff6f69; }
+    to { background: #ff3333; box-shadow: 0 0 15px alpha(#ff3333, 0.6); }
 }

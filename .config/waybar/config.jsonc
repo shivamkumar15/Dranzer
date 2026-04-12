@@ -1,16 +1,16 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 40,
-  "spacing": 10,
-  "margin-top": 10,
-  "margin-left": 12,
-  "margin-right": 12,
-  "modules-left": ["custom/theme", "hyprland/workspaces"],
+  "height": 44,
+  "spacing": 8,
+  "margin-top": 12,
+  "margin-left": 18,
+  "margin-right": 18,
+  "modules-left": ["custom/theme", "hyprland/workspaces", "custom/wallpaper"],
   "modules-center": ["clock"],
-  "modules-right": ["cpu", "memory", "network", "backlight", "pulseaudio", "battery", "custom/style", "custom/wallpaper", "tray"],
+  "modules-right": ["cpu", "memory", "network", "backlight", "pulseaudio", "battery", "custom/style", "tray"],
   "custom/theme": {
-    "format": "beast {}",
+    "format": " {}",
     "exec": "~/.local/bin/bitbeast current-theme",
     "interval": 2,
     "tooltip": true,
@@ -21,66 +21,66 @@
     "disable-scroll": true,
     "all-outputs": true,
     "sort-by-number": true,
+    "format": "{icon}",
+    "format-icons": {
+      "default": "",
+      "active": "",
+      "urgent": ""
+    },
     "persistent-workspaces": {
-      "1": [],
-      "2": [],
-      "3": [],
-      "4": [],
-      "5": [],
-      "6": [],
-      "7": [],
-      "8": []
+      "1": [], "2": [], "3": [], "4": [], "5": []
     }
   },
   "clock": {
-    "format": "{:%a %d %b  %H:%M}",
-    "format-alt": "{:%H:%M  |  week %V}",
-    "tooltip-format": "<big>{:%A, %d %B %Y}</big>\n<tt>{calendar}</tt>"
+    "format": " {:%H:%M}",
+    "format-alt": " {:%A, %d %B}",
+    "tooltip-format": "<tt><small>{calendar}</small></tt>"
   },
   "cpu": {
-    "format": "cpu {usage}%",
+    "format": " {usage}%",
     "tooltip": false,
     "on-click": "kitty -e btop"
   },
   "memory": {
-    "format": "ram {}%",
+    "format": " {}%",
     "tooltip-format": "Memory usage: {}%",
     "on-click": "kitty -e btop"
   },
   "backlight": {
-    "format": "bri {percent}%",
+    "format": " {percent}%",
     "tooltip": true,
-    "on-scroll-up": "brightnessctl set 5%+",
-    "on-scroll-down": "brightnessctl set 5%-",
-    "on-click": "brightnessctl set 50%"
+    "on-scroll-up": "~/.local/bin/bitbeast brightness up",
+    "on-scroll-down": "~/.local/bin/bitbeast brightness down",
+    "on-click": "~/.local/bin/bitbeast brightness up"
   },
   "pulseaudio": {
     "format": "{icon} {volume}%",
-    "format-muted": "mute",
+    "format-muted": " Muted",
     "format-icons": {
-      "default": ["vol", "vol", "vol"]
+      "default": ["", "", ""]
     },
     "tooltip": true,
     "on-click": "pavucontrol"
   },
   "network": {
-    "format-wifi": "wifi {essid}",
-    "format-ethernet": "eth {ipaddr}",
-    "format-disconnected": "offline",
+    "format-wifi": " {essid}",
+    "format-ethernet": " {ipaddr}",
+    "format-disconnected": "⚠ Offline",
     "tooltip-format": "{ifname} via {gwaddr}",
     "on-click": "kitty -e nmtui"
   },
   "battery": {
-    "format": "bat {capacity}%",
-    "format-charging": "chg {capacity}%",
-    "format-plugged": "ac {capacity}%",
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-plugged": " {capacity}%",
+    "format-icons": ["", "", "", "", ""],
     "states": {
       "warning": 30,
       "critical": 15
     }
   },
   "custom/style": {
-    "format": "style {}",
+    "format": " {}",
     "exec": "~/.local/bin/bitbeast current-style",
     "interval": 2,
     "tooltip": true,
@@ -88,10 +88,8 @@
     "on-click-right": "~/.local/bin/bitbeast pick-style"
   },
   "custom/wallpaper": {
-    "format": "{}",
-    "exec": "printf 'wall'",
-    "interval": 86400,
-    "tooltip": true,
+    "format": "",
+    "tooltip-format": "Change Wallpaper",
     "on-click": "~/.local/bin/bitbeast restore-wallpaper",
     "on-click-right": "~/.local/bin/bitbeast pick"
   },

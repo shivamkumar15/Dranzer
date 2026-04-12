@@ -4,15 +4,26 @@ set -eu
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+
+SCRIPT_REALPATH=$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$SCRIPT_REALPATH")" && pwd)"
+REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+if [ ! -d "$CONFIG_HOME/bitbeasts" ] && [ -d "$REPO_DIR/.config/bitbeasts" ]; then
+    THEMES_DIR="$REPO_DIR/.config/bitbeasts"
+    WALLPAPER_DIR="${BITBEAST_WALLPAPER_DIR:-$REPO_DIR}"
+    WAYBAR_STYLES_DIR="$REPO_DIR/.config/waybar/styles"
+else
+    THEMES_DIR="$CONFIG_HOME/bitbeasts"
+    WALLPAPER_DIR="${BITBEAST_WALLPAPER_DIR:-$DATA_HOME/bitbeast/wallpapers}"
+    WAYBAR_STYLES_DIR="$CONFIG_HOME/waybar/styles"
+fi
+
 STATE_DIR="$CONFIG_HOME/bitbeast"
-THEMES_DIR="$CONFIG_HOME/bitbeasts"
 HYPR_DIR="$CONFIG_HOME/hypr"
 WAYBAR_DIR="$CONFIG_HOME/waybar"
-WAYBAR_STYLES_DIR="$WAYBAR_DIR/styles"
 KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
-WALLPAPER_DIR="${BITBEAST_WALLPAPER_DIR:-$DATA_HOME/bitbeast/wallpapers}"
 DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-ember}"
 
 usage() {
@@ -29,6 +40,7 @@ Usage:
   bitbeast current-style
   bitbeast restore-wallpaper
   bitbeast session-init
+  bitbeast brightness [up|down]
 
 Available themes:
 EOF_USAGE
@@ -483,6 +495,44 @@ session_init() {
     restart_waybar || true
 }
 
+brightness_control() {
+    action=$1
+    if command -v brightnessctl >/dev/null 2>&1; then
+        if [ "$action" = "up" ]; then
+            brightnessctl set 5%+
+        else
+            brightnessctl set 5%-
+        fi
+        return 0
+    fi
+    if command -v light >/dev/null 2>&1; then
+        if [ "$action" = "up" ]; then
+            light -A 5
+        else
+            light -U 5
+        fi
+        return 0
+    fi
+    backlight_dir=$(ls -d /sys/class/backlight/* 2>/dev/null | head -n 1)
+    if [ -n "$backlight_dir" ] && [ -w "$backlight_dir/brightness" ]; then
+        cur=$(cat "$backlight_dir/brightness")
+        max=$(cat "$backlight_dir/max_brightness")
+        step=$((max / 20))
+        [ "$step" -eq 0 ] && step=1
+        if [ "$action" = "up" ]; then
+            new=$((cur + step))
+            [ "$new" -gt "$max" ] && new=$max
+        else
+            new=$((cur - step))
+            [ "$new" -lt 0 ] && new=0
+        fi
+        echo "$new" > "$backlight_dir/brightness"
+        return 0
+    fi
+    warn "No brightness controller found (install brightnessctl)"
+    return 1
+}
+
 command_name=${1:-}
 
 if [ $# -eq 0 ]; then
@@ -533,6 +583,10 @@ case $command_name in
         ;;
     session-init)
         session_init
+        ;;
+    brightness)
+        [ $# -eq 2 ] || { usage; exit 1; }
+        brightness_control "$2"
         ;;
     *)
         if [ $# -ne 1 ]; then

@@ -1,5 +1,5 @@
 * {
-    bg: #120807e6;
+    bg: #1208077a;
     bg-alt: #2e1414;
     primary: #ee5a21;
     secondary: #7c3ab4;
@@ -16,19 +16,19 @@ window {
     anchor: center;
     width: 720px;
     border: @border;
-    border-radius: 22px;
+    border-radius: 28px;
     border-color: @accent;
     background-color: @bg;
 }
 
-mainbox { children: [ inputbar, listview, mode-switcher ]; spacing: 18px; padding: 22px; background-color: transparent; }
-inputbar { children: [ prompt, entry ]; spacing: 12px; padding: 14px 18px; border-radius: 16px; background-color: @bg-alt; text-color: @text; }
+mainbox { children: [ inputbar, listview, mode-switcher ]; spacing: 18px; padding: 32px; background-color: transparent; }
+inputbar { children: [ prompt, entry ]; spacing: 12px; padding: 18px 22px; border-radius: 16px; background-color: @bg-alt; text-color: @text; }
 prompt { text-color: @accent; str: "Cerbrus"; }
 entry { placeholder: "Unchain the inferno"; placeholder-color: @muted; text-color: @text; }
 listview { lines: 8; columns: 1; fixed-height: false; border: 0px; background-color: transparent; scrollbar: false; }
 element { padding: 14px 16px; border-radius: 16px; background-color: transparent; text-color: @text; }
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: #120807; }
+element selected.normal { border: 1px; border-color: @primary; box-shadow: 0 4px 12px;  background-color: @accent; text-color: #120807; }
 element selected.active { background-color: @primary; text-color: #faecff; }
 element selected.urgent { background-color: @urgent; text-color: #120807; }
 element-icon { size: 28px; vertical-align: 0.5; }
