@@ -205,23 +205,23 @@ fallback_wallpaper_path() {
     printf '%s\n' "$wallpaper_path"
 }
 
-ensure_awww_daemon() {
-    if ! command -v awww >/dev/null 2>&1; then
+ensure_swww_daemon() {
+    if ! command -v swww >/dev/null 2>&1; then
         return 1
     fi
 
-    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
-        awww-daemon --format xrgb >/dev/null 2>&1 &
+    if ! pgrep -x swww-daemon >/dev/null 2>&1; then
+        swww-daemon >/dev/null 2>&1 &
         sleep 1
     fi
 
     return 0
 }
 
-apply_wallpaper_awww() {
+apply_wallpaper_swww() {
     wallpaper_path=$1
 
-    ensure_awww_daemon || return 1
+    ensure_swww_daemon || return 1
 
     # Pick a random cinematic transition each time
     transition_index=$(( $(od -An -tu2 -N2 /dev/urandom | tr -d ' ') % 6 ))
@@ -230,18 +230,18 @@ apply_wallpaper_awww() {
         1) tr_type="grow";   tr_angle=0   ;;
         2) tr_type="wipe";   tr_angle=30  ;;
         3) tr_type="outer";  tr_angle=0   ;;
-        4) tr_type="wave";   tr_angle=135 ;;
+        4) tr_type="fade";   tr_angle=135 ;;
         5) tr_type="center"; tr_angle=0   ;;
     esac
 
     attempt=1
     while [ "$attempt" -le 5 ]; do
-        if awww img "$wallpaper_path" \
+        if swww img "$wallpaper_path" \
             --transition-type "$tr_type" \
             --transition-duration 2 \
-            --transition-fps 60 \
+            --transition-fps 144 \
             --transition-angle "$tr_angle" \
-            --transition-step 2 \
+            --transition-step 90 \
             --transition-bezier ".42,0,.58,1" \
             >/dev/null 2>&1; then
             return 0
@@ -277,11 +277,11 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Prefer awww for its smooth animated transitions (wave, grow, wipe, etc.)
-    if command -v awww >/dev/null 2>&1; then
+    # Prefer swww for its smooth animated transitions (wave, grow, wipe, etc.)
+    if command -v swww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
         pkill -x swaybg >/dev/null 2>&1 || true
-        if apply_wallpaper_awww "$wallpaper_path"; then
+        if apply_wallpaper_swww "$wallpaper_path"; then
             return 0
         fi
     fi
@@ -293,7 +293,7 @@ apply_wallpaper() {
         fi
     fi
 
-    warn 'No wallpaper backend available. Install awww (recommended) or swaybg.'
+    warn 'No wallpaper backend available. Install swww (recommended) or swaybg.'
     return 1
 }
 
