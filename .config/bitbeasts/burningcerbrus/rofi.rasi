@@ -28,7 +28,7 @@ entry { placeholder: "Unchain the inferno"; placeholder-color: @muted; text-colo
 listview { lines: 8; columns: 1; fixed-height: false; border: 0px; background-color: transparent; scrollbar: false; }
 element { padding: 14px 16px; border-radius: 16px; background-color: transparent; text-color: @text; }
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { border: 1px; border-color: @primary; box-shadow: 0 4px 12px;  background-color: @accent; text-color: #120807; }
+element selected.normal { border: 2px; border-color: @primary; background-color: @accent; text-color: #120807; }
 element selected.active { background-color: @primary; text-color: #faecff; }
 element selected.urgent { background-color: @urgent; text-color: #120807; }
 element-icon { size: 28px; vertical-align: 0.5; }
