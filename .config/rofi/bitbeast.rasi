@@ -69,6 +69,9 @@ element normal.normal { background-color: transparent; text-color: @text; }
 element selected.normal { background-color: @accent; text-color: @bg; }
 element selected.active { background-color: @primary; text-color: @text; }
 element selected.urgent { background-color: @urgent; text-color: @bg; }
+element alternate.normal { background-color: transparent; text-color: @text; }
+element alternate.active { background-color: transparent; text-color: @text; }
+element alternate.urgent { background-color: transparent; text-color: @urgent; }
 
 element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }

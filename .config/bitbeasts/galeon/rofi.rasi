@@ -31,6 +31,9 @@ element normal.normal { background-color: transparent; text-color: @text; }
 element selected.normal { border: 2px; border-color: @primary; background-color: @accent; text-color: #100d16; }
 element selected.active { background-color: @primary; text-color: #100d16; }
 element selected.urgent { background-color: @urgent; text-color: #100d16; }
+element alternate.normal { background-color: transparent; text-color: @text; }
+element alternate.active { background-color: transparent; text-color: @text; }
+element alternate.urgent { background-color: transparent; text-color: @urgent; }
 element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }
 mode-switcher { spacing: 10px; background-color: transparent; }

@@ -205,27 +205,45 @@ fallback_wallpaper_path() {
     printf '%s\n' "$wallpaper_path"
 }
 
-ensure_swww_daemon() {
-    if ! command -v swww >/dev/null 2>&1; then
+ensure_awww_daemon() {
+    if ! command -v awww >/dev/null 2>&1; then
         return 1
     fi
 
-    if ! pgrep -x swww-daemon >/dev/null 2>&1; then
-        swww-daemon --format xrgb >/dev/null 2>&1 &
+    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
+        awww-daemon --format xrgb >/dev/null 2>&1 &
         sleep 1
     fi
 
     return 0
 }
 
-apply_wallpaper_swww() {
+apply_wallpaper_awww() {
     wallpaper_path=$1
 
-    ensure_swww_daemon || return 1
+    ensure_awww_daemon || return 1
+
+    # Pick a random cinematic transition each time
+    transition_index=$(( $(od -An -tu2 -N2 /dev/urandom | tr -d ' ') % 6 ))
+    case $transition_index in
+        0) tr_type="wave";   tr_angle=45  ;;
+        1) tr_type="grow";   tr_angle=0   ;;
+        2) tr_type="wipe";   tr_angle=30  ;;
+        3) tr_type="outer";  tr_angle=0   ;;
+        4) tr_type="wave";   tr_angle=135 ;;
+        5) tr_type="center"; tr_angle=0   ;;
+    esac
 
     attempt=1
     while [ "$attempt" -le 5 ]; do
-        if swww img "$wallpaper_path" --transition-type any --transition-duration 1 >/dev/null 2>&1; then
+        if awww img "$wallpaper_path" \
+            --transition-type "$tr_type" \
+            --transition-duration 2 \
+            --transition-fps 60 \
+            --transition-angle "$tr_angle" \
+            --transition-step 2 \
+            --transition-bezier ".42,0,.58,1" \
+            >/dev/null 2>&1; then
             return 0
         fi
 
@@ -259,21 +277,23 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Use swaybg as requested (alternative to swww)
+    # Prefer awww for its smooth animated transitions (wave, grow, wipe, etc.)
+    if command -v awww >/dev/null 2>&1; then
+        # Kill swaybg if switching backends
+        pkill -x swaybg >/dev/null 2>&1 || true
+        if apply_wallpaper_awww "$wallpaper_path"; then
+            return 0
+        fi
+    fi
+
+    # Fallback to swaybg (no transitions, hard cut)
     if command -v swaybg >/dev/null 2>&1; then
         if apply_wallpaper_swaybg "$wallpaper_path"; then
             return 0
         fi
     fi
 
-    # Fallback to swww only if swaybg is missing
-    if command -v swww >/dev/null 2>&1; then
-        if apply_wallpaper_swww "$wallpaper_path"; then
-            return 0
-        fi
-    fi
-
-    warn 'No wallpaper backend available. Install swaybg or swww.'
+    warn 'No wallpaper backend available. Install awww (recommended) or swaybg.'
     return 1
 }
 
@@ -374,10 +394,12 @@ activate_theme() {
         return 0
     fi
 
+    # Restart Waybar first so the CSS swap is visible immediately,
+    # then apply wallpaper and reload Hyprland in parallel.
+    restart_waybar || true
     apply_wallpaper "$wallpaper_path" || true
     reload_kitty
     reload_hyprland
-    restart_waybar || true
 
     printf 'BitBeast theme activated: %s\n' "$theme_name"
 }
