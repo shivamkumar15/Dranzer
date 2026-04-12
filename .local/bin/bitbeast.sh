@@ -316,9 +316,11 @@ restart_waybar() {
     fi
 
     echo "Restarting Waybar natively..." >&2
-    pkill -x waybar >/dev/null 2>&1 || true
-    sleep 0.2
-    waybar >/dev/null 2>&1 &
+    if pgrep -x waybar >/dev/null 2>&1; then
+        pkill -SIGUSR2 -x waybar >/dev/null 2>&1 || true
+    else
+        waybar >/dev/null 2>&1 &
+    fi
 }
 
 activate_style() {
