@@ -1,6 +1,6 @@
 * {
-    bg: #08111fe6;
-    bg-alt: #122844;
+    bg: #08111ff0;
+    bg-alt: #122844cc;
     primary: #2d66df;
     secondary: #158fc7;
     accent: #89ebff;
@@ -41,7 +41,7 @@ inputbar {
 prompt {
     text-color: @accent;
     font: "JetBrainsMono Nerd Font Bold 16";
-    str: "  ";
+    str: "  ";
 }
 
 entry {
@@ -64,17 +64,17 @@ listview {
 element {
     padding: 16px 20px;
     border-radius: 18px;
-    background-color: transparent;
-    text-color: #ffffff;
+    background-color: @bg-alt;
+    text-color: @text;
 }
 
-element normal.normal { background-color: transparent; text-color: #ffffff; }
+element normal.normal { background-color: @bg-alt; text-color: @text; }
 element selected.normal { background-color: @accent; border-radius: 18px; text-color: #08111f; }
 element selected.active { background-color: @primary; border-radius: 18px; text-color: #ffffff; }
 element selected.urgent { background-color: @urgent; border-radius: 18px; text-color: #08111f; }
-element alternate.normal { background-color: transparent; text-color: #ffffff; }
-element alternate.active { background-color: transparent; text-color: @accent; }
-element alternate.urgent { background-color: transparent; text-color: @urgent; }
+element alternate.normal { background-color: @bg-alt; text-color: @text; }
+element alternate.active { background-color: @bg-alt; text-color: @accent; }
+element alternate.urgent { background-color: @bg-alt; text-color: @urgent; }
 
 element-icon { size: 36px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; font: "JetBrainsMono Nerd Font 13"; }

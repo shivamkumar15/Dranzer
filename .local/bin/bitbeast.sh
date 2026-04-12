@@ -205,54 +205,76 @@ fallback_wallpaper_path() {
     printf '%s\n' "$wallpaper_path"
 }
 
-ensure_swww_daemon() {
-    if ! command -v swww >/dev/null 2>&1; then
+ensure_awww_daemon() {
+    if ! command -v awww >/dev/null 2>&1; then
         return 1
     fi
 
-    if ! pgrep -x swww-daemon >/dev/null 2>&1; then
-        swww-daemon >/dev/null 2>&1 &
+    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
+        awww-daemon >/dev/null 2>&1 &
         # Wait for daemon to be fully ready (up to 5 seconds)
-        _swww_tries=0
-        while [ "$_swww_tries" -lt 10 ]; do
+        _awww_tries=0
+        while [ "$_awww_tries" -lt 10 ]; do
             sleep 0.5
-            if swww query >/dev/null 2>&1; then
+            if awww query >/dev/null 2>&1; then
                 return 0
             fi
-            _swww_tries=$((_swww_tries + 1))
+            _awww_tries=$((_awww_tries + 1))
         done
-        warn "swww-daemon started but may not be fully ready"
+        warn "awww-daemon started but may not be fully ready"
     fi
 
     return 0
 }
 
-apply_wallpaper_swww() {
+apply_wallpaper_awww() {
     wallpaper_path=$1
 
-    ensure_swww_daemon || return 1
+    ensure_awww_daemon || return 1
 
     wallpaper_name=$(basename "$wallpaper_path")
-    
+
+    # Each BitBeast gets a unique, cinematic transition animation
     case "$wallpaper_name" in
-        BurningCerbrus.png) tr_type="wave";   tr_angle=45  ;;
-        Dracel.png)         tr_type="grow";   tr_angle=0   ;;
-        Dragoon.png)        tr_type="wipe";   tr_angle=30  ;;
-        Dranzer.png)        tr_type="outer";  tr_angle=0   ;;
-        Drigger.png)        tr_type="fade";   tr_angle=135 ;;
-        Galeon.png)         tr_type="center"; tr_angle=0   ;;
-        *)                  tr_type="any";    tr_angle=0   ;;
+        BurningCerbrus.png)
+            # Fiery wave sweeping diagonally
+            tr_type="wave";   tr_angle=45;  tr_step=60;  tr_duration=2;  tr_bezier=".25,.1,.25,1"
+            ;;
+        Dracel.png)
+            # Ripple expanding from center
+            tr_type="grow";   tr_angle=0;   tr_step=80;  tr_duration=3;  tr_bezier=".33,0,.67,1"
+            ;;
+        Dragoon.png)
+            # Sweeping wipe like a storm front
+            tr_type="wipe";   tr_angle=30;  tr_step=70;  tr_duration=2;  tr_bezier=".42,0,.58,1"
+            ;;
+        Dranzer.png)
+            # Dramatic reveal from edges inward
+            tr_type="outer";  tr_angle=0;   tr_step=50;  tr_duration=3;  tr_bezier=".16,1,.3,1"
+            ;;
+        Drigger.png)
+            # Elegant fade with slow ease
+            tr_type="simple"; tr_angle=0;   tr_step=3;   tr_duration=3;  tr_bezier=".22,.61,.36,1"
+            ;;
+        Galeon.png)
+            # Burst from center outward
+            tr_type="center"; tr_angle=0;   tr_step=90;  tr_duration=2;  tr_bezier=".65,0,.35,1"
+            ;;
+        *)
+            # Random transition for unknown wallpapers
+            tr_type="random"; tr_angle=0;   tr_step=90;  tr_duration=2;  tr_bezier=".42,0,.58,1"
+            ;;
     esac
 
     attempt=1
     while [ "$attempt" -le 5 ]; do
-        if swww img "$wallpaper_path" \
+        if awww img "$wallpaper_path" \
             --transition-type "$tr_type" \
-            --transition-duration 2 \
+            --transition-duration "$tr_duration" \
             --transition-fps 144 \
             --transition-angle "$tr_angle" \
-            --transition-step 90 \
-            --transition-bezier ".42,0,.58,1" \
+            --transition-step "$tr_step" \
+            --transition-bezier "$tr_bezier" \
             >/dev/null 2>&1; then
             return 0
         fi
@@ -287,11 +309,11 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Prefer swww for its smooth animated transitions (wave, grow, wipe, etc.)
-    if command -v swww >/dev/null 2>&1; then
+    # Prefer awww for its smooth animated transitions (wave, grow, wipe, etc.)
+    if command -v awww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
         pkill -x swaybg >/dev/null 2>&1 || true
-        if apply_wallpaper_swww "$wallpaper_path"; then
+        if apply_wallpaper_awww "$wallpaper_path"; then
             return 0
         fi
     fi
@@ -303,7 +325,7 @@ apply_wallpaper() {
         fi
     fi
 
-    warn 'No wallpaper backend available. Install swww (recommended) or swaybg.'
+    warn 'No wallpaper backend available. Install awww (recommended) or swaybg.'
     return 1
 }
 

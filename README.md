@@ -12,7 +12,7 @@ Before installing, ensure you have the required modular components. If your syst
 - **`waybar`**: Premium floating layout and status handling.
 - **`rofi`**: Used for the app launcher and dynamic wallpaper selection menus.
 - **`kitty`**: Default terminal implementation matching color schemes.
-- **`swaybg`** or **`swww`**: Required. The BitBeast engine relies on these to dynamically transition your desktop backgrounds. **`swww` is highly recommended** to enable the cinematic, unique transition animations for each theme!
+- **`swaybg`** or **`awww`**: Required. The BitBeast engine relies on these to dynamically transition your desktop backgrounds. **`awww` is highly recommended** to enable the cinematic, unique transition animations for each theme!
 
 **Fonts & Styling (Crucial for the Aesthetic):**
 - **JetBrainsMono Nerd Font**: (`ttf-jetbrains-mono-nerd` or similar). Waybar and Rofi rely heavily on Nerd Font/Font Awesome glyphs instead of text strings for their premium floating look. If you see rectangles (`[]`), you are missing these fonts!
@@ -69,7 +69,7 @@ The Waybar features a fully transparent floating backbone with individual boundi
 ### Rofi Launcher & Wallpaper Picker
 The application launcher and wallpaper pickers are styled as deep-blurred, glowing floating glass bubbles. 
 - **High-Contrast Design**: Optimized for readability with pure white text and filled accent highlights.
-- **Dynamic Transitions**: When using `swww`, changing wallpapers triggers unique cinematic animations (wipe, wave, outer, grow) specific to each BitBeast.
+- **Dynamic Transitions**: When using `awww`, changing wallpapers triggers unique cinematic animations (wipe, wave, outer, grow, simple, center) specific to each BitBeast.
 - Trigger app search: `SUPER + r`
 - Trigger theme selection: `SUPER + w`
 
