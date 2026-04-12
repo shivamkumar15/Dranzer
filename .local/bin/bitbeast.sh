@@ -212,7 +212,16 @@ ensure_swww_daemon() {
 
     if ! pgrep -x swww-daemon >/dev/null 2>&1; then
         swww-daemon >/dev/null 2>&1 &
-        sleep 1
+        # Wait for daemon to be fully ready (up to 5 seconds)
+        _swww_tries=0
+        while [ "$_swww_tries" -lt 10 ]; do
+            sleep 0.5
+            if swww query >/dev/null 2>&1; then
+                return 0
+            fi
+            _swww_tries=$((_swww_tries + 1))
+        done
+        warn "swww-daemon started but may not be fully ready"
     fi
 
     return 0
@@ -330,11 +339,17 @@ reload_kitty() {
 }
 
 reload_hyprland() {
-    if command -v hyprctl >/dev/null 2>&1; then
-        hyprctl reload >/dev/null 2>&1 || warn 'failed to reload Hyprland.'
-    else
+    if ! command -v hyprctl >/dev/null 2>&1; then
         warn 'hyprctl is not installed; Hyprland not reloaded.'
+        return 1
     fi
+
+    # Only attempt reload if Hyprland is actually running
+    if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+        return 0
+    fi
+
+    hyprctl reload >/dev/null 2>&1 || warn 'failed to reload Hyprland.'
 }
 
 restart_waybar() {

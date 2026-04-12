@@ -65,15 +65,15 @@ element {
     padding: 16px 20px;
     border-radius: 18px;
     background-color: transparent;
-    text-color: @text;
+    text-color: #ffffff;
 }
 
-element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: transparent; border: 2px; border-color: @accent; border-radius: 18px; text-color: @accent; }
-element selected.active { background-color: transparent; border: 2px; border-color: @primary; border-radius: 18px; text-color: @primary; }
-element selected.urgent { background-color: transparent; border: 2px; border-color: @urgent; border-radius: 18px; text-color: @urgent; }
-element alternate.normal { background-color: transparent; text-color: @text; }
-element alternate.active { background-color: transparent; text-color: @text; }
+element normal.normal { background-color: transparent; text-color: #ffffff; }
+element selected.normal { background-color: @accent; border-radius: 18px; text-color: #08111f; }
+element selected.active { background-color: @primary; border-radius: 18px; text-color: #ffffff; }
+element selected.urgent { background-color: @urgent; border-radius: 18px; text-color: #08111f; }
+element alternate.normal { background-color: transparent; text-color: #ffffff; }
+element alternate.active { background-color: transparent; text-color: @accent; }
 element alternate.urgent { background-color: transparent; text-color: @urgent; }
 
 element-icon { size: 36px; vertical-align: 0.5; }
