@@ -316,6 +316,13 @@ restore_wallpaper() {
     apply_wallpaper "$wallpaper_path"
 }
 
+reload_cava() {
+    # Send SIGUSR1 to reload config live, or restart if not running
+    if pgrep -x cava >/dev/null 2>&1; then
+        pkill -SIGUSR1 -x cava >/dev/null 2>&1 || true
+    fi
+}
+
 reload_kitty() {
     if command -v kitty >/dev/null 2>&1; then
         kitty @ set-colors -a "$KITTY_DIR/bitbeast.conf" >/dev/null 2>&1 || true
@@ -400,6 +407,7 @@ activate_theme() {
     restart_waybar || true
     apply_wallpaper "$wallpaper_path" || true
     reload_kitty
+    reload_cava
     reload_hyprland
 
     printf 'BitBeast theme activated: %s\n' "$theme_name"

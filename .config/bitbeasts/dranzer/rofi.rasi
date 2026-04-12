@@ -16,11 +16,10 @@ window {
     anchor: center;
     fullscreen: false;
     width: 750px;
-    border: 3px solid;
+    border: 3px;
     border-radius: 30px;
     border-color: @accent;
     background-color: @bg;
-    box-shadow: 0px 0px 20px 5px rgba(0,0,0,0.5);
 }
 
 mainbox {
@@ -70,9 +69,9 @@ element {
 }
 
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: transparent; border: 2px solid; border-color: @accent; border-radius: 18px; text-color: @accent; box-shadow: 0px 0px 10px @accent; }
-element selected.active { background-color: transparent; border: 2px solid; border-color: @primary; border-radius: 18px; text-color: @primary; }
-element selected.urgent { background-color: transparent; border: 2px solid; border-color: @urgent; border-radius: 18px; text-color: @urgent; }
+element selected.normal { background-color: transparent; border: 2px; border-color: @accent; border-radius: 18px; text-color: @accent; }
+element selected.active { background-color: transparent; border: 2px; border-color: @primary; border-radius: 18px; text-color: @primary; }
+element selected.urgent { background-color: transparent; border: 2px; border-color: @urgent; border-radius: 18px; text-color: @urgent; }
 element alternate.normal { background-color: transparent; text-color: @text; }
 element alternate.active { background-color: transparent; text-color: @text; }
 element alternate.urgent { background-color: transparent; text-color: @urgent; }
@@ -90,4 +89,4 @@ button {
     font: "JetBrainsMono Nerd Font Bold 13";
 }
 
-button selected { background-color: @primary; text-color: #ffffff; box-shadow: 0px 0px 15px @primary; }
+button selected { background-color: @primary; text-color: #ffffff; }
