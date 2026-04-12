@@ -8,7 +8,7 @@
     font-size: 15px;
     font-weight: 600;
     min-height: 0;
-    transition-property: background-color, border-color, color, box-shadow, transform;
+    transition-property: background-color, border-color, color, box-shadow;
     transition-duration: 250ms;
     transition-timing-function: cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
@@ -135,7 +135,6 @@ tooltip label {
     border-color: @accent;
     color: @bg;
     box-shadow: 0 0 20px alpha(@accent, 0.5);
-    transform: translateY(-2px) scale(1.02);
 }
 
 /* Unique Tray adjustments */

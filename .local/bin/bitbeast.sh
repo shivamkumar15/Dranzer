@@ -223,15 +223,16 @@ apply_wallpaper_swww() {
 
     ensure_swww_daemon || return 1
 
-    # Pick a random cinematic transition each time
-    transition_index=$(( $(od -An -tu2 -N2 /dev/urandom | tr -d ' ') % 6 ))
-    case $transition_index in
-        0) tr_type="wave";   tr_angle=45  ;;
-        1) tr_type="grow";   tr_angle=0   ;;
-        2) tr_type="wipe";   tr_angle=30  ;;
-        3) tr_type="outer";  tr_angle=0   ;;
-        4) tr_type="fade";   tr_angle=135 ;;
-        5) tr_type="center"; tr_angle=0   ;;
+    wallpaper_name=$(basename "$wallpaper_path")
+    
+    case "$wallpaper_name" in
+        BurningCerbrus.png) tr_type="wave";   tr_angle=45  ;;
+        Dracel.png)         tr_type="grow";   tr_angle=0   ;;
+        Dragoon.png)        tr_type="wipe";   tr_angle=30  ;;
+        Dranzer.png)        tr_type="outer";  tr_angle=0   ;;
+        Drigger.png)        tr_type="fade";   tr_angle=135 ;;
+        Galeon.png)         tr_type="center"; tr_angle=0   ;;
+        *)                  tr_type="any";    tr_angle=0   ;;
     esac
 
     attempt=1
