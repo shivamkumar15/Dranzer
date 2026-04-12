@@ -2,6 +2,9 @@
 
 set -eu
 
+# Ensure common user paths are available for Hyprland to find waybar/swaybg
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.nix-profile/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
@@ -312,13 +315,9 @@ restart_waybar() {
         return 1
     fi
 
-    if command -v systemctl >/dev/null 2>&1 && \
-        systemctl --user list-unit-files waybar.service --no-legend 2>/dev/null | grep -q '^waybar\.service'
-    then
-        systemctl --user restart waybar.service >/dev/null 2>&1 && return 0
-    fi
-
+    echo "Restarting Waybar natively..." >&2
     pkill -x waybar >/dev/null 2>&1 || true
+    sleep 0.2
     waybar >/dev/null 2>&1 &
 }
 
@@ -490,6 +489,17 @@ EOF_STYLE_LIST
 session_init() {
     # Small delay to let Hyprland finish initializing
     sleep 1
+
+    # First time launch safety net (if waybar theme is missing completely)
+    if [ ! -f "$WAYBAR_DIR/bitbeast.css" ]; then
+        theme_name=$(current_theme_name || echo "root")
+        if [ "$theme_name" != "root" ]; then
+            BITBEAST_SKIP_RUNTIME=1 activate_theme "$theme_name"
+        else
+            BITBEAST_SKIP_RUNTIME=1 activate_theme "dranzer"
+        fi
+    fi
+
     ensure_waybar_style || true
     restore_wallpaper || true
     restart_waybar || true
