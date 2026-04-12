@@ -378,24 +378,29 @@ pick_theme() {
     selection=$(
         while IFS= read -r theme_name; do
             [ -n "$theme_name" ] || continue
-            wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name")
-            # Present strictly the wallpaper name options to the user
+            wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name" 2>/dev/null) || continue
+            [ -n "$wallpaper_path" ] || continue
             printf '%s\n' "$(basename "$wallpaper_path")"
         done <<EOF_LIST
 $(list_themes)
 EOF_LIST
     )
 
+    [ -n "$selection" ] || {
+        printf 'No themes with valid wallpapers found.\n' >&2
+        exit 1
+    }
+
     choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
     chosen_wallpaper=$(printf '%s' "$choice")
 
     [ -n "$chosen_wallpaper" ] || exit 0
-    
+
     # Map the selected wallpaper back to the corresponding theme automatically
     chosen_theme=""
     while IFS= read -r theme_name; do
         [ -n "$theme_name" ] || continue
-        wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name")
+        wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name" 2>/dev/null) || continue
         if [ "$(basename "$wallpaper_path")" = "$chosen_wallpaper" ]; then
             chosen_theme="$theme_name"
             break
@@ -471,6 +476,8 @@ EOF_STYLE_LIST
 }
 
 session_init() {
+    # Small delay to let Hyprland finish initializing
+    sleep 1
     ensure_waybar_style || true
     restore_wallpaper || true
     restart_waybar || true

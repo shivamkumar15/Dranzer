@@ -27,6 +27,42 @@ Drigger.png
 Galeon.png
 "
 
+check_dependencies() {
+    missing=0
+
+    # Required
+    for cmd in waybar rofi kitty; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            printf '\033[1;31m✗ Required:\033[0m %s is not installed\n' "$cmd" >&2
+            missing=1
+        fi
+    done
+
+    # Wallpaper backend (at least one required)
+    if ! command -v swaybg >/dev/null 2>&1 && ! command -v swww >/dev/null 2>&1; then
+        printf '\033[1;31m✗ Required:\033[0m No wallpaper backend found. Install swaybg or swww\n' >&2
+        missing=1
+    fi
+
+    # Recommended
+    for cmd in brightnessctl wpctl grim slurp wl-copy playerctl; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            printf '\033[1;33m⚠ Optional:\033[0m %s is not installed (some keybindings will not work)\n' "$cmd" >&2
+        fi
+    done
+
+    if [ "$missing" -eq 1 ]; then
+        printf '\n\033[1;33mInstall missing required dependencies before continuing.\033[0m\n' >&2
+        printf 'Continue anyway? [y/N] ' >&2
+        read -r confirm
+        case $confirm in
+            [yY]*) ;;
+            *) exit 1 ;;
+        esac
+    fi
+}
+
+
 usage() {
     cat <<EOF
 Usage: ./install.sh [--theme <name>] [--apply] [--force]
@@ -128,6 +164,8 @@ done
 
 THEME_NAME=$(printf '%s' "$THEME_NAME" | tr '[:upper:]' '[:lower:]')
 ensure_theme_exists "$THEME_NAME"
+
+check_dependencies
 
 mkdir -p "$BIN_DIR" "$STATE_DIR" "$WALLPAPER_DEST_DIR"
 
