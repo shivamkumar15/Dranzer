@@ -681,6 +681,7 @@ case $command_name in
 \$bg = $bg_rgb
 \$text = $text_rgb
 \$glow = rgb(${glow_hex#\#})
+\$glow_alpha = ${glow_hex#\#}
 \$wallpaper_path = $wallpaper_path
 \$theme_name = $theme_name_upper
 EOF_COLORS

@@ -1,7 +1,7 @@
 /* HUD Style — The default BitBeast cockpit bar */
 /* This variant enhances the base HUD with angular corner accents */
 
-window#waybar {
+.modules-left, .modules-center, .modules-right {
     background: linear-gradient(90deg, alpha(@bg, 0.96), alpha(@bg-alt, 0.92), alpha(@bg, 0.96));
     border-top: 2px solid @glow;
     border-bottom: 2px solid @glow;

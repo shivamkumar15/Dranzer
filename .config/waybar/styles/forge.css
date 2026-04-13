@@ -1,4 +1,4 @@
-window#waybar {
+.modules-left, .modules-center, .modules-right {
     background: alpha(@bg, 0.94);
     border-top: 2px solid @glow;
     border-bottom: 2px solid alpha(@accent, 0.6);
