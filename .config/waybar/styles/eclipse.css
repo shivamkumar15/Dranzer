@@ -4,7 +4,9 @@ window#waybar {
     box-shadow: none;
 }
 
+/* Eclipse keeps individual module backgrounds with glow accent */
 #custom-theme,
+#custom-batterybar,
 #workspaces,
 #clock,
 #cpu,
@@ -13,17 +15,24 @@ window#waybar {
 #network,
 #battery,
 #backlight,
-#custom-style,
+#custom-lock,
 #custom-wallpaper,
+#cava,
 #tray {
     background: alpha(@bg, 0.74);
-    border: 1px solid alpha(@accent, 0.12);
-    border-bottom: 2px solid alpha(@accent, 0.34);
-    box-shadow: 0 8px 22px alpha(@bg, 0.18);
+    border: 1px solid alpha(@glow, 0.15);
+    border-bottom: 2px solid alpha(@glow, 0.35);
+    border-radius: 6px;
+    box-shadow: 0 8px 22px alpha(@bg, 0.18), 0 0 8px alpha(@glow, 0.1);
+    margin: 6px 3px;
+}
+
+#clock {
+    border-color: alpha(@glow, 0.3);
 }
 
 #workspaces button.active {
-    background: alpha(@accent, 0.2);
-    color: @accent;
-    box-shadow: inset 0 -2px @accent;
+    background: alpha(@glow, 0.2);
+    color: @glow;
+    box-shadow: inset 0 -2px @glow;
 }

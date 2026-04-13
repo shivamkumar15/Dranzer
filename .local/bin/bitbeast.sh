@@ -27,7 +27,7 @@ WAYBAR_DIR="$CONFIG_HOME/waybar"
 KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
-DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-ember}"
+DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-hud}"
 
 usage() {
     cat >&2 <<EOF_USAGE
@@ -43,6 +43,7 @@ Usage:
   bitbeast current-style
   bitbeast restore-wallpaper
   bitbeast session-init
+  bitbeast lock
   bitbeast brightness [up|down]
 
 Available themes:
@@ -651,6 +652,40 @@ case $command_name in
         ;;
     pick-style)
         pick_style
+        ;;
+    lock)
+        # Prepare hyprlock colors file dynamically based on current theme
+        theme_name=$(current_theme_name || echo "Dranzer")
+        theme_name_upper=$(printf '%s' "$theme_name" | tr '[:lower:]' '[:upper:]')
+        wallpaper_path=$(saved_wallpaper_path || fallback_wallpaper_path || echo "")
+        
+        # Read the current theme colors into lock config
+        current_conf="$STATE_DIR/current.conf"
+        target_lock_colors="$CONFIG_HOME/hypr/bitbeast-lock-colors.conf"
+        
+        [ -f "$current_conf" ] || current_conf="$THEMES_DIR/dranzer/colors.conf"
+        
+        bg_rgb=$(sed -n 's/^\$bg[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
+        text_rgb=$(sed -n 's/^\$text[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
+        
+        # Get glow color from waybar.css
+        glow_hex="#ffd166" # fallback
+        theme_dir="$THEMES_DIR/$theme_name"
+        if [ -f "$theme_dir/waybar.css" ]; then
+            glow_match=$(grep '@define-color glow' "$theme_dir/waybar.css" | awk '{print $3}' | tr -d ';')
+            [ -n "$glow_match" ] && glow_hex="$glow_match"
+        fi
+        
+        mkdir -p "$CONFIG_HOME/hypr"
+        cat > "$target_lock_colors" <<EOF_COLORS
+\$bg = $bg_rgb
+\$text = $text_rgb
+\$glow = rgb(${glow_hex#\#})
+\$wallpaper_path = $wallpaper_path
+\$theme_name = $theme_name_upper
+EOF_COLORS
+
+        hyprlock --config "$CONFIG_HOME/hypr/hyprlock.conf"
         ;;
     current-theme)
         current_theme_name

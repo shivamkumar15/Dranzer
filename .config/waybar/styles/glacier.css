@@ -1,24 +1,17 @@
 window#waybar {
     background: alpha(@bg-alt, 0.58);
-    border: 1px solid alpha(@text, 0.14);
+    border-top: 2px solid @glow;
+    border-bottom: 1px solid alpha(@glow, 0.2);
+    border-left: 1px solid alpha(@text, 0.14);
+    border-right: 1px solid alpha(@text, 0.14);
     border-radius: 22px;
-    box-shadow: 0 10px 28px alpha(@bg, 0.22);
+    box-shadow: 0 10px 28px alpha(@bg, 0.22), 0 0 10px alpha(@glow, 0.15);
 }
 
-#custom-theme,
-#workspaces,
-#clock,
-#cpu,
-#memory,
-#pulseaudio,
-#network,
-#battery,
-#backlight,
-#custom-style,
-#custom-wallpaper,
-#tray {
-    background: alpha(@bg, 0.24);
-    border: 1px solid alpha(@text, 0.1);
+#clock {
+    background: alpha(@glow, 0.08);
+    border-left: 1px solid alpha(@glow, 0.15);
+    border-right: 1px solid alpha(@glow, 0.15);
 }
 
 #workspaces button:hover {

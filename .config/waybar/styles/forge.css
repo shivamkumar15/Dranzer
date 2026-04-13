@@ -1,25 +1,18 @@
 window#waybar {
     background: alpha(@bg, 0.94);
-    border: 1px solid alpha(@primary, 0.45);
+    border-top: 2px solid @glow;
     border-bottom: 2px solid alpha(@accent, 0.6);
+    border-left: 1px solid alpha(@primary, 0.45);
+    border-right: 1px solid alpha(@primary, 0.45);
     border-radius: 12px;
+    box-shadow: 0 0 12px alpha(@glow, 0.2);
 }
 
-#custom-theme,
-#workspaces,
-#clock,
-#cpu,
-#memory,
-#pulseaudio,
-#network,
-#battery,
-#backlight,
-#custom-style,
-#custom-wallpaper,
-#tray {
-    background: alpha(@primary, 0.16);
-    border: 1px solid alpha(@accent, 0.26);
-    border-radius: 12px;
+#clock {
+    background: alpha(@primary, 0.1);
+    border-left: 1px solid alpha(@glow, 0.2);
+    border-right: 1px solid alpha(@glow, 0.2);
+    border-radius: 8px;
 }
 
 #workspaces button {

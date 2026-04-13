@@ -31,7 +31,7 @@ check_dependencies() {
     missing=0
 
     # Required
-    for cmd in waybar rofi kitty; do
+    for cmd in waybar rofi kitty hyprlock; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             printf '\033[1;31m✗ Required:\033[0m %s is not installed\n' "$cmd" >&2
             missing=1
@@ -178,13 +178,15 @@ done
 
 install_file "$REPO_DIR/.config/bitbeast/current.style" "$STATE_DIR/current.style"
 install_file "$REPO_DIR/.config/hypr/hyprland.conf" "$CONFIG_HOME/hypr/hyprland.conf"
+install_file "$REPO_DIR/.config/hypr/hyprlock.conf" "$CONFIG_HOME/hypr/hyprlock.conf"
 install_file "$REPO_DIR/.config/waybar/style.css" "$CONFIG_HOME/waybar/style.css"
 install_file "$REPO_DIR/.config/waybar/bitbeast-style.css" "$CONFIG_HOME/waybar/bitbeast-style.css"
 install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config.jsonc"
 install_file "$REPO_DIR/.config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
 install_file "$REPO_DIR/.config/rofi/config.rasi" "$CONFIG_HOME/rofi/config.rasi"
 install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
-chmod +x "$BIN_DIR/bitbeast"
+install_file "$REPO_DIR/.local/bin/bitbeast-battery" "$BIN_DIR/bitbeast-battery"
+chmod +x "$BIN_DIR/bitbeast" "$BIN_DIR/bitbeast-battery"
 
 if [ "$APPLY_RUNTIME" -eq 1 ]; then
     "$BIN_DIR/bitbeast" "$THEME_NAME"

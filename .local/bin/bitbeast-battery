@@ -1,0 +1,45 @@
+#!/bin/sh
+# BitBeast Battery Bar — outputs Unicode block characters to visually represent battery level
+# Used by Waybar's custom/batterybar module
+
+set -eu
+
+# Read battery capacity
+BAT_PATH=""
+for bat in /sys/class/power_supply/BAT*; do
+    [ -d "$bat" ] && BAT_PATH="$bat" && break
+done
+
+if [ -z "$BAT_PATH" ]; then
+    # No battery found (desktop) — show full bar
+    printf '▮▮▮▮▮\n'
+    exit 0
+fi
+
+capacity=$(cat "$BAT_PATH/capacity" 2>/dev/null || echo "100")
+status=$(cat "$BAT_PATH/status" 2>/dev/null || echo "Unknown")
+
+# Calculate filled blocks out of 5
+filled=$(( (capacity + 19) / 20 ))
+[ "$filled" -gt 5 ] && filled=5
+[ "$filled" -lt 0 ] && filled=0
+empty=$((5 - filled))
+
+bar=""
+i=0
+while [ "$i" -lt "$filled" ]; do
+    bar="${bar}▮"
+    i=$((i + 1))
+done
+i=0
+while [ "$i" -lt "$empty" ]; do
+    bar="${bar}▯"
+    i=$((i + 1))
+done
+
+# Prefix with charging icon if applicable
+case "$status" in
+    Charging|Full) bar="⚡${bar}" ;;
+esac
+
+printf '%s\n' "$bar"

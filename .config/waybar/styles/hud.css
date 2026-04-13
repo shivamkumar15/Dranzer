@@ -1,0 +1,28 @@
+/* HUD Style — The default BitBeast cockpit bar */
+/* This variant enhances the base HUD with angular corner accents */
+
+window#waybar {
+    background: linear-gradient(90deg, alpha(@bg, 0.96), alpha(@bg-alt, 0.92), alpha(@bg, 0.96));
+    border-top: 2px solid @glow;
+    border-bottom: 2px solid @glow;
+    border-left: 1px solid alpha(@glow, 0.5);
+    border-right: 1px solid alpha(@glow, 0.5);
+    border-radius: 3px;
+    box-shadow:
+        0 0 16px alpha(@glow, 0.4),
+        0 0 40px alpha(@glow, 0.15),
+        inset 0 1px 0 alpha(@glow, 0.15),
+        inset 0 -1px 0 alpha(@glow, 0.15);
+}
+
+#clock {
+    background: alpha(@glow, 0.1);
+    border-left: 1px solid alpha(@glow, 0.3);
+    border-right: 1px solid alpha(@glow, 0.3);
+}
+
+#workspaces button.active {
+    background: @glow;
+    color: @bg;
+    box-shadow: 0 0 12px alpha(@glow, 0.6);
+}

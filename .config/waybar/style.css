@@ -1,39 +1,59 @@
 @import "./bitbeast.css";
 @import "./bitbeast-style.css";
 
+/* ═══════════════════════════════════════════════════════════
+   BitBeast HUD — Futuristic Cockpit-Style Status Bar
+   Inspired by Beyblade BitBeast fighting interfaces
+   ═══════════════════════════════════════════════════════════ */
+
 * {
     border: none;
     border-radius: 0;
     font-family: "JetBrainsMono Nerd Font", "Font Awesome 6 Free", monospace;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     min-height: 0;
-    transition-property: background-color, border-color, color, box-shadow;
-    transition-duration: 250ms;
+    transition-property: background-color, border-color, color, box-shadow, text-shadow;
+    transition-duration: 300ms;
     transition-timing-function: cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
-/* Make the overall bar literally float over the screen natively */
+/* ─── Main Bar: Dark HUD Panel with Glowing Edges ─── */
 window#waybar {
-    background: transparent;
+    background: alpha(@bg, 0.92);
+    border-top: 2px solid @glow;
+    border-bottom: 2px solid @glow;
+    border-left: 1px solid alpha(@glow, 0.4);
+    border-right: 1px solid alpha(@glow, 0.4);
+    border-radius: 4px;
     color: @text;
+    box-shadow:
+        0 0 12px alpha(@glow, 0.35),
+        0 0 30px alpha(@glow, 0.15),
+        inset 0 1px 0 alpha(@glow, 0.1),
+        inset 0 -1px 0 alpha(@glow, 0.1);
 }
 
-/* Enhance Tooltips */
+/* ─── Tooltips ─── */
 tooltip {
-    background: alpha(@bg-alt, 0.90);
-    border: 2px solid alpha(@accent, 0.5);
-    border-radius: 20px;
-    box-shadow: 0 4px 15px alpha(@bg, 0.5);
+    background: alpha(@bg, 0.95);
+    border: 1px solid alpha(@glow, 0.5);
+    border-radius: 4px;
+    box-shadow: 0 4px 20px alpha(@glow, 0.25);
     color: @text;
 }
 tooltip label {
-    padding: 6px 10px;
+    padding: 6px 12px;
     font-weight: 600;
 }
 
-/* Glassmorphism Floating Pills */
+/* ═══════════════════════════════════════════════════════════
+   MODULE BASE — Unified inline look, no individual pills
+   ═══════════════════════════════════════════════════════════ */
 #custom-theme,
+#custom-batterybar,
+#custom-sep,
+#custom-sep2,
 #workspaces,
 #clock,
 #cpu,
@@ -42,68 +62,132 @@ tooltip label {
 #network,
 #battery,
 #backlight,
-#custom-style,
+#custom-lock,
 #custom-wallpaper,
+#cava,
 #tray {
-    margin: 8px 5px;
-    min-height: 34px;
-    padding: 0 16px;
-    background: alpha(@bg, 0.85);
-    border: 1px solid alpha(@accent, 0.35);
-    border-radius: 999px;
-    color: @text;
-    box-shadow: 0 4px 15px alpha(#000000, 0.4);
-}
-
-/* Text coloring overrides for beauty */
-#clock {
-    color: @bg;
-    background: @accent; /* Pop the clock out! */
-    font-weight: 800;
-    letter-spacing: 0.04em;
+    margin: 0;
+    padding: 0 14px;
+    background: transparent;
     border: none;
+    border-radius: 0;
+    color: @text;
+    box-shadow: none;
 }
 
+/* ─── Separators ─── */
+#custom-sep,
+#custom-sep2 {
+    padding: 0 4px;
+    color: alpha(@glow, 0.35);
+    font-size: 18px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THEME NAME — BitBeast Identity (left side, bold & glowing)
+   ═══════════════════════════════════════════════════════════ */
 #custom-theme {
-    color: @accent;
+    color: @glow;
+    font-size: 15px;
     font-weight: 900;
+    letter-spacing: 0.12em;
+    text-shadow:
+        0 0 8px alpha(@glow, 0.7),
+        0 0 20px alpha(@glow, 0.3);
+    padding-left: 16px;
+    padding-right: 8px;
 }
 
-#workspaces {
+/* ─── Battery Bar (Unicode blocks) ─── */
+#custom-batterybar {
+    color: @primary;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-shadow: 0 0 6px alpha(@primary, 0.5);
     padding: 0 8px;
 }
-#workspaces button {
-    min-width: 24px;
-    margin: 4px;
-    padding: 2px 8px;
-    background: transparent;
-    border-radius: 999px;
-    color: alpha(@text, 0.65);
-    font-size: 16px;
+
+/* ═══════════════════════════════════════════════════════════
+   CLOCK — Center Element, Highlighted
+   ═══════════════════════════════════════════════════════════ */
+#clock {
+    color: @text;
+    font-size: 15px;
     font-weight: 800;
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 10px alpha(@glow, 0.4);
+    padding: 0 20px;
+    background: alpha(@glow, 0.08);
+    border-left: 1px solid alpha(@glow, 0.25);
+    border-right: 1px solid alpha(@glow, 0.25);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CAVA — Audio Visualizer
+   ═══════════════════════════════════════════════════════════ */
+#cava {
+    color: @primary;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 8px alpha(@glow, 0.7), 0 0 18px alpha(@glow, 0.4);
+    padding: 0 10px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   WORKSPACES — Compact HUD indicators
+   ═══════════════════════════════════════════════════════════ */
+#workspaces {
+    padding: 0 6px;
+}
+#workspaces button {
+    min-width: 22px;
+    margin: 4px 2px;
+    padding: 2px 6px;
+    background: transparent;
+    border-radius: 3px;
+    color: alpha(@text, 0.4);
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
 }
 #workspaces button:hover {
-    color: @accent;
-    text-shadow: 0 0 10px alpha(@accent, 0.5);
+    color: @glow;
+    text-shadow: 0 0 8px alpha(@glow, 0.6);
+    border-color: alpha(@glow, 0.3);
 }
 #workspaces button.active {
     color: @bg;
-    background: @primary;
-    text-shadow: 0 0 15px alpha(@bg, 0.8);
-    font-size: 18px; /* Slightly pop */
-    box-shadow: 0 2px 10px alpha(@primary, 0.5);
+    background: @glow;
+    text-shadow: 0 0 12px alpha(@bg, 0.5);
+    font-size: 13px;
+    box-shadow: 0 0 10px alpha(@glow, 0.5);
+    border-color: @glow;
 }
 #workspaces button.urgent {
     color: #ff3333;
     animation: urgent-pulse 1s infinite alternate;
 }
 
-/* System Monitor Blocks */
+/* ═══════════════════════════════════════════════════════════
+   SYSTEM MODULES — Right side stat readouts
+   ═══════════════════════════════════════════════════════════ */
+#pulseaudio {
+    color: @accent;
+}
+#network {
+    color: @primary;
+}
 #cpu {
     color: #ff8b94;
 }
 #memory {
     color: #ffaaa5;
+}
+
+/* Battery percentage (right side) */
+#battery {
+    color: @accent;
 }
 #battery.charging,
 #battery.plugged {
@@ -112,14 +196,28 @@ tooltip label {
 }
 #battery.warning:not(.charging) {
     color: #ffcc5c;
+    text-shadow: 0 0 6px alpha(#ffcc5c, 0.3);
 }
 #battery.critical:not(.charging) {
-    color: @bg;
-    background: #ff6f69;
+    color: #ff3333;
+    background: alpha(#ff3333, 0.15);
     animation: critical-pulse 1s infinite alternate;
 }
 
-/* Hover Glowing & Elevation Effects universally */
+/* ─── Lock Button ─── */
+#custom-lock {
+    color: alpha(@text, 0.6);
+    font-size: 16px;
+    padding: 0 10px;
+}
+#custom-lock:hover {
+    color: @glow;
+    text-shadow: 0 0 12px alpha(@glow, 0.7);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOVER EFFECTS — Subtle glow on interaction
+   ═══════════════════════════════════════════════════════════ */
 #custom-theme:hover,
 #clock:hover,
 #cpu:hover,
@@ -128,27 +226,32 @@ tooltip label {
 #network:hover,
 #battery:hover,
 #backlight:hover,
-#custom-style:hover,
-#custom-wallpaper:hover,
-#tray:hover {
-    background: alpha(@primary, 0.85);
-    border-color: @accent;
-    color: @bg;
-    box-shadow: 0 0 20px alpha(@accent, 0.5);
+#cava:hover,
+#custom-wallpaper:hover {
+    background: alpha(@glow, 0.12);
+    text-shadow: 0 0 14px alpha(@glow, 0.6);
 }
 
-/* Unique Tray adjustments */
+/* ─── Tray ─── */
 #tray {
-    margin-right: 18px;
-    padding: 0 12px;
+    margin-right: 10px;
+    padding: 0 8px;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
 @keyframes urgent-pulse {
     from { color: alpha(#ff3333, 0.5); }
     to { color: alpha(#ff3333, 1.0); text-shadow: 0 0 10px alpha(#ff3333, 0.8); }
 }
 
 @keyframes critical-pulse {
-    from { background: #ff6f69; }
-    to { background: #ff3333; box-shadow: 0 0 15px alpha(#ff3333, 0.6); }
+    from { background: alpha(#ff3333, 0.15); }
+    to { background: alpha(#ff3333, 0.35); box-shadow: 0 0 15px alpha(#ff3333, 0.4); }
+}
+
+@keyframes glow-breathe {
+    from { box-shadow: 0 0 12px alpha(@glow, 0.3); }
+    to { box-shadow: 0 0 20px alpha(@glow, 0.5), 0 0 40px alpha(@glow, 0.2); }
 }
