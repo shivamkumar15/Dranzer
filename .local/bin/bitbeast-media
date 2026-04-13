@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+status=$(playerctl status 2>/dev/null)
+if [ -z "$status" ]; then
+  # No player running or detected
+  echo '{"text": "", "class": "stopped"}'
+  exit 0
+fi
+
+if [ "$status" = "Paused" ]; then
+  title=$(playerctl metadata --format '{{ title }}' 2>/dev/null)
+  artist=$(playerctl metadata --format '{{ artist }}' 2>/dev/null)
+  text="󰏤  ${title}"
+  if [ -n "$artist" ]; then text="󰏤  ${artist} - ${title}"; fi
+  if [ ${#text} -gt 40 ]; then text="${text:0:37}..."; fi
+  echo "{\"text\": \"$text\", \"class\": \"paused\"}"
+  exit 0
+fi
+
+if [ "$status" = "Playing" ]; then
+  title=$(playerctl metadata --format '{{ title }}' 2>/dev/null)
+  artist=$(playerctl metadata --format '{{ artist }}' 2>/dev/null)
+  
+  frames=("󰎆" "󰎈" "󰎊" "󰎌")
+  frame=${frames[ $RANDOM % ${#frames[@]} ]}
+  
+  text="${frame}  ${title}"
+  if [ -n "$artist" ]; then text="${frame}  ${artist} - ${title}"; fi
+  if [ ${#text} -gt 40 ]; then text="${text:0:37}..."; fi
+  
+  echo "{\"text\": \"$text\", \"class\": \"playing\"}"
+  exit 0
+fi

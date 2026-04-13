@@ -1,0 +1,224 @@
+* {
+  font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+  font-weight: 600;
+}
+
+.control-center .notification-row:focus,
+.control-center .notification-row:hover {
+  opacity: 1;
+  background: rgba(30, 30, 46, 0.8);
+}
+
+.notification-row {
+  outline: none;
+  margin: 6px 12px;
+  padding: 0;
+}
+
+.notification {
+  background: rgba(20, 20, 30, 0.85); /* Premium dark background */
+  padding: 16px;
+  margin: 0px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.notification-content {
+  background: transparent;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.close-button {
+  background: rgba(255, 51, 51, 0.1);
+  color: #ff3333;
+  text-shadow: none;
+  padding: 4px;
+  border-radius: 8px;
+  margin-top: 4px;
+  margin-right: 4px;
+}
+
+.close-button:hover {
+  background: rgba(255, 51, 51, 0.3);
+  box-shadow: 0 0 8px rgba(255, 51, 51, 0.4);
+}
+
+.notification-default-action,
+.notification-action {
+  padding: 8px;
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #eeeeee;
+}
+
+.notification-default-action:hover,
+.notification-action:hover {
+  -gtk-icon-effect: none;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notification-default-action {
+  border-radius: 12px;
+}
+
+.notification-default-action:not(:only-child) {
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.notification-action {
+  border-radius: 0px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.notification-action:first-child {
+  border-bottom-left-radius: 12px;
+}
+
+.notification-action:last-child {
+  border-bottom-right-radius: 12px;
+  border-right: none;
+}
+
+.image {
+  border-radius: 12px;
+}
+
+.body-image {
+  margin-top: 6px;
+  background-color: transparent;
+  border-radius: 12px;
+}
+
+.summary {
+  font-size: 16px;
+  font-weight: bold;
+  background: transparent;
+  color: #ffffff;
+  text-shadow: none;
+}
+
+.time {
+  font-size: 12px;
+  font-weight: normal;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  text-shadow: none;
+  margin-right: 24px;
+}
+
+.body {
+  font-size: 14px;
+  font-weight: normal;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: none;
+}
+
+.control-center {
+  background: rgba(15, 15, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.control-center-list {
+  background: transparent;
+}
+
+.control-center-list-placeholder {
+  opacity: 0.5;
+}
+
+.control-center-list-placeholder text {
+  color: #eeeeee;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.floating-notifications {
+  background: transparent;
+}
+
+.blank-window {
+  background: transparent;
+}
+
+.widget-title {
+  color: #ffffff;
+  background: transparent;
+  padding: 12px;
+  margin: 12px 12px 0 12px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.widget-title>button {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.widget-title>button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.widget-dnd {
+  color: #ffffff;
+  background: rgba(20, 20, 30, 0.5);
+  padding: 12px;
+  margin: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.widget-dnd>switch {
+  font-size: 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  box-shadow: none;
+}
+
+.widget-dnd>switch:checked {
+  background: #ff8b94;
+}
+
+.widget-dnd>switch slider {
+  background: #ffffff;
+  border-radius: 10px;
+}
+
+.widget-mpris {
+  color: #ffffff;
+  background: rgba(20, 20, 30, 0.85);
+  padding: 16px;
+  margin: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.widget-mpris-player {
+  padding: 8px;
+  margin: 4px;
+}
+
+.widget-mpris-title {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.widget-mpris-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}

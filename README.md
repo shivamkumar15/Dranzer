@@ -12,6 +12,8 @@ Before installing, ensure you have the required modular components. If your syst
 - **`waybar`**: Premium floating layout and status handling.
 - **`rofi`**: Used for the app launcher and dynamic wallpaper selection menus.
 - **`kitty`**: Default terminal implementation matching color schemes.
+- **`swaync`**: **Required**. Optimized notification center with a beautifully themed HUD drawer.
+- **`playerctl`**: **Required**. Powers the live media integration on Waybar.
 - **`swaybg`** or **`awww`**: Required. The BitBeast engine relies on these to dynamically transition your desktop backgrounds. **`awww` is highly recommended** to enable the cinematic, unique transition animations for each theme!
 
 **Fonts & Styling (Crucial for the Aesthetic):**
@@ -63,7 +65,7 @@ All 6 integrated themes have had their alpha layers (glass transparencies), padd
 ## Desktop Integration Features
 
 ### Waybar
-The Waybar features a fully transparent floating backbone with individual bounding "pills". You can cycle the variants (`Super + Shift + W`), combining BitBeast colors with the styles:
+The Waybar features a fully transparent floating backbone with individual bounding "pills". It includes **Live Media Integration** (with mini-animations) and a **Unified Notification Center**. You can cycle the variants (`Super + Shift + W`), combining BitBeast colors with the styles:
 - `ember`, `glacier`, `forge`, `eclipse`, `throne`
 
 ### Rofi Launcher & Wallpaper Picker

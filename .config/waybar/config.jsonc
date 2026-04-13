@@ -1,16 +1,16 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 44,
+  "height": 46,
   "spacing": 8,
-  "margin-top": 8,
-  "margin-left": 14,
-  "margin-right": 14,
+  "margin-top": 12,
+  "margin-left": 18,
+  "margin-right": 18,
   "margin-bottom": 0,
   
-  "modules-left": ["custom/theme", "hyprland/workspaces", "custom/batterybar"],
-  "modules-center": ["cava", "clock"],
-  "modules-right": ["group/audio", "group/system", "tray", "custom/lock"],
+  "modules-left": ["custom/theme", "hyprland/workspaces", "custom/media"],
+  "modules-center": ["clock", "cava"],
+  "modules-right": ["group/audio", "group/system", "custom/batterybar", "tray", "custom/notification", "custom/lock"],
 
   "custom/theme": {
     "format": " 󰣆  {} ",
@@ -21,13 +21,7 @@
     "on-click": "~/.local/bin/bitbeast pick",
     "on-click-right": "~/.local/bin/bitbeast restore-wallpaper"
   },
-  "custom/batterybar": {
-    "format": "{}",
-    "exec": "~/.local/bin/bitbeast-battery",
-    "interval": 10,
-    "tooltip": false
-  },
-  
+
   "hyprland/workspaces": {
     "disable-scroll": true,
     "all-outputs": true,
@@ -41,6 +35,17 @@
     "persistent-workspaces": {
       "1": [], "2": [], "3": [], "4": [], "5": []
     }
+  },
+
+  "custom/media": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.local/bin/bitbeast-media",
+    "interval": 1,
+    "on-click": "playerctl play-pause",
+    "on-click-right": "playerctl next",
+    "on-click-middle": "playerctl previous",
+    "tooltip": false
   },
 
   "cava": {
@@ -126,6 +131,34 @@
       "warning": 30,
       "critical": 15
     }
+  },
+
+  "custom/batterybar": {
+    "format": "{}",
+    "exec": "~/.local/bin/bitbeast-battery",
+    "interval": 10,
+    "tooltip": false
+  },
+
+  "custom/notification": {
+    "tooltip": false,
+    "format": "{icon}",
+    "format-icons": {
+      "notification": "󱅫",
+      "none": "󰂚",
+      "dnd-notification": "󱏧",
+      "dnd-none": "󱏧",
+      "inhibited-notification": "󱅫",
+      "inhibited-none": "󰂚",
+      "dnd-inhibited-notification": "󱏧",
+      "dnd-inhibited-none": "󱏧"
+    },
+    "return-type": "json",
+    "exec-if": "which swaync-client",
+    "exec": "swaync-client -swb",
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw",
+    "escape": true
   },
 
   "custom/lock": {

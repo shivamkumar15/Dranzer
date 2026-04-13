@@ -2,7 +2,7 @@
 @import "./bitbeast-style.css";
 
 /* ═══════════════════════════════════════════════════════════
-   BitBeast Interactive Floating Pills
+   BitBeast Interactive Floating Islands with Gradient Animations
    ═══════════════════════════════════════════════════════════ */
 
 * {
@@ -19,14 +19,27 @@ window#waybar {
     background: transparent;
 }
 
+/* ─── GTK Keyframes for "Live Mini Animation" Glow Effects ─── */
+@keyframes gradient_g {
+    0% { background-position: 0% 50%; box-shadow: 0 4px 15px alpha(@glow, 0.2); border-color: alpha(@glow, 0.3); }
+    50% { background-position: 100% 50%; box-shadow: 0 4px 20px alpha(@primary, 0.5); border-color: alpha(@primary, 0.7); }
+    100% { background-position: 0% 50%; box-shadow: 0 4px 15px alpha(@glow, 0.2); border-color: alpha(@glow, 0.3); }
+}
+
+@keyframes media-pulse {
+    0% { color: @primary; text-shadow: 0 0 10px alpha(@primary, 0.5); }
+    100% { color: @glow; text-shadow: 0 0 20px alpha(@glow, 1); }
+}
+
 /* ─── Floating Island Containers ─── */
 .modules-left,
 .modules-center,
 .modules-right {
-    background: alpha(@bg, 0.75);
+    background: linear-gradient(90deg, alpha(@bg, 0.85), alpha(#1a1a2e, 0.65), alpha(@bg, 0.85));
+    background-size: 200% 200%;
+    animation: gradient_g 8s ease infinite;
     border: 1px solid alpha(@glow, 0.3);
     border-radius: 24px;
-    box-shadow: 0 4px 12px alpha(@glow, 0.15), inset 0 0 0 1px alpha(white, 0.05);
     margin: 4px 6px;
     padding: 2px 8px;
 }
@@ -34,9 +47,10 @@ window#waybar {
 .modules-left:hover,
 .modules-center:hover,
 .modules-right:hover {
-    background: alpha(@bg, 0.90);
-    border-color: alpha(@glow, 0.6);
-    box-shadow: 0 6px 16px alpha(@glow, 0.25), inset 0 0 0 1px alpha(white, 0.1);
+    background: alpha(@bg, 0.95);
+    animation-duration: 4s; /* Speed up pulse on hover */
+    border-color: alpha(@glow, 0.8);
+    box-shadow: 0 6px 20px alpha(@glow, 0.4), inset 0 0 0 1px alpha(white, 0.1);
 }
 
 /* ─── Tooltips ─── */
@@ -55,20 +69,19 @@ tooltip label {
 /* ═══════════════════════════════════════════════════════════
    MODULE BASE 
    ═══════════════════════════════════════════════════════════ */
-#custom-theme, #custom-batterybar, #workspaces, #clock, #cava,
-#cpu, #memory, #pulseaudio, #network, #battery, #backlight, #custom-lock, #tray, #custom-sysicon {
-    padding: 4px 10px;
-    margin: 2px;
-    border-radius: 16px;
+#custom-theme, #custom-batterybar, #workspaces, #clock, #cava, #custom-media,
+#cpu, #memory, #pulseaudio, #network, #battery, #backlight, #custom-lock, #tray, #custom-sysicon, #custom-notification {
+    padding: 4px 12px;
+    margin: 3px;
+    border-radius: 18px;
     color: @text;
 }
 
 /* ─── Hover Animations for Interactive Modules ─── */
-#custom-theme:hover, #clock:hover, #custom-lock:hover, #custom-sysicon:hover {
+#custom-theme:hover, #clock:hover, #custom-lock:hover, #custom-sysicon:hover, #custom-media:hover, #custom-notification:hover {
     background: alpha(@glow, 0.15);
     color: @glow;
     text-shadow: 0 0 12px alpha(@glow, 0.8);
-    transform: scale(1.05);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -78,6 +91,20 @@ tooltip label {
     color: @glow;
     font-weight: 900;
     text-shadow: 0 0 8px alpha(@glow, 0.5);
+}
+
+#custom-media {
+    color: @primary;
+    background: alpha(@primary, 0.1);
+    font-weight: 800;
+}
+
+#custom-media.playing {
+    animation: media-pulse 2s alternate infinite;
+    background: alpha(@glow, 0.1);
+}
+#custom-media.paused {
+    color: alpha(@text, 0.6);
 }
 
 #custom-batterybar {
@@ -92,7 +119,7 @@ tooltip label {
     margin: 2px;
     border-radius: 12px;
     background: transparent;
-    color: alpha(@text, 0.4);
+    color: alpha(@text, 0.3);
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 #workspaces button:hover {
@@ -103,8 +130,8 @@ tooltip label {
 #workspaces button.active {
     background: @glow;
     color: @bg;
-    min-width: 36px; /* Expanding pill effect */
-    box-shadow: 0 0 12px alpha(@glow, 0.6);
+    min-width: 38px;
+    box-shadow: 0 0 14px alpha(@glow, 0.8);
 }
 #workspaces button.urgent {
     background: #ff3333;
@@ -118,64 +145,40 @@ tooltip label {
    ═══════════════════════════════════════════════════════════ */
 #cava {
     color: @primary;
-    text-shadow: 0 0 8px alpha(@glow, 0.5);
+    text-shadow: 0 0 10px alpha(@glow, 0.6);
     min-width: 60px;
 }
 #clock {
     color: @text;
     font-weight: 800;
+    font-size: 16px;
 }
 
 /* ═══════════════════════════════════════════════════════════
    RIGHT ISLAND (Drawers & System Modules)
    ═══════════════════════════════════════════════════════════ */
+#custom-notification {
+    color: @primary;
+    background: alpha(@primary, 0.1);
+}
+
 #custom-sysicon {
     font-size: 18px;
     padding: 0 12px;
     color: @glow;
 }
 
-/* Give drawer modules distinct colors */
-#cpu {
-    color: #ff8b94;
-    background: alpha(#ff8b94, 0.1);
-}
-#memory {
-    color: #ffaaa5;
-    background: alpha(#ffaaa5, 0.1);
-}
-#network {
-    color: #88d8b0;
-    background: alpha(#88d8b0, 0.1);
-}
-#battery {
-    color: #ffcc5c;
-    background: alpha(#ffcc5c, 0.1);
-}
-#battery.charging, #battery.plugged {
-    color: #88d8b0;
-    background: alpha(#88d8b0, 0.15);
-    text-shadow: 0 0 8px alpha(#88d8b0, 0.4);
-}
-#battery.critical:not(.charging) {
-    color: #ff3333;
-    background: alpha(#ff3333, 0.2);
-    animation: critical-pulse 1s infinite alternate;
-}
+#cpu { color: #ff8b94; background: alpha(#ff8b94, 0.1); }
+#memory { color: #ffaaa5; background: alpha(#ffaaa5, 0.1); }
+#network { color: #88d8b0; background: alpha(#88d8b0, 0.1); }
 
-/* Audio Group Specific Options */
-#pulseaudio {
-    color: @accent;
-    background: alpha(@accent, 0.1);
-}
-#backlight {
-    color: #ffe066;
-    background: alpha(#ffe066, 0.1);
-}
+#battery { color: #ffcc5c; background: alpha(#ffcc5c, 0.1); }
+#battery.charging, #battery.plugged { color: #88d8b0; background: alpha(#88d8b0, 0.15); text-shadow: 0 0 8px alpha(#88d8b0, 0.4); }
+#battery.critical:not(.charging) { color: #ff3333; background: alpha(#ff3333, 0.2); animation: critical-pulse 1s infinite alternate; }
 
-#custom-lock {
-    color: alpha(@text, 0.5);
-}
+#pulseaudio { color: @accent; background: alpha(@accent, 0.1); }
+#backlight { color: #ffe066; background: alpha(#ffe066, 0.1); }
+#custom-lock { color: alpha(@text, 0.5); }
 
 /* ═══════════════════════════════════════════════════════════
    ANIMATIONS

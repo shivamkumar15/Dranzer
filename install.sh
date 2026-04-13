@@ -31,7 +31,7 @@ check_dependencies() {
     missing=0
 
     # Required
-    for cmd in waybar rofi kitty hyprlock; do
+    for cmd in waybar rofi kitty hyprlock swaync playerctl; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             printf '\033[1;31m✗ Required:\033[0m %s is not installed\n' "$cmd" >&2
             missing=1
@@ -45,7 +45,7 @@ check_dependencies() {
     fi
 
     # Recommended
-    for cmd in brightnessctl wpctl grim slurp wl-copy playerctl; do
+    for cmd in brightnessctl wpctl grim slurp wl-copy; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             printf '\033[1;33m⚠ Optional:\033[0m %s is not installed (some keybindings will not work)\n' "$cmd" >&2
         fi
@@ -184,9 +184,11 @@ install_file "$REPO_DIR/.config/waybar/bitbeast-style.css" "$CONFIG_HOME/waybar/
 install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config.jsonc"
 install_file "$REPO_DIR/.config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
 install_file "$REPO_DIR/.config/rofi/config.rasi" "$CONFIG_HOME/rofi/config.rasi"
+install_dir "$REPO_DIR/.config/swaync" "$CONFIG_HOME/swaync"
 install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
 install_file "$REPO_DIR/.local/bin/bitbeast-battery" "$BIN_DIR/bitbeast-battery"
-chmod +x "$BIN_DIR/bitbeast" "$BIN_DIR/bitbeast-battery"
+install_file "$REPO_DIR/.local/bin/bitbeast-media" "$BIN_DIR/bitbeast-media"
+chmod +x "$BIN_DIR/bitbeast" "$BIN_DIR/bitbeast-battery" "$BIN_DIR/bitbeast-media"
 
 if [ "$APPLY_RUNTIME" -eq 1 ]; then
     "$BIN_DIR/bitbeast" "$THEME_NAME"
