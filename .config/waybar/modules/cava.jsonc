@@ -1,0 +1,14 @@
+{
+  "cava": {
+    "framerate": 60,
+    "autosens": 1,
+    "bars": 12,
+    "method": "pulse",
+    "source": "auto",
+    "stereo": true,
+    "bar_delimiter": 0,
+    "noise_reduction": 0.77,
+    "input_delay": 2,
+    "format-icons": [" ", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+  }
+}

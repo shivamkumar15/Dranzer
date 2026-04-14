@@ -1,0 +1,10 @@
+{
+  "custom/bluetooth": {
+    "format": "{}",
+    "exec": "if command -v bluetoothctl >/dev/null 2>&1; then if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then echo '󰂯'; else echo '󰂲'; fi; else echo ''; fi",
+    "interval": 5,
+    "tooltip-format": "Bluetooth",
+    "on-click": "bluetoothctl power on && blueman-manager",
+    "on-click-right": "bluetoothctl power off"
+  }
+}

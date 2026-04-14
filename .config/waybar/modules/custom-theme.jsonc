@@ -1,0 +1,11 @@
+{
+  "custom/theme": {
+    "format": " 󰣆  {} ",
+    "exec": "~/.local/bin/bitbeast current-theme | tr '[:lower:]' '[:upper:]'",
+    "interval": 2,
+    "tooltip": true,
+    "tooltip-format": "Change Wallpaper / Theme",
+    "on-click": "~/.local/bin/bitbeast pick",
+    "on-click-right": "~/.local/bin/bitbeast restore-wallpaper"
+  }
+}

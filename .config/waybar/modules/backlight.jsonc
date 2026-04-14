@@ -1,0 +1,12 @@
+{
+  "backlight": {
+    "device": "intel_backlight",
+    "format": "{icon}  {percent}%",
+    "format-icons": ["󰃞", "󰃟", "󰃠"],
+    "tooltip": true,
+    "on-scroll-up": "~/.local/bin/bitbeast brightness up",
+    "on-scroll-down": "~/.local/bin/bitbeast brightness down",
+    "on-click": "~/.local/bin/bitbeast brightness up",
+    "min-length": 6
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "network": {
+    "format-wifi": "󰤨  {signalStrength}%",
+    "format-ethernet": "󰈀  {ipaddr}",
+    "format-disconnected": "󰤭  Offline",
+    "format-alt": "󰤨  {essid} ({signalStrength}%)",
+    "tooltip-format": "{ifname}\n{ipaddr}/{cidr}\nGW: {gwaddr}\n\n⬆ {bandwidthUpBytes}\n⬇ {bandwidthDownBytes}",
+    "on-click": "kitty -e nmtui",
+    "on-click-right": "nm-connection-editor"
+  },
+  "network#bandwidthUpBytes": {
+    "format": "⬆ {bandwidthUpBytes}",
+    "interval": 1,
+    "tooltip": false,
+    "min-length": 10
+  },
+  "network#bandwidthDownBytes": {
+    "format": "⬇ {bandwidthDownBytes}",
+    "interval": 1,
+    "tooltip": false,
+    "min-length": 10
+  }
+}

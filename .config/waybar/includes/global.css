@@ -1,0 +1,11 @@
+/* Base config for text size and font */
+* {
+    border-radius: 0em;
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 11px;
+    min-height: 0;
+}
+
+window#waybar {
+    background: transparent;
+}

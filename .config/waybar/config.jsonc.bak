@@ -1,0 +1,180 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 44,
+  "spacing": 10,
+  "margin-top": 14,
+  "margin-left": 20,
+  "margin-right": 20,
+  "margin-bottom": 0,
+  
+  "modules-left": ["custom/theme", "hyprland/workspaces", "hyprland/window"],
+  "modules-center": ["custom/media"],
+  "modules-right": ["clock", "cava", "group/audio", "group/system", "custom/batterybar", "tray", "custom/notification", "custom/lock"],
+
+  "custom/theme": {
+    "format": " 󰣆  {} ",
+    "exec": "~/.local/bin/bitbeast current-theme | tr '[:lower:]' '[:upper:]'",
+    "interval": 2,
+    "tooltip": true,
+    "tooltip-format": "Change Wallpaper / Theme",
+    "on-click": "~/.local/bin/bitbeast pick",
+    "on-click-right": "~/.local/bin/bitbeast restore-wallpaper"
+  },
+
+  "hyprland/workspaces": {
+    "disable-scroll": true,
+    "all-outputs": true,
+    "sort-by-number": true,
+    "format": "{icon}",
+    "format-icons": {
+      "default": "◆",
+      "active": "◈",
+      "urgent": "◇"
+    },
+    "persistent-workspaces": {
+      "1": [], "2": [], "3": [], "4": [], "5": []
+    }
+  },
+
+  "hyprland/window": {
+    "format": "󰖯  {}",
+    "separate-outputs": true,
+    "max-length": 38,
+    "tooltip": false
+  },
+
+  "custom/media": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.local/bin/bitbeast-media",
+    "interval": 1,
+    "on-click": "playerctl play-pause",
+    "on-click-right": "playerctl next",
+    "on-click-middle": "playerctl previous",
+    "tooltip": false
+  },
+
+  "cava": {
+    "framerate": 60,
+    "autosens": 1,
+    "bars": 12,
+    "method": "pulse",
+    "source": "auto",
+    "stereo": true,
+    "bar_delimiter": 0,
+    "noise_reduction": 0.77,
+    "input_delay": 2,
+    "format-icons" : [" ", "▂", "▃", "▄", "▅", "▆", "▇", "█" ]
+  },
+
+  "clock": {
+    "format": "󱑒  {:%H:%M}",
+    "format-alt": "󰃭  {:%a, %d %b}",
+    "tooltip-format": "<tt><small>{calendar}</small></tt>"
+  },
+
+  "group/audio": {
+    "orientation": "inherit",
+    "drawer": {
+      "transition-duration": 280,
+      "children-class": "audio-drawer",
+      "transition-left-to-right": false
+    },
+    "modules": ["pulseaudio", "backlight"]
+  },
+
+  "pulseaudio": {
+    "format": "  {volume}%",
+    "format-muted": "󰖁  Muted",
+    "tooltip": true,
+    "on-click": "pavucontrol"
+  },
+  "backlight": {
+    "format": "󰃠  {percent}%",
+    "tooltip": true,
+    "on-scroll-up": "~/.local/bin/bitbeast brightness up",
+    "on-scroll-down": "~/.local/bin/bitbeast brightness down",
+    "on-click": "~/.local/bin/bitbeast brightness up"
+  },
+
+  "group/system": {
+    "orientation": "inherit",
+    "drawer": {
+      "transition-duration": 280,
+      "children-class": "system-drawer",
+      "transition-left-to-right": false
+    },
+    "modules": ["custom/sysicon", "cpu", "memory", "network", "battery"]
+  },
+
+  "custom/sysicon": {
+    "format": "󰒋 ",
+    "tooltip": true,
+    "tooltip-format": "System Vitals"
+  },
+  "cpu": {
+    "format": "  {usage}%",
+    "tooltip": false,
+    "on-click": "kitty -e btop"
+  },
+  "memory": {
+    "format": "  {}%",
+    "tooltip-format": "Memory usage: {}%",
+    "on-click": "kitty -e btop"
+  },
+  "network": {
+    "format-wifi": "  {signalStrength}%",
+    "format-ethernet": "󰈀  {ipaddr}",
+    "format-disconnected": "󰖪  Offline",
+    "tooltip-format": "{essid} — {ifname} via {gwaddr}",
+    "on-click": "kitty -e nmtui"
+  },
+  "battery": {
+    "format": "󰁹 {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰂄 {capacity}%",
+    "states": {
+      "warning": 30,
+      "critical": 15
+    }
+  },
+
+  "custom/batterybar": {
+    "format": "{}",
+    "exec": "~/.local/bin/bitbeast-battery",
+    "interval": 10,
+    "tooltip": false
+  },
+
+  "custom/notification": {
+    "tooltip": false,
+    "format": "{icon}",
+    "format-icons": {
+      "notification": "󱅫",
+      "none": "󰂚",
+      "dnd-notification": "󱏧",
+      "dnd-none": "󱏧",
+      "inhibited-notification": "󱅫",
+      "inhibited-none": "󰂚",
+      "dnd-inhibited-notification": "󱏧",
+      "dnd-inhibited-none": "󱏧"
+    },
+    "return-type": "json",
+    "exec-if": "which swaync-client",
+    "exec": "swaync-client -swb",
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw",
+    "escape": true
+  },
+
+  "custom/lock": {
+    "format": " ",
+    "tooltip-format": "Lock Screen",
+    "on-click": "~/.local/bin/bitbeast lock"
+  },
+  "tray": {
+    "icon-size": 15,
+    "spacing": 10
+  }
+}

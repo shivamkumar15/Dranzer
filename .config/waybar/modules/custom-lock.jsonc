@@ -1,0 +1,7 @@
+{
+  "custom/lock": {
+    "format": " ",
+    "tooltip-format": "Lock Screen",
+    "on-click": "~/.local/bin/bitbeast lock"
+  }
+}

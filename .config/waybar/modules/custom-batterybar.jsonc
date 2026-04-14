@@ -1,0 +1,8 @@
+{
+  "custom/batterybar": {
+    "format": "{}",
+    "exec": "~/.local/bin/bitbeast-battery",
+    "interval": 10,
+    "tooltip": false
+  }
+}

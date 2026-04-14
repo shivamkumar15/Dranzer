@@ -1,0 +1,16 @@
+{
+  "hyprland/window": {
+    "format": "{}",
+    "separate-outputs": true,
+    "max-length": 40,
+    "rewrite": {
+      "(.*) — Mozilla Firefox": "󰈹  $1",
+      "(.*) - Visual Studio Code": "󰨞  $1",
+      "(.*) — Dolphin": "󰉋  $1",
+      "(.*)Spotify(.*)": "󰓇  $1",
+      "(.*) - kitty": "  $1",
+      "": "󰖯  Desktop"
+    },
+    "tooltip": false
+  }
+}

@@ -1,0 +1,53 @@
+/* HyDE Border Radius Shapes */
+
+/* ? Leaf shape */
+window#waybar.top #leaf, window#waybar.bottom #leaf, window#waybar.left #leaf, window#waybar.right #leaf {
+    border-radius: 10pt 0 10pt 0;
+}
+
+/* ? Inverse Leaf shape */
+window#waybar.top #leaf-inverse, window#waybar.bottom #leaf-inverse, window#waybar.left #leaf-inverse, window#waybar.right #leaf-inverse {
+    border-radius: 0 10pt 0 10pt;
+}
+
+/* ? Full Pill shape*/
+window#waybar.bottom #pill, window#waybar.top #pill, window#waybar.left #pill, window#waybar.right #pill {
+    border-radius: 10pt 10pt 10pt 10pt;
+}
+
+/* ? Pill down */
+window#waybar.top #pill-down, window#waybar.bottom #pill-down, window#waybar.left #pill-down, window#waybar.right #pill-down {
+    border-radius: 0 0 10pt 10pt;
+}
+
+/* ? Pill in */
+window#waybar.top #pill-in { border-radius: 0 0 10pt 10pt; }
+window#waybar.right #pill-in { border-radius: 10pt 0 0 10pt; }
+window#waybar.bottom #pill-in { border-radius: 10pt 10pt 0 0; }
+window#waybar.left #pill-in { border-radius: 0 10pt 10pt 0; }
+
+/* ? Pill out */
+window#waybar.top #pill-out { border-radius: 10pt 10pt 0 0; }
+window#waybar.right #pill-out { border-radius: 0 10pt 10pt 0; }
+window#waybar.bottom #pill-out { border-radius: 0 0 10pt 10pt; }
+window#waybar.left #pill-out { border-radius: 10pt 0 0 10pt; }
+
+/* ? Pill right */
+window#waybar.top #pill-right, window#waybar.bottom #pill-right, window#waybar.left #pill-right, window#waybar.right #pill-right {
+    border-radius: 0 10pt 10pt 0;
+}
+
+/* ? Pill left */
+window#waybar.top #pill-left, window#waybar.bottom #pill-left, window#waybar.left #pill-left, window#waybar.right #pill-left {
+    border-radius: 10pt 0 0 10pt;
+}
+
+/* ? Pill up */
+window#waybar.top #pill-up, window#waybar.bottom #pill-up, window#waybar.left #pill-up, window#waybar.right #pill-up {
+    border-radius: 10pt 10pt 0 0;
+}
+
+tooltip { border-radius: 10pt; }
+menu { border-radius: 10pt; }
+menu menuitem { border-radius: 10pt; }
+window.popup decoration { border-radius: 10pt; }

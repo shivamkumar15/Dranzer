@@ -1,0 +1,8 @@
+{
+  "custom/style": {
+    "format": "󰏘 ",
+    "tooltip-format": "Cycle Waybar Style",
+    "on-click": "~/.local/bin/bitbeast style cycle",
+    "on-click-right": "~/.local/bin/bitbeast pick-style"
+  }
+}

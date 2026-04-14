@@ -1,0 +1,7 @@
+{
+  "custom/power": {
+    "format": "⏻ ",
+    "tooltip-format": "Power Menu",
+    "on-click": "if command -v rofi >/dev/null 2>&1; then echo -e '⏻ Shutdown\n Reboot\n⏾ Suspend\n Lock\n Logout' | rofi -dmenu -i -p 'Power' | xargs -I{} sh -c 'case \"{}\" in *Shutdown*) systemctl poweroff;; *Reboot*) systemctl reboot;; *Suspend*) systemctl suspend;; *Lock*) ~/.local/bin/bitbeast lock;; *Logout*) hyprctl dispatch exit;; esac'; fi"
+  }
+}
