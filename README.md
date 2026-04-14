@@ -10,7 +10,7 @@ Before installing, ensure you have the required modular components. If your syst
 
 **Core Requirements:**
 - **`waybar`**: Premium floating layout and status handling.
-- **`rofi`**: Used for the app launcher and dynamic wallpaper selection menus.
+- **`rofi`**: Used for the app launcher, power menu, and dynamic wallpaper selection menus.
 - **`kitty`**: Default terminal implementation matching color schemes.
 - **`swaync`**: **Required**. Optimized notification center with a beautifully themed HUD drawer.
 - **`playerctl`**: **Required**. Powers the live media integration on Waybar.
@@ -20,8 +20,10 @@ Before installing, ensure you have the required modular components. If your syst
 - **JetBrainsMono Nerd Font**: (`ttf-jetbrains-mono-nerd` or similar). Waybar and Rofi rely heavily on Nerd Font/Font Awesome glyphs instead of text strings for their premium floating look. If you see rectangles (`[]`), you are missing these fonts!
 
 **Optional / Recommended:**
-- **Audio Control**: `wireplumber` (`wpctl`). Volume limits are natively clamped at 100% (-l 1.0) internally.
-- **Brightness**: `brightnessctl` or `light`. Note: The `bitbeast` script has a deeply baked-in robust fallback; if neither are installed, it will natively query and manipulate `/sys/class/backlight` directly!
+- **`pavucontrol`**: Audio mixer for the Pulseaudio module.
+- **`blueman`**: Bluetooth management for the Bluetooth module.
+- **`network-manager-applet`**: Providing `nm-connection-editor` for network settings.
+- **`brightnessctl`** or **`light`**: Note: The `bitbeast` script has a deeply baked-in robust fallback; if neither are installed, it will natively query and manipulate `/sys/class/backlight` directly!
 
 ## Installation
 
@@ -64,9 +66,17 @@ All 6 integrated themes have had their alpha layers (glass transparencies), padd
 
 ## Desktop Integration Features
 
-### Waybar
-The Waybar features a fully transparent floating backbone with individual bounding "pills". It includes **Live Media Integration** (with mini-animations) and a **Unified Notification Center**. You can cycle the variants (`Super + Shift + W`), combining BitBeast colors with the styles:
-- `ember`, `glacier`, `forge`, `eclipse`, `throne`
+### Waybar (Modular Architecture)
+The Waybar has been re-engineered with a **fully modular architecture** inspired by the HyDE Project. It features a transparent floating backbone with individual bounding "shares" (leafs on the edges, nested pills in the center).
+
+- **Modular Design**: Individual modules are now stored in `~/.config/waybar/modules/`, making it incredibly easy to swap component logic without touching the main layout.
+- **Featured Modules**:
+    - **Privacy Guard**: Integrated camera, microphone, and screen-sharing indicators.
+    - **Idle Inhibitor**: A "Caffeine" toggle to keep your display awake.
+    - **Rich Calendar**: Clock module with a detailed calendar popup and interactive navigation.
+    - **Power Menu**: Integrated Rofi-based power management (Shutdown, Reboot, Lock).
+- **Theme Bridging**: Your active BitBeast theme colors are dynamically bridged into these modular components using a `theme.css` variable layer.
+- Cycle layouts (`Super + Shift + W`) across: `ember`, `glacier`, `forge`, `eclipse`, `throne`.
 
 ### Rofi Launcher & Wallpaper Picker
 The application launcher and wallpaper pickers are styled as deep-blurred, glowing floating glass bubbles. 
@@ -92,11 +102,12 @@ bitbeast <theme-name>
 
 **Other available commands:**
 - `bitbeast list` — Lists all registered environment themes
-- `bitbeast pick` — Opens the immersive Rofi picker populated with real local wallpapers to change your theme on the fly.
-- `bitbeast style cycle` — Cycles natively through Waybar structures.
-- `bitbeast pick-style` — Uses the Rofi picker for structural layouts.
-- `bitbeast brightness [up|down]` — Intelligently raises or lowers screen brightness, falling back sequentially across `brightnessctl` ➔ `light` ➔ `sysfs` without breaking.
-- `bitbeast session-init` — Background daemon process called by Hyprland to boot visualizers on login.
+- `bitbeast pick` — Opens the immersive Rofi picker for themes on the fly.
+- `bitbeast style cycle` — Cycles natively through Waybar structural styles.
+- `bitbeast pick-style` — Uses the Rofi picker for Waybar structural styles.
+- `bitbeast lock` — Triggers the dynamic theme-aware lockscreen (Hyprlock).
+- `bitbeast brightness [up|down]` — Screen brightness control.
+- `bitbeast session-init` — Logic to restore your session state on login.
 
 ---
 
