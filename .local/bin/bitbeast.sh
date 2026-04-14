@@ -44,6 +44,7 @@ Usage:
   bitbeast restore-wallpaper
   bitbeast session-init
   bitbeast lock
+  bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
 
 Available themes:
@@ -614,6 +615,17 @@ brightness_control() {
     return 1
 }
 
+set_avatar() {
+    avatar_src=$1
+    if [ ! -f "$avatar_src" ]; then
+        printf 'Error: Avatar file not found: %s\n' "$avatar_src" >&2
+        return 1
+    fi
+    mkdir -p "$STATE_DIR"
+    cp "$avatar_src" "$STATE_DIR/avatar.png"
+    printf 'Avatar updated successfully to %s\n' "$avatar_src"
+}
+
 command_name=${1:-}
 
 if [ $# -eq 0 ]; then
@@ -685,9 +697,16 @@ case $command_name in
             [ -n "$glow_match" ] && glow_hex="$glow_match"
         fi
 
-        # Find avatar path (prefer user .face)
-        avatar_path="$HOME/.face"
-        [ -f "$avatar_path" ] || avatar_path=""
+        # Find avatar path (prefer config avatar, then user face, fallback to wallpaper)
+        if [ -f "$STATE_DIR/avatar.png" ]; then
+            avatar_path="$STATE_DIR/avatar.png"
+        elif [ -f "$HOME/.face.icon" ]; then
+            avatar_path="$HOME/.face.icon"
+        elif [ -f "$HOME/.face" ]; then
+            avatar_path="$HOME/.face"
+        else
+            avatar_path="$wallpaper_path"
+        fi
         
         mkdir -p "$CONFIG_HOME/hypr"
         cat > "$target_lock_colors" <<EOF_COLORS
@@ -724,6 +743,10 @@ EOF_COLORS
         ;;
     session-init)
         session_init
+        ;;
+    avatar)
+        [ $# -eq 2 ] || { usage; exit 1; }
+        set_avatar "$2"
         ;;
     brightness)
         [ $# -eq 2 ] || { usage; exit 1; }
