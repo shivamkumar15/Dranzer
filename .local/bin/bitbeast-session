@@ -1,0 +1,61 @@
+#!/bin/sh
+
+set -eu
+
+action=${1:-}
+
+usage() {
+    cat >&2 <<'EOF'
+Usage: bitbeast-session <suspend|logout|restart|shutdown>
+EOF
+}
+
+logout_session() {
+    if command -v hyprctl >/dev/null 2>&1; then
+        exec hyprctl dispatch exit
+    fi
+
+    if [ -n "${XDG_SESSION_ID:-}" ] && command -v loginctl >/dev/null 2>&1; then
+        exec loginctl terminate-session "$XDG_SESSION_ID"
+    fi
+
+    printf 'Unable to find a logout backend.\n' >&2
+    exit 1
+}
+
+case "$action" in
+    suspend)
+        if command -v systemctl >/dev/null 2>&1; then
+            exec systemctl suspend
+        fi
+        if command -v loginctl >/dev/null 2>&1; then
+            exec loginctl suspend
+        fi
+        ;;
+    logout)
+        logout_session
+        ;;
+    restart|reboot)
+        if command -v systemctl >/dev/null 2>&1; then
+            exec systemctl reboot
+        fi
+        if command -v loginctl >/dev/null 2>&1; then
+            exec loginctl reboot
+        fi
+        ;;
+    shutdown|poweroff)
+        if command -v systemctl >/dev/null 2>&1; then
+            exec systemctl poweroff
+        fi
+        if command -v loginctl >/dev/null 2>&1; then
+            exec loginctl poweroff
+        fi
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
+
+printf 'Unable to run session action: %s\n' "$action" >&2
+exit 1

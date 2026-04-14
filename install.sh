@@ -188,7 +188,8 @@ install_dir "$REPO_DIR/.config/swaync" "$CONFIG_HOME/swaync"
 install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
 install_file "$REPO_DIR/.local/bin/bitbeast-battery" "$BIN_DIR/bitbeast-battery"
 install_file "$REPO_DIR/.local/bin/bitbeast-media" "$BIN_DIR/bitbeast-media"
-chmod +x "$BIN_DIR/bitbeast" "$BIN_DIR/bitbeast-battery" "$BIN_DIR/bitbeast-media"
+install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
+chmod +x "$BIN_DIR/bitbeast" "$BIN_DIR/bitbeast-battery" "$BIN_DIR/bitbeast-media" "$BIN_DIR/bitbeast-session"
 
 if [ "$APPLY_RUNTIME" -eq 1 ]; then
     "$BIN_DIR/bitbeast" "$THEME_NAME"

@@ -666,7 +666,16 @@ case $command_name in
         [ -f "$current_conf" ] || current_conf="$THEMES_DIR/dranzer/colors.conf"
         
         bg_rgb=$(sed -n 's/^\$bg[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
+        primary_rgb=$(sed -n 's/^\$primary[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
+        secondary_rgb=$(sed -n 's/^\$secondary[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
+        accent_rgb=$(sed -n 's/^\$accent[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
         text_rgb=$(sed -n 's/^\$text[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
+
+        [ -n "$bg_rgb" ] || bg_rgb="0d0405"
+        [ -n "$primary_rgb" ] || primary_rgb="f44336"
+        [ -n "$secondary_rgb" ] || secondary_rgb="8d0b0b"
+        [ -n "$accent_rgb" ] || accent_rgb="ffc107"
+        [ -n "$text_rgb" ] || text_rgb="fff5f5"
         
         # Get glow color from waybar.css
         glow_hex="#ffd166" # fallback
@@ -678,9 +687,20 @@ case $command_name in
         
         mkdir -p "$CONFIG_HOME/hypr"
         cat > "$target_lock_colors" <<EOF_COLORS
-\$bg = $bg_rgb
-\$text = $text_rgb
+\$bg = rgb(${bg_rgb})
+\$primary = rgb(${primary_rgb})
+\$secondary = rgb(${secondary_rgb})
+\$accent = rgb(${accent_rgb})
+\$text = rgb(${text_rgb})
+\$text_soft = rgba(${text_rgb}dd)
+\$text_dim = rgba(${text_rgb}99)
 \$glow = rgb(${glow_hex#\#})
+\$glow_alpha = ${glow_hex#\#}
+\$panel = rgba(${bg_rgb}d8)
+\$panel_soft = rgba(${bg_rgb}96)
+\$surface = rgba(${bg_rgb}ea)
+\$surface_alt = rgba(${bg_rgb}b8)
+\$line = rgba(${glow_hex#\#}55)
 \$wallpaper_path = $wallpaper_path
 \$theme_name = $theme_name_upper
 EOF_COLORS

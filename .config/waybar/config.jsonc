@@ -1,16 +1,16 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 46,
-  "spacing": 8,
-  "margin-top": 12,
-  "margin-left": 18,
-  "margin-right": 18,
+  "height": 44,
+  "spacing": 10,
+  "margin-top": 14,
+  "margin-left": 20,
+  "margin-right": 20,
   "margin-bottom": 0,
   
-  "modules-left": ["custom/theme", "hyprland/workspaces", "custom/media"],
-  "modules-center": ["clock", "cava"],
-  "modules-right": ["group/audio", "group/system", "custom/batterybar", "tray", "custom/notification", "custom/lock"],
+  "modules-left": ["custom/theme", "hyprland/workspaces", "hyprland/window"],
+  "modules-center": ["custom/media"],
+  "modules-right": ["clock", "cava", "group/audio", "group/system", "custom/batterybar", "tray", "custom/notification", "custom/lock"],
 
   "custom/theme": {
     "format": " 󰣆  {} ",
@@ -35,6 +35,13 @@
     "persistent-workspaces": {
       "1": [], "2": [], "3": [], "4": [], "5": []
     }
+  },
+
+  "hyprland/window": {
+    "format": "󰖯  {}",
+    "separate-outputs": true,
+    "max-length": 38,
+    "tooltip": false
   },
 
   "custom/media": {
@@ -63,14 +70,14 @@
 
   "clock": {
     "format": "󱑒  {:%H:%M}",
-    "format-alt": "󰃭  {:%A, %d %B}",
+    "format-alt": "󰃭  {:%a, %d %b}",
     "tooltip-format": "<tt><small>{calendar}</small></tt>"
   },
 
   "group/audio": {
     "orientation": "inherit",
     "drawer": {
-      "transition-duration": 400,
+      "transition-duration": 280,
       "children-class": "audio-drawer",
       "transition-left-to-right": false
     },
@@ -94,7 +101,7 @@
   "group/system": {
     "orientation": "inherit",
     "drawer": {
-      "transition-duration": 400,
+      "transition-duration": 280,
       "children-class": "system-drawer",
       "transition-left-to-right": false
     },
@@ -167,6 +174,7 @@
     "on-click": "~/.local/bin/bitbeast lock"
   },
   "tray": {
+    "icon-size": 15,
     "spacing": 10
   }
 }
