@@ -659,6 +659,18 @@ case $command_name in
         theme_name_upper=$(printf '%s' "$theme_name" | tr '[:lower:]' '[:upper:]')
         wallpaper_path=$(saved_wallpaper_path || fallback_wallpaper_path || echo "")
         
+        # Setup avatar and username
+        user_display_name="${USER:-BitBeast Master}"
+        if [ -f "$CONFIG_HOME/bitbeast/avatar.png" ]; then
+            avatar_path="$CONFIG_HOME/bitbeast/avatar.png"
+        elif [ -f "$HOME/.face.icon" ]; then
+            avatar_path="$HOME/.face.icon"
+        elif [ -f "$HOME/.face" ]; then
+            avatar_path="$HOME/.face"
+        else
+            avatar_path="$wallpaper_path" # Fallback to wallpaper if no avatar
+        fi
+        
         # Read the current theme colors into lock config
         current_conf="$STATE_DIR/current.conf"
         target_lock_colors="$CONFIG_HOME/hypr/bitbeast-lock-colors.conf"
@@ -712,6 +724,8 @@ case $command_name in
 \$line = rgba(${glow_hex#\#}55)
 \$wallpaper_path = $wallpaper_path
 \$theme_name = $theme_name_upper
+\$avatar_path = $avatar_path
+\$user_display_name = $user_display_name
 EOF_COLORS
 
         hyprlock --config "$CONFIG_HOME/hypr/hyprlock.conf"
