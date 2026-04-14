@@ -684,6 +684,10 @@ case $command_name in
             glow_match=$(grep '@define-color glow' "$theme_dir/waybar.css" | awk '{print $3}' | tr -d ';')
             [ -n "$glow_match" ] && glow_hex="$glow_match"
         fi
+
+        # Find avatar path (prefer user .face)
+        avatar_path="$HOME/.face"
+        [ -f "$avatar_path" ] || avatar_path=""
         
         mkdir -p "$CONFIG_HOME/hypr"
         cat > "$target_lock_colors" <<EOF_COLORS
@@ -703,6 +707,8 @@ case $command_name in
 \$line = rgba(${glow_hex#\#}55)
 \$wallpaper_path = $wallpaper_path
 \$theme_name = $theme_name_upper
+\$avatar_path = $avatar_path
+\$user_display_name = $USER
 EOF_COLORS
 
         hyprlock --config "$CONFIG_HOME/hypr/hyprlock.conf"
