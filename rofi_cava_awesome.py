@@ -85,26 +85,37 @@ button {
 button selected { background-color: @primary; text-color: #ffffff; box-shadow: 0px 0px 15px @primary; }
 """
 
-# Awesome CAVA patch
+# Neon Cava Gradients
+NEON_GRADIENTS = {
+    'dranzer': ['#440000', '#990000', '#FF0000', '#FF4400', '#FF8800', '#FFAA00', '#FFCC00', '#FFEE00'],
+    'burningcerbrus': ['#220033', '#440066', '#8800AA', '#AA00FF', '#FF00FF', '#FF44AA', '#FF8844', '#FFCC00'],
+    'driger': ['#002200', '#004400', '#008800', '#00FF00', '#44FF00', '#88FF00', '#CCFF00', '#FFFF00'],
+    'dragoon': ['#000044', '#000088', '#0000FF', '#0044FF', '#0088FF', '#00CCFF', '#00FFFF', '#AAFFFF'],
+    'draciel': ['#001122', '#002244', '#004488', '#0088FF', '#00FFFF', '#88FFFF', '#CCAAFF', '#FFEEFF'],
+    'galeon': ['#110022', '#220044', '#440088', '#8800FF', '#CC00FF', '#FF00FF', '#FFBB00', '#FFFF77']
+}
+
+# Awesome CAVA patch (Generic settings)
 CAVA_PATCH = {
     'bars = 36': 'bars = 64',
-    'bar_spacing = 2': 'bar_spacing = 1',
+    'bar_width = 3': 'bar_width = 1',
+    'bar_spacing = 2': 'bar_spacing = 0',
     'framerate = 144': 'framerate = 144',
     'sensitivity = 140': 'sensitivity = 180',
-    'integral = 82': 'integral = 90',
-    'gravity = 110': 'gravity = 130',
+    'integral = 82': 'integral = 95',
+    'gravity = 110': 'gravity = 140',
     'monstercat = 1': 'monstercat = 1\nnoise_reduction = 0.88',
-    'gradient_count = 3': 'gradient_count = 4',
 }
 
 base_dir = '/home/sniperxamster/Downloads/Dranzer/.config/bitbeasts'
 themes = glob.glob(f'{base_dir}/*')
 
-for theme in themes:
-    if not os.path.isdir(theme): continue
+for theme_path in themes:
+    if not os.path.isdir(theme_path): continue
+    theme_name = os.path.basename(theme_path)
     
     # Rofi
-    rofi_file = os.path.join(theme, 'rofi.rasi')
+    rofi_file = os.path.join(theme_path, 'rofi.rasi')
     if os.path.exists(rofi_file):
         with open(rofi_file, 'r') as f:
             content = f.read()
@@ -122,28 +133,43 @@ for theme in themes:
             f.write(new_content)
             
     # Cava
-    cava_file = os.path.join(theme, 'cava.conf')
+    cava_file = os.path.join(theme_path, 'cava.conf')
     if os.path.exists(cava_file):
         with open(cava_file, 'r') as f:
             content = f.read()
             
+        # Standardize smoothing and general settings first
+        # Replace the entire [smoothing] section for consistency
+        smoothing_block = "[smoothing]\nintegral = 95\nmonstercat = 1\nnoise_reduction = 0.88\nwaves = 0\ngravity = 140\n"
+        
+        import re
+        content = re.sub(r'\[smoothing\].*?(?=\n\[|$)', smoothing_block, content, flags=re.DOTALL)
+        
+        # Apply other generic patches
         for k, v in CAVA_PATCH.items():
+            if 'monstercat' in k: continue # Handled in smoothing block
             content = content.replace(k, v)
+        
+        # Rewrite [color] section
+        colors = NEON_GRADIENTS.get(theme_name, NEON_GRADIENTS['dranzer'])
+        color_block = "[color]\ngradient = 1\n"
+        color_block += f"gradient_count = {len(colors)}\n"
+        for i, color in enumerate(colors):
+            color_block += f"gradient_color_{i+1} = '{color}'\n"
+        
+        # Try to preserve background/foreground if they exist in the current content
+        bg_match = re.search(r'^background\s*=\s*(.*)', content, re.MULTILINE)
+        fg_match = re.search(r'^foreground\s*=\s*(.*)', content, re.MULTILINE)
+        
+        if bg_match: color_block += f"background = {bg_match.group(1).strip()}\n"
+        else: color_block += "background = '#0a0a0a'\n" # Fallback
+        
+        if fg_match: color_block += f"foreground = {fg_match.group(1).strip()}\n"
+        else: color_block += f"foreground = '{colors[-2]}'\n" # Use one of the neon colors as fallback
             
-        # Ensure we just have 4 gradient colors. Currently there evaluates to 3. Let's add a 4th.
-        # Find gradient_color_3
-        lines = content.split('\n')
-        new_lines = []
-        added = False
-        for line in lines:
-            new_lines.append(line)
-            if line.startswith('gradient_color_3'):
-                if not added:
-                    # just extract the color or default to something
-                    new_lines.append("gradient_color_4 = '#ffffff'")
-                    added = True
+        content = re.sub(r'\[color\].*?(?=\n\[|$)', color_block, content, flags=re.DOTALL)
         
         with open(cava_file, 'w') as f:
-            f.write('\n'.join(new_lines))
+            f.write(content.strip() + '\n')
 
 print("Successfully updated Rofi and Cava for all themes.")
