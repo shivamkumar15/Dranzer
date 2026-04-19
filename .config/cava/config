@@ -1,5 +1,5 @@
 [general]
-bars = 0
+bars = 64
 bar_width = 1
 bar_spacing = 0
 framerate = 144
@@ -11,11 +11,12 @@ method = pulse
 source = auto
 
 [output]
-method = ncurses
+method = raw
 channels = mono
 mono_option = average
 reverse = 0
 bar_delimiter = 0
+data_format = ascii
 
 [smoothing]
 integral = 77

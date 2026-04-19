@@ -253,7 +253,7 @@ class ParticleSystem:
 
 def main():
     parser = argparse.ArgumentParser(description='Particle Visualizer')
-    parser.add_argument('--theme', '-t', default='dranzer', 
+    parser.add_argument('--theme', '-t', default=None, 
                        choices=list(THEMES.keys()), help='Theme to use')
     parser.add_argument('--fifo', '-f', default='~/.config/cava/fifo',
                        help='CAVA FIFO path')
@@ -263,6 +263,15 @@ def main():
     parser.add_argument('--width', '-w', type=int, default=120, help='Width')
     parser.add_argument('--height', '-H', type=int, default=40, help='Height')
     args = parser.parse_args()
+    
+    # Read theme from bitbeast config if not specified
+    if args.theme is None:
+        theme_file = os.path.expanduser('~/.config/bitbeast/current.theme')
+        if os.path.exists(theme_file):
+            with open(theme_file, 'r') as f:
+                args.theme = f.read().strip()
+        else:
+            args.theme = 'dranzer'
     
     fifo_path = os.path.expanduser(args.fifo)
     system = ParticleSystem(args.theme, width=args.width, height=args.height)

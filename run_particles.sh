@@ -11,12 +11,12 @@ if [ ! -p "$FIFO_PATH" ]; then
 fi
 
 # Run CAVA in background
-cava -p "$HOME/.config/cava/config" &
+cava -p "$HOME/.config/cava/config" | sed 's/ /,/g' > "$FIFO_PATH" &
 CAVA_PID=$!
 
 # Run particle visualizer
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$SCRIPT_DIR/particle_visualizer.py"
+python3 "$SCRIPT_DIR/particle_visualizer_advanced.py" --mode terminal
 
 # Cleanup on exit
 kill $CAVA_PID 2>/dev/null
