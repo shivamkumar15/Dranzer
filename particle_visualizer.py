@@ -10,6 +10,7 @@ import time
 import math
 import random
 import threading
+import re
 import numpy as np
 from collections import deque
 
@@ -89,7 +90,7 @@ class ParticleSimulator:
                     while self.running:
                         line = f.readline()
                         if line:
-                            data = line.strip().split(',')
+                            data = [value for value in re.split(r'[^0-9]+', line.strip()) if value]
                             if len(data) >= BAR_COUNT:
                                 self.audio_data = [int(x) for x in data[:BAR_COUNT]]
         except Exception as e:

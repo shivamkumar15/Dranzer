@@ -10,8 +10,9 @@ if [ ! -p "$FIFO_PATH" ]; then
     mkfifo "$FIFO_PATH"
 fi
 
-# Run CAVA in background
-cava -p "$HOME/.config/cava/config" | sed 's/ /,/g' > "$FIFO_PATH" &
+# Run CAVA in background using the active BitBeast config.
+# The config writes ASCII data directly into the FIFO.
+cava -p "$HOME/.config/cava/config" >/dev/null 2>&1 &
 CAVA_PID=$!
 
 # Run particle visualizer

@@ -83,6 +83,131 @@ require_file() {
     fi
 }
 
+theme_color_hex() {
+    colors_file=$1
+    color_name=$2
+    fallback=$3
+
+    color_value=$(sed -n 's/^\$'"$color_name"'[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_file" | tail -n 1)
+    if [ -n "$color_value" ]; then
+        printf '#%s\n' "$color_value"
+    else
+        printf '%s\n' "$fallback"
+    fi
+}
+
+build_rofi_theme() {
+    theme_dir=$1
+    target_path=$2
+    colors_file=$3
+    rofi_file="$theme_dir/rofi.rasi"
+
+    require_file "$rofi_file"
+    require_file "$colors_file"
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#e8450c')
+    secondary=$(theme_color_hex "$colors_file" secondary '#7b120f')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+
+    mkdir -p "$(dirname "$target_path")"
+    cat > "$target_path" <<EOF_ROFI
+* {
+    bg: ${bg};
+    bg-alt: ${secondary};
+    primary: ${primary};
+    accent: ${accent};
+    text: ${text};
+    muted: ${text}99;
+    urgent: #ff5555;
+}
+
+EOF_ROFI
+    cat "$rofi_file" >> "$target_path"
+}
+
+build_cava_config() {
+    theme_dir=$1
+    target_path=$2
+    fifo_path=$3
+    cava_file="$theme_dir/cava.conf"
+
+    require_file "$cava_file"
+
+    color_block=$(sed -n '/^\[color\]/,$p' "$cava_file")
+    [ -n "$color_block" ] || color_block=$(cat <<'EOF_COLOR'
+[color]
+gradient = 1
+gradient_count = 5
+gradient_color_1 = '#7b0404'
+gradient_color_2 = '#c42010'
+gradient_color_3 = '#e8450c'
+gradient_color_4 = '#ffd166'
+gradient_color_5 = '#fff1dd'
+foreground = '#ffd166'
+background = '#150608'
+EOF_COLOR
+)
+
+    mkdir -p "$(dirname "$target_path")"
+    rm -f "$fifo_path"
+    mkfifo "$fifo_path"
+
+    cat > "$target_path" <<EOF_CAVA
+[general]
+bars = 64
+bar_width = 1
+bar_spacing = 0
+framerate = 144
+sensitivity = 200
+autosens = 0
+
+[input]
+method = pulse
+source = auto
+
+[output]
+method = raw
+raw_target = $fifo_path
+data_format = ascii
+ascii_max_range = 1000
+channels = mono
+mono_option = average
+reverse = 0
+bar_delimiter = 0
+
+[smoothing]
+integral = 77
+monstercat = 1
+noise_reduction = 0.77
+waves = 1
+gravity = 120
+
+[eq]
+1 = 0.8
+2 = 1.0
+3 = 1.0
+4 = 1.0
+5 = 1.0
+6 = 1.0
+7 = 1.0
+8 = 0.9
+
+$color_block
+EOF_CAVA
+}
+
+run_rofi_dmenu() {
+    prompt=$1
+
+    if [ -f "$ROFI_DIR/config.rasi" ]; then
+        rofi -config "$ROFI_DIR/config.rasi" -dmenu -i -p "$prompt"
+    else
+        rofi -dmenu -i -p "$prompt"
+    fi
+}
+
 resolve_wallpaper_path() {
     wallpaper_value=$1
 
@@ -428,8 +553,8 @@ activate_theme() {
     cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
     cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
     cp "$theme_dir/kitty.conf" "$KITTY_DIR/bitbeast.conf"
-    cp "$theme_dir/rofi.rasi" "$ROFI_DIR/bitbeast.rasi"
-    cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
+    build_rofi_theme "$theme_dir" "$ROFI_DIR/bitbeast.rasi" "$theme_dir/colors.conf"
+    build_cava_config "$theme_dir" "$CAVA_DIR/config" "$CAVA_DIR/fifo"
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
 
     wallpaper_path=$(theme_wallpaper_path "$theme_dir")
@@ -474,7 +599,7 @@ EOF_LIST
         exit 1
     }
 
-    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
+    choice=$(printf '%s\n' "$selection" | run_rofi_dmenu "Select Wallpaper")
     chosen_wallpaper=$(printf '%s' "$choice")
 
     [ -n "$chosen_wallpaper" ] || exit 0
@@ -551,7 +676,7 @@ EOF_STYLE_LIST
         exit 1
     }
 
-    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Waybar style")
+    choice=$(printf '%s\n' "$selection" | run_rofi_dmenu "Waybar style")
     chosen_style=$(printf '%s' "$choice" | cut -f1)
 
     [ -n "$chosen_style" ] || exit 0

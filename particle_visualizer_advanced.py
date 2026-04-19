@@ -13,6 +13,7 @@ import math
 import random
 import threading
 import argparse
+import re
 from collections import deque
 from dataclasses import dataclass
 
@@ -88,7 +89,7 @@ class ParticleSystem:
                     while self.running:
                         line = f.readline()
                         if line:
-                            data = line.strip().split(',')
+                            data = [value for value in re.split(r'[^0-9]+', line.strip()) if value]
                             if len(data) >= 64:
                                 self.audio_data = [int(x) for x in data[:64]]
         except Exception as e:
