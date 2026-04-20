@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+import sys
+import os
+import signal
+import gi
+
+gi.require_version('Gtk', '3.0')
+gi.require_version('WebKit2', '4.1')
+gi.require_version('GtkLayerShell', '0.1')
+from gi.repository import Gtk, WebKit2, GtkLayerShell, GLib
+
+def on_title_changed(webview, param):
+    title = webview.get_title()
+    if title:
+        if title.startswith("SELECTED:"):
+            # Print the selected wallpaper name to stdout
+            print(title.replace("SELECTED:", ""))
+            sys.stdout.flush()
+            Gtk.main_quit()
+        elif title == "CLOSE":
+            # Exit without printing anything (cancelled)
+            Gtk.main_quit()
+
+def main():
+    # Setup window
+    win = Gtk.Window()
+    win.connect("destroy", Gtk.main_quit)
+    
+    # Configure Wayland Layer Shell
+    GtkLayerShell.init_for_window(win)
+    GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
+    GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+    
+    # Anchor to all edges to make it fullscreen
+    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.TOP, True)
+    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
+    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.LEFT, True)
+    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
+
+    # Make background transparent
+    screen = win.get_screen()
+    visual = screen.get_rgba_visual()
+    if visual and screen.is_composited():
+        win.set_visual(visual)
+    win.set_app_paintable(True)
+    win.override_background_color(Gtk.StateFlags.NORMAL, gi.repository.Gdk.RGBA(0, 0, 0, 0))
+
+    # Setup WebKit View
+    webview = WebKit2.WebView()
+    webview.set_background_color(gi.repository.Gdk.RGBA(0, 0, 0, 0))
+    webview.connect("notify::title", on_title_changed)
+    
+    # Load the UI
+    xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+    installed_ui_path = os.path.join(xdg_data_home, "bitbeast/web-wallpaper-selector/index.html")
+    source_ui_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../web-wallpaper-selector/index.html"))
+    
+    ui_path = installed_ui_path if os.path.exists(installed_ui_path) else source_ui_path
+    webview.load_uri(f"file://{ui_path}")
+
+    win.add(webview)
+    win.show_all()
+
+    # Handle Ctrl+C
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
+    Gtk.main()
+
+if __name__ == "__main__":
+    main()
