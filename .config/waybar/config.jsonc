@@ -59,6 +59,8 @@
       "idle_inhibitor",
       "custom/bluetooth",
       "network",
+      "network#bandwidthDownBytes",
+      "network#bandwidthUpBytes",
       "pulseaudio",
       "pulseaudio#microphone"
     ]
