@@ -14,6 +14,7 @@
     },
     "tooltip-format": "{desc}\n{volume}%",
     "scroll-step": 5,
+    "max-volume": 150,
     "on-click": "pavucontrol",
     "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
   },
@@ -23,6 +24,7 @@
     "format-source-muted": "󰍭  Muted",
     "tooltip-format": "{source_desc}\n{source_volume}%",
     "scroll-step": 5,
+    "max-volume": 150,
     "on-click": "pactl set-source-mute @DEFAULT_SOURCE@ toggle",
     "on-scroll-up": "pactl set-source-volume @DEFAULT_SOURCE@ +5%",
     "on-scroll-down": "pactl set-source-volume @DEFAULT_SOURCE@ -5%"
