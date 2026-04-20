@@ -114,7 +114,7 @@ build_rofi_theme() {
     mkdir -p "$(dirname "$target_path")"
     cat > "$target_path" <<EOF_ROFI
 * {
-    bg: ${bg}f0;
+    bg: ${bg}f2;
     bg-alt: ${secondary}cc;
     primary: ${primary};
     accent: ${accent};
@@ -123,7 +123,7 @@ build_rofi_theme() {
     urgent: #ff5555;
     border: 2px;
     spacing: 14px;
-    font: "JetBrainsMono Nerd Font 12";
+    font: "JetBrainsMono Nerd Font 11";
 }
 
 configuration {
@@ -137,27 +137,28 @@ window {
     location: center;
     anchor: center;
     fullscreen: false;
-    width: 52%;
+    width: 800px;
     border: @border;
-    border-radius: 22px;
+    border-radius: 24px;
     border-color: @accent;
     background-color: @bg;
 }
 
 mainbox {
     children: [ inputbar, listview, mode-switcher ];
-    spacing: 18px;
-    padding: 22px;
+    spacing: 20px;
+    padding: 30px;
     background-color: transparent;
 }
 
 inputbar {
     children: [ prompt, entry ];
     spacing: 12px;
-    padding: 14px 18px;
+    padding: 16px 20px;
     border-radius: 16px;
     background-color: @bg-alt;
     text-color: @text;
+    margin: 0 0 10px 0;
 }
 
 prompt {
@@ -172,37 +173,49 @@ entry {
 }
 
 listview {
-    lines: 8;
-    columns: 1;
+    columns: 5;
+    lines: 3;
+    fixed-columns: true;
     fixed-height: false;
     border: 0px;
     background-color: transparent;
     scrollbar: false;
+    spacing: 15px;
 }
 
 element {
-    padding: 14px 16px;
-    border-radius: 16px;
-    background-color: @bg-alt;
+    orientation: vertical;
+    padding: 20px 10px;
+    border-radius: 18px;
+    background-color: transparent;
     text-color: @text;
 }
 
-element normal.normal { background-color: @bg-alt; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: #1a0a00; }
+element normal.normal { background-color: transparent; text-color: @text; }
+element selected.normal { background-color: @bg-alt; border: 1px solid @accent; text-color: @accent; }
 element selected.active { background-color: @primary; text-color: @text; }
 element selected.urgent { background-color: @urgent; text-color: #1a0a00; }
-element alternate.normal { background-color: @bg-alt; text-color: @text; }
-element alternate.active { background-color: @bg-alt; text-color: @accent; }
-element alternate.urgent { background-color: @bg-alt; text-color: @urgent; }
+element alternate.normal { background-color: transparent; text-color: @text; }
+element alternate.active { background-color: transparent; text-color: @accent; }
+element alternate.urgent { background-color: transparent; text-color: @urgent; }
 
-element-icon { size: 30px; vertical-align: 0.5; }
-element-text { text-color: inherit; vertical-align: 0.5; }
+element-icon { 
+    size: 64px; 
+    horizontal-align: 0.5;
+    margin: 0 0 10px 0;
+}
+
+element-text { 
+    text-color: inherit; 
+    horizontal-align: 0.5;
+    font: "JetBrainsMono Nerd Font Bold 10";
+}
 
 mode-switcher { spacing: 10px; background-color: transparent; }
 
 button {
-    padding: 10px 14px;
-    border-radius: 999px;
+    padding: 10px;
+    border-radius: 12px;
     background-color: @bg-alt;
     text-color: @muted;
 }
