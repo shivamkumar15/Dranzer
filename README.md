@@ -2,8 +2,6 @@
 
 A modular Hyprland theme system inspired by Beyblade BitBeasts. Each theme installs into `~/.config/bitbeasts/<theme>/` and the `bitbeast` CLI switches your Hyprland, Waybar, Kitty, Rofi, Cava, and wallpaper configurations.
 
-Includes a redesigned particle simulator audio visualizer that reacts to music with animated particles themed to match your BitBeast.
-
 ## Prerequisites
 
 ### Required packages
@@ -15,8 +13,8 @@ Install the following packages before running the installer:
 - `hyprlock`
 - `swaync`
 - `playerctl`
-- `cava` (required for the particle simulator audio visualizer)
-- `awww` or `swaybg` (at least one wallpaper backend)
+- `cava`
+- `swww` or `swaybg` (at least one wallpaper backend)
 - `git`
 - `bash` or another POSIX shell
 - A Wayland compositor such as `Hyprland`
@@ -76,28 +74,6 @@ This installs the configuration files and applies the selected theme immediately
 ```bash
 ./install.sh --force --apply
 ```
-
-## Particle Simulator Audio Visualizer
-
-The redesigned audio visualizer uses Cava to capture audio frequencies and displays animated particles that react to the music. The particles automatically match your current BitBeast theme colors.
-
-### Running the Visualizer
-
-After installation, run the particle simulator:
-
-```bash
-./run_particles.sh
-```
-
-This starts Cava in the background to capture audio and launches the particle visualizer in your terminal. Press `Ctrl+C` to stop.
-
-### Features
-
-- Real-time particle animation reacting to audio frequencies
-- Automatic theme color matching (Dranzer, Dragoon, etc.)
-- ASCII art display in terminal
-- Supports bass, mid, and treble frequency ranges
-- Customizable physics (gravity, damping, sensitivity)
 
 ## What the installer does
 
@@ -184,9 +160,8 @@ If existing files are overwritten, backups are stored under:
 ## Troubleshooting
 
 - If `bitbeast` is not found: ensure `~/.local/bin` is in your `$PATH`
-- If a theme fails: verify that required tools are installed and the wallpaper backend (`awww` or `swaybg`) exists
+- If a theme fails: verify that required tools are installed and the wallpaper backend (`swww` or `swaybg`) exists
 - If icons are missing: install a Nerd Font
-- If the particle visualizer doesn't show particles: ensure Cava is installed and PulseAudio/PipeWire is running
 - If audio isn't detected: check that your audio source is set correctly in Cava config
 
 ## Adding a new BitBeast

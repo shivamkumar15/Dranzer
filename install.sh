@@ -39,8 +39,8 @@ check_dependencies() {
     done
 
     # Wallpaper backend (at least one required)
-    if ! command -v swaybg >/dev/null 2>&1 && ! command -v awww >/dev/null 2>&1; then
-        printf '\033[1;31m✗ Required:\033[0m No wallpaper backend found. Install awww (recommended) or swaybg\n' >&2
+    if ! command -v swaybg >/dev/null 2>&1 && ! command -v swww >/dev/null 2>&1; then
+        printf '\033[1;31m✗ Required:\033[0m No wallpaper backend found. Install swww (recommended) or swaybg\n' >&2
         missing=1
     fi
 

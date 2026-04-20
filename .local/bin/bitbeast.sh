@@ -100,9 +100,6 @@ build_rofi_theme() {
     theme_dir=$1
     target_path=$2
     colors_file=$3
-    rofi_file="$theme_dir/rofi.rasi"
-
-    require_file "$rofi_file"
     require_file "$colors_file"
 
     bg=$(theme_color_hex "$colors_file" bg '#150608')
@@ -110,6 +107,8 @@ build_rofi_theme() {
     secondary=$(theme_color_hex "$colors_file" secondary '#7b120f')
     accent=$(theme_color_hex "$colors_file" accent '#ffd166')
     text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    muted="${text}99"
+    prompt_text="$(basename "$theme_dir")"
 
     mkdir -p "$(dirname "$target_path")"
     cat > "$target_path" <<EOF_ROFI
@@ -119,93 +118,88 @@ build_rofi_theme() {
     primary: ${primary};
     accent: ${accent};
     text: ${text};
-    muted: ${text}99;
+    muted: ${muted};
     urgent: #ff5555;
+    border: 2px;
+    spacing: 14px;
 }
 
+window {
+    location: center;
+    anchor: center;
+    fullscreen: false;
+    width: 720px;
+    border: @border;
+    border-radius: 22px;
+    border-color: @accent;
+    background-color: @bg;
+}
+
+mainbox {
+    children: [ inputbar, listview, mode-switcher ];
+    spacing: 18px;
+    padding: 22px;
+    background-color: transparent;
+}
+
+inputbar {
+    children: [ prompt, entry ];
+    spacing: 12px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    background-color: @bg-alt;
+    text-color: @text;
+}
+
+prompt {
+    text-color: @accent;
+    str: "${prompt_text}";
+}
+
+entry {
+    placeholder: "Ignite the launch";
+    placeholder-color: @muted;
+    text-color: @text;
+}
+
+listview {
+    lines: 8;
+    columns: 1;
+    fixed-height: false;
+    border: 0px;
+    background-color: transparent;
+    scrollbar: false;
+}
+
+element {
+    padding: 14px 16px;
+    border-radius: 16px;
+    background-color: @bg-alt;
+    text-color: @text;
+}
+
+element normal.normal { background-color: @bg-alt; text-color: @text; }
+element selected.normal { background-color: @accent; text-color: #1a0a00; }
+element selected.active { background-color: @primary; text-color: @text; }
+element selected.urgent { background-color: @urgent; text-color: #1a0a00; }
+element alternate.normal { background-color: @bg-alt; text-color: @text; }
+element alternate.active { background-color: @bg-alt; text-color: @accent; }
+element alternate.urgent { background-color: @bg-alt; text-color: @urgent; }
+
+element-icon { size: 28px; vertical-align: 0.5; }
+element-text { text-color: inherit; vertical-align: 0.5; }
+
+mode-switcher { spacing: 10px; background-color: transparent; }
+
+button {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background-color: @bg-alt;
+    text-color: @muted;
+}
+
+button selected { background-color: @primary; text-color: @text; }
 EOF_ROFI
-    cat "$rofi_file" >> "$target_path"
-}
-
-build_cava_config() {
-    theme_dir=$1
-    target_path=$2
-    fifo_path=$3
-    cava_file="$theme_dir/cava.conf"
-
-    require_file "$cava_file"
-
-    color_block=$(sed -n '/^\[color\]/,$p' "$cava_file")
-    [ -n "$color_block" ] || color_block=$(cat <<'EOF_COLOR'
-[color]
-gradient = 1
-gradient_count = 5
-gradient_color_1 = '#7b0404'
-gradient_color_2 = '#c42010'
-gradient_color_3 = '#e8450c'
-gradient_color_4 = '#ffd166'
-gradient_color_5 = '#fff1dd'
-foreground = '#ffd166'
-background = '#150608'
-EOF_COLOR
-)
-
-    mkdir -p "$(dirname "$target_path")"
-    rm -f "$fifo_path"
-    mkfifo "$fifo_path"
-
-    cat > "$target_path" <<EOF_CAVA
-[general]
-bars = 64
-bar_width = 1
-bar_spacing = 0
-framerate = 144
-sensitivity = 200
-autosens = 0
-
-[input]
-method = pulse
-source = auto
-
-[output]
-method = raw
-raw_target = $fifo_path
-data_format = ascii
-ascii_max_range = 1000
-channels = mono
-mono_option = average
-reverse = 0
-bar_delimiter = 0
-
-[smoothing]
-integral = 77
-monstercat = 1
-noise_reduction = 0.77
-waves = 1
-gravity = 120
-
-[eq]
-1 = 0.8
-2 = 1.0
-3 = 1.0
-4 = 1.0
-5 = 1.0
-6 = 1.0
-7 = 1.0
-8 = 0.9
-
-$color_block
-EOF_CAVA
-}
-
-run_rofi_dmenu() {
-    prompt=$1
-
-    if [ -f "$ROFI_DIR/config.rasi" ]; then
-        rofi -config "$ROFI_DIR/config.rasi" -dmenu -i -p "$prompt"
-    else
-        rofi -dmenu -i -p "$prompt"
-    fi
 }
 
 resolve_wallpaper_path() {
@@ -332,32 +326,32 @@ fallback_wallpaper_path() {
     printf '%s\n' "$wallpaper_path"
 }
 
-ensure_awww_daemon() {
-    if ! command -v awww >/dev/null 2>&1; then
+ensure_swww_daemon() {
+    if ! command -v swww >/dev/null 2>&1; then
         return 1
     fi
 
-    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
-        awww-daemon >/dev/null 2>&1 &
+    if ! pgrep -x swww-daemon >/dev/null 2>&1; then
+        swww-daemon >/dev/null 2>&1 &
         # Wait for daemon to be fully ready (up to 5 seconds)
-        _awww_tries=0
-        while [ "$_awww_tries" -lt 10 ]; do
+        _swww_tries=0
+        while [ "$_swww_tries" -lt 10 ]; do
             sleep 0.5
-            if awww query >/dev/null 2>&1; then
+            if swww query >/dev/null 2>&1; then
                 return 0
             fi
-            _awww_tries=$((_awww_tries + 1))
+            _swww_tries=$((_swww_tries + 1))
         done
-        warn "awww-daemon started but may not be fully ready"
+        warn "swww-daemon started but may not be fully ready"
     fi
 
     return 0
 }
 
-apply_wallpaper_awww() {
+apply_wallpaper_swww() {
     wallpaper_path=$1
 
-    ensure_awww_daemon || return 1
+    ensure_swww_daemon || return 1
 
     wallpaper_name=$(basename "$wallpaper_path")
 
@@ -395,7 +389,7 @@ apply_wallpaper_awww() {
 
     attempt=1
     while [ "$attempt" -le 5 ]; do
-        if awww img "$wallpaper_path" \
+        if swww img "$wallpaper_path" \
             --transition-type "$tr_type" \
             --transition-duration "$tr_duration" \
             --transition-fps 144 \
@@ -436,11 +430,11 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Prefer awww for its smooth animated transitions (wave, grow, wipe, etc.)
-    if command -v awww >/dev/null 2>&1; then
+    # Prefer swww for its smooth animated transitions (wave, grow, wipe, etc.)
+    if command -v swww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
         pkill -x swaybg >/dev/null 2>&1 || true
-        if apply_wallpaper_awww "$wallpaper_path"; then
+        if apply_wallpaper_swww "$wallpaper_path"; then
             return 0
         fi
     fi
@@ -452,7 +446,7 @@ apply_wallpaper() {
         fi
     fi
 
-    warn 'No wallpaper backend available. Install awww (recommended) or swaybg.'
+    warn 'No wallpaper backend available. Install swww (recommended) or swaybg.'
     return 1
 }
 
@@ -554,7 +548,7 @@ activate_theme() {
     cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
     cp "$theme_dir/kitty.conf" "$KITTY_DIR/bitbeast.conf"
     build_rofi_theme "$theme_dir" "$ROFI_DIR/bitbeast.rasi" "$theme_dir/colors.conf"
-    build_cava_config "$theme_dir" "$CAVA_DIR/config" "$CAVA_DIR/fifo"
+    cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
 
     wallpaper_path=$(theme_wallpaper_path "$theme_dir")
@@ -599,7 +593,7 @@ EOF_LIST
         exit 1
     }
 
-    choice=$(printf '%s\n' "$selection" | run_rofi_dmenu "Select Wallpaper")
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
     chosen_wallpaper=$(printf '%s' "$choice")
 
     [ -n "$chosen_wallpaper" ] || exit 0
@@ -676,7 +670,7 @@ EOF_STYLE_LIST
         exit 1
     }
 
-    choice=$(printf '%s\n' "$selection" | run_rofi_dmenu "Waybar style")
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Waybar style")
     chosen_style=$(printf '%s' "$choice" | cut -f1)
 
     [ -n "$chosen_style" ] || exit 0
