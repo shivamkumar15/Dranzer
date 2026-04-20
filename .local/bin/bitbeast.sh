@@ -46,7 +46,6 @@ Usage:
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
-  bitbeast visualizer
 
 Available themes:
 EOF_USAGE
@@ -114,8 +113,8 @@ build_rofi_theme() {
     mkdir -p "$(dirname "$target_path")"
     cat > "$target_path" <<EOF_ROFI
 * {
-    bg: ${bg}f0;
-    bg-alt: ${secondary}cc;
+    bg: ${bg};
+    bg-alt: ${secondary};
     primary: ${primary};
     accent: ${accent};
     text: ${text};
@@ -123,21 +122,13 @@ build_rofi_theme() {
     urgent: #ff5555;
     border: 2px;
     spacing: 14px;
-    font: "JetBrainsMono Nerd Font 12";
-}
-
-configuration {
-    modi: "drun,run,window";
-    show-icons: true;
-    drun-display-format: "{name}";
-    window-format: "{w} · {c} · {t}";
 }
 
 window {
     location: center;
     anchor: center;
     fullscreen: false;
-    width: 52%;
+    width: 720px;
     border: @border;
     border-radius: 22px;
     border-color: @accent;
@@ -195,7 +186,7 @@ element alternate.normal { background-color: @bg-alt; text-color: @text; }
 element alternate.active { background-color: @bg-alt; text-color: @accent; }
 element alternate.urgent { background-color: @bg-alt; text-color: @urgent; }
 
-element-icon { size: 30px; vertical-align: 0.5; }
+element-icon { size: 28px; vertical-align: 0.5; }
 element-text { text-color: inherit; vertical-align: 0.5; }
 
 mode-switcher { spacing: 10px; background-color: transparent; }
@@ -482,10 +473,6 @@ reload_cava() {
     if pgrep -x cava >/dev/null 2>&1; then
         pkill -SIGUSR1 -x cava >/dev/null 2>&1 || true
     fi
-    # Also signal circular_cava.py if it's running
-    if pgrep -f "circular_cava.py" >/dev/null 2>&1; then
-        pkill -SIGUSR1 -f "circular_cava.py" >/dev/null 2>&1 || true
-    fi
 }
 
 reload_kitty() {
@@ -573,49 +560,60 @@ activate_theme() {
         return 0
     fi
 
-    # Restart Waybar first so the CSS swap is visible immediately.
-    # Reload cava, kitty, and hyprland before applying wallpaper so colors change instantly.
+    # Restart Waybar first so the CSS swap is visible immediately,
+    # then apply wallpaper and reload Hyprland in parallel.
     restart_waybar || true
+    apply_wallpaper "$wallpaper_path" || true
     reload_kitty
     reload_cava
     reload_hyprland
-    apply_wallpaper "$wallpaper_path" &
 
     printf 'BitBeast theme activated: %s\n' "$theme_name"
 }
 
 pick_theme() {
-    valid_themes=$(
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast pick\n' >&2
+        exit 1
+    fi
+
+    selection=$(
         while IFS= read -r theme_name; do
             [ -n "$theme_name" ] || continue
             wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name" 2>/dev/null) || continue
             [ -n "$wallpaper_path" ] || continue
-            [ -f "$wallpaper_path" ] || continue
-            printf '%s\n' "$theme_name"
+            printf '%s\n' "$(basename "$wallpaper_path")"
         done <<EOF_LIST
 $(list_themes)
 EOF_LIST
     )
 
-    [ -n "$valid_themes" ] || {
+    [ -n "$selection" ] || {
         printf 'No themes with valid wallpapers found.\n' >&2
         exit 1
     }
 
-    chosen_file=$("$SCRIPT_DIR/bitbeast-wallpaper-selector" 2>/dev/null)
-    [ -n "$chosen_file" ] || exit 0
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
+    chosen_wallpaper=$(printf '%s' "$choice")
 
+    [ -n "$chosen_wallpaper" ] || exit 0
+
+    # Map the selected wallpaper back to the corresponding theme automatically
     chosen_theme=""
-    for t in $valid_themes; do
-        w=$(theme_wallpaper_filename "$t" || true)
-        if [ "$w" = "$chosen_file" ]; then
-            chosen_theme=$t
+    while IFS= read -r theme_name; do
+        [ -n "$theme_name" ] || continue
+        wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name" 2>/dev/null) || continue
+        if [ "$(basename "$wallpaper_path")" = "$chosen_wallpaper" ]; then
+            chosen_theme="$theme_name"
             break
         fi
-    done
+    done <<EOF_LIST
+$(list_themes)
+EOF_LIST
 
-    [ -n "$chosen_theme" ] || exit 0
-    activate_theme "$chosen_theme"
+    if [ -n "$chosen_theme" ]; then
+        activate_theme "$chosen_theme"
+    fi
 }
 
 cycle_style() {
@@ -872,21 +870,6 @@ EOF_COLORS
     brightness)
         [ $# -eq 2 ] || { usage; exit 1; }
         brightness_control "$2"
-        ;;
-    visualizer)
-        theme_name=$(current_theme_name || echo "dranzer")
-        theme_dir="$THEMES_DIR/$theme_name"
-        colors_file="$theme_dir/colors.conf"
-        [ -f "$colors_file" ] || colors_file="$THEMES_DIR/dranzer/colors.conf"
-        
-        bg=$(theme_color_hex "$colors_file" bg '#0a0a0a')
-        primary=$(theme_color_hex "$colors_file" primary '#e8450c')
-        secondary=$(theme_color_hex "$colors_file" secondary '#7b120f')
-        accent=$(theme_color_hex "$colors_file" accent '#ffd166')
-        text=$(theme_color_hex "$colors_file" text '#fff1dd')
-        
-        # Pass theme colors to the visualizer with bars mode, huge radius and more bars/dots
-        "$SCRIPT_DIR/circular_cava.py" --mode bars --radius 14 --bars 80 "$bg" "$secondary" "$primary" "$accent" "$text"
         ;;
     *)
         if [ $# -ne 1 ]; then
