@@ -3,7 +3,7 @@ bars = 0
 bar_width = 1
 bar_spacing = 0
 framerate = 144
-sensitivity = 200
+sensitivity = 380
 autosens = 0
 
 [input]
@@ -36,11 +36,14 @@ gravity = 120
 
 [color]
 gradient = 1
-gradient_count = 5
-gradient_color_1 = '#7b0404'
-gradient_color_2 = '#c42010'
-gradient_color_3 = '#e8450c'
-gradient_color_4 = '#ffd166'
-gradient_color_5 = '#fff1dd'
-foreground = '#ffd166'
+gradient_count = 8
+gradient_color_1 = '#440000'
+gradient_color_2 = '#7b0404'
+gradient_color_3 = '#c42010'
+gradient_color_4 = '#e8450c'
+gradient_color_5 = '#ff7a00'
+gradient_color_6 = '#ffd166'
+gradient_color_7 = '#ffe8b6'
+gradient_color_8 = '#fff1dd'
+foreground = '#ffe8b6'
 background = '#150608'
