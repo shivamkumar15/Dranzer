@@ -15,8 +15,6 @@
     background-color: alpha(@main-bg, 0.7);
     border: 1px solid alpha(@glow, 0.3);
     box-shadow: 0 8px 32px 0 alpha(@bg, 0.37);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     margin: 6px 4px;
     padding: 0 4px;
     border-radius: 12px;
