@@ -103,13 +103,12 @@ build_rofi_theme() {
     colors_file=$3
     require_file "$colors_file"
 
-    bg=$(theme_color_hex "$colors_file" bg '#150608')
-    primary=$(theme_color_hex "$colors_file" primary '#e8450c')
-    secondary=$(theme_color_hex "$colors_file" secondary '#7b120f')
-    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
-    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg=$(theme_color_hex "$colors_file" bg '#0a0b10')
+    primary=$(theme_color_hex "$colors_file" primary '#00f2ff')
+    secondary=$(theme_color_hex "$colors_file" secondary '#161925')
+    accent=$(theme_color_hex "$colors_file" accent '#00f2ff')
+    text=$(theme_color_hex "$colors_file" text '#e0e6ed')
     muted="${text}99"
-    prompt_text="$(basename "$theme_dir")"
 
     mkdir -p "$(dirname "$target_path")"
     cat > "$target_path" <<EOF_ROFI
@@ -120,50 +119,46 @@ build_rofi_theme() {
     accent: ${accent};
     text: ${text};
     muted: ${muted};
-    urgent: #ff5555;
+    urgent: #ff0055;
     border: 2px;
     spacing: 14px;
     font: "JetBrainsMono Nerd Font 11";
+    background-color: transparent;
 }
 
 configuration {
     modi: "drun,run,window";
     show-icons: true;
     drun-display-format: "{name}";
-    window-format: "{w} · {c} · {t}";
 }
 
 window {
     location: center;
     anchor: center;
-    fullscreen: false;
-    width: 800px;
+    width: 720px;
     border: @border;
-    border-radius: 24px;
+    border-radius: 22px;
     border-color: @accent;
     background-color: @bg;
 }
 
 mainbox {
     children: [ inputbar, listview, mode-switcher ];
-    spacing: 20px;
-    padding: 30px;
-    background-color: transparent;
+    spacing: 18px;
+    padding: 22px;
 }
 
 inputbar {
     children: [ prompt, entry ];
     spacing: 12px;
-    padding: 16px 20px;
+    padding: 14px 18px;
     border-radius: 16px;
     background-color: @bg-alt;
     text-color: @text;
-    margin: 0 0 10px 0;
 }
 
 prompt {
     text-color: @accent;
-    str: "${prompt_text}";
 }
 
 entry {
@@ -173,54 +168,38 @@ entry {
 }
 
 listview {
-    columns: 5;
-    lines: 3;
-    fixed-columns: true;
+    lines: 8;
+    columns: 1;
     fixed-height: false;
     border: 0px;
-    background-color: transparent;
     scrollbar: false;
-    spacing: 15px;
 }
 
 element {
-    orientation: vertical;
-    padding: 20px 10px;
-    border-radius: 18px;
-    background-color: transparent;
+    padding: 12px 16px;
+    border-radius: 16px;
     text-color: @text;
 }
 
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @bg-alt; border: 1px solid @accent; text-color: @accent; }
-element selected.active { background-color: @primary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: #1a0a00; }
+element selected.normal { background-color: @primary; text-color: @bg; }
+element selected.active { background-color: @secondary; text-color: @text; }
+element selected.urgent { background-color: @urgent; text-color: @bg; }
 element alternate.normal { background-color: transparent; text-color: @text; }
-element alternate.active { background-color: transparent; text-color: @accent; }
-element alternate.urgent { background-color: transparent; text-color: @urgent; }
 
-element-icon { 
-    size: 64px; 
-    horizontal-align: 0.5;
-    margin: 0 0 10px 0;
-}
+element-icon { size: 28px; vertical-align: 0.5; background-color: transparent; }
+element-text { text-color: inherit; vertical-align: 0.5; background-color: transparent; }
 
-element-text { 
-    text-color: inherit; 
-    horizontal-align: 0.5;
-    font: "JetBrainsMono Nerd Font Bold 10";
-}
-
-mode-switcher { spacing: 10px; background-color: transparent; }
+mode-switcher { spacing: 10px; }
 
 button {
-    padding: 10px;
-    border-radius: 12px;
+    padding: 10px 14px;
+    border-radius: 999px;
     background-color: @bg-alt;
     text-color: @muted;
 }
 
-button selected { background-color: @primary; text-color: @text; }
+button selected { background-color: @primary; text-color: @bg; }
 EOF_ROFI
 }
 
