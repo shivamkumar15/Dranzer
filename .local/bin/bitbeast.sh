@@ -503,15 +503,18 @@ reload_hyprland() {
 reload_cursor() {
     colors_file=$1
     cursor_theme=$(sed -n 's/^\$cursor_theme[[:space:]]*=[[:space:]]*\(.*\)/\1/p' "$colors_file" | tail -n 1)
+    cursor_size=24
+
     if [ -n "$cursor_theme" ]; then
+        echo "Applying cursor theme: $cursor_theme" >&2
         # Apply cursor via hyprctl (live)
-        hyprctl setcursor "$cursor_theme" 24 >/dev/null 2>&1 || true
+        hyprctl setcursor "$cursor_theme" "$cursor_size" >/dev/null 2>&1 || true
         # Set environment variables for new windows
         hyprctl keyword env XCURSOR_THEME,"$cursor_theme" >/dev/null 2>&1 || true
-        hyprctl keyword env XCURSOR_SIZE,24 >/dev/null 2>&1 || true
+        hyprctl keyword env XCURSOR_SIZE,"$cursor_size" >/dev/null 2>&1 || true
         # Persist via gsettings for GTK apps
         gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme" 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface cursor-size 24 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface cursor-size "$cursor_size" 2>/dev/null || true
     fi
 }
 
