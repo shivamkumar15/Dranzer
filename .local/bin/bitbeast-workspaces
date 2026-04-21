@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# BitBeast Workspace Overview Script
+# Uses Rofi to show active workspaces and their windows
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+ROFI_THEME="$CONFIG_HOME/rofi/bitbeast.rasi"
+
+# Get workspaces in JSON
+workspaces=$(hyprctl -j workspaces | jq -c 'sort_by(.id)')
+clients=$(hyprctl -j clients)
+
+# Format the list for Rofi
+list=""
+while read -r ws; do
+    id=$(echo "$ws" | jq -r '.id')
+    name=$(echo "$ws" | jq -r '.name')
+    
+    # Get windows in this workspace
+    ws_clients=$(echo "$clients" | jq -r --arg id "$id" '.[] | select(.workspace.id == ($id | tonumber)) | .title' | head -n 5)
+    windows_str=$(echo "$ws_clients" | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+    
+    if [ -z "$windows_str" ]; then
+        windows_str="Empty"
+    fi
+    
+    # Icons (optional, can use Nerd Font icons)
+    icon="󱂬"
+    [ "$id" -eq "$(hyprctl -j activeworkspace | jq -r '.id')" ] && icon="󱓟"
+    
+    list+="$icon  Workspace $id: $windows_str\n"
+done <<< "$(echo "$workspaces" | jq -c '.[]')"
+
+# Show Rofi and switch
+choice=$(printf "$list" | rofi -dmenu -i -p "Workspaces" -config "$ROFI_THEME")
+
+if [ -n "$choice" ]; then
+    ws_id=$(echo "$choice" | grep -oP 'Workspace \K\d+')
+    hyprctl dispatch workspace "$ws_id"
+fi

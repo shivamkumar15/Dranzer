@@ -500,6 +500,15 @@ reload_hyprland() {
     hyprctl reload >/dev/null 2>&1 || warn 'failed to reload Hyprland.'
 }
 
+reload_cursor() {
+    colors_file=$1
+    cursor_theme=$(sed -n 's/^\$cursor_theme[[:space:]]*=[[:space:]]*\(.*\)/\1/p' "$colors_file" | tail -n 1)
+    if [ -n "$cursor_theme" ]; then
+        hyprctl setcursor "$cursor_theme" 24
+        gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme"
+    fi
+}
+
 restart_waybar() {
     if ! command -v waybar >/dev/null 2>&1; then
         warn 'waybar is not installed; Waybar not restarted.'
@@ -572,6 +581,7 @@ activate_theme() {
     reload_kitty
     reload_cava
     reload_hyprland
+    reload_cursor "$theme_dir/colors.conf"
 
     printf 'BitBeast theme activated: %s\n' "$theme_name"
 }
