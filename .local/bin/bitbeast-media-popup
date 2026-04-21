@@ -1,0 +1,78 @@
+#!/bin/bash
+# BitBeast Media Popup - Shows music controls in a nice window
+
+CACHE_DIR="$HOME/.cache/bitbeast"
+mkdir -p "$CACHE_DIR"
+
+get_player() {
+    playerctl -l 2>/dev/null | head -1
+}
+
+PLAYER=$(get_player)
+
+if [ -z "$PLAYER" ]; then
+    echo "No media player active"
+    exit 1
+fi
+
+TITLE=$(playerctl -p "$PLAYER" metadata title 2>/dev/null | cut -c1-50)
+ARTIST=$(playerctl -p "$PLAYER" metadata artist 2>/dev/null | cut -c1-40)
+ALBUM=$(playerctl -p "$PLAYER" metadata album 2>/dev/null | cut -c1-40)
+STATUS=$(playerctl -p "$PLAYER" status 2>/dev/null)
+POSITION=$(playerctl position 2>/dev/null | cut -d. -f1)
+DURATION=$(playerctl -p "$PLAYER" metadata mpris:length 2>/dev/null | cut -d. -f1 | awk '{printf "%d", $1/1000000}')
+
+ART_URL=$(playerctl -p "$PLAYER" metadata mpris:artUrl 2>/dev/null)
+
+if [ -n "$ART_URL" ]; then
+    if [[ "$ART_URL" == file://* ]]; then
+        ART_FILE="${ART_URL#file://}"
+    elif [[ "$ART_URL" == http://* ]]; then
+        ART_HASH=$(echo "$ART_URL" | md5sum | cut -d' ' -f1)
+        ART_FILE="$CACHE_DIR/$ART_HASH.jpg"
+        if [ ! -f "$ART_FILE" ]; then
+            curl -sL "$ART_URL" -o "$ART_FILE" 2>/dev/null
+        fi
+    fi
+fi
+
+progress() {
+    if [ "$DURATION" -gt 0 ] 2>/dev/null; then
+        echo $((POSITION * 100 / DURATION))
+    else
+        echo 0
+    fi
+}
+
+format_time() {
+    printf "%d:%02d" $(($1/60)) $(($1%60))
+}
+
+PLAY_ICON="󰐊"
+if [ "$STATUS" = "Playing" ]; then
+    PLAY_ICON="󰏤"
+fi
+
+cat <<EOF
+#!/bin/bash
+killall bitbeast-media-popup 2>/dev/null
+walc -t \
+    --title "BitBeast Media" \
+    --width 400 \
+    --height 180 \
+    --padding 20 \
+    --bordersize 0 \
+    --corner-radius 16 \
+    --background "#e0151530" \
+    --blur 8 \
+    --font "JetBrainsMono Nerd Font 14" \
+    --line-color "#ffffff" \
+    --text-color "#fff1dd" \
+    --background-color "#0d0405" \
+    -u 0 \
+    -d 0 \
+    "exec: playerctl play-pause" \
+    "prev: playerctl previous" \
+    "next: playerctl next" &
+
+EOF

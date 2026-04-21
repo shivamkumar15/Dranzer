@@ -5,74 +5,254 @@
   "exclusive": true,
   "passthrough": false,
   "gtk-layer-shell": true,
-  "height": 40,
-  "spacing": 0,
-  
-  "include": [
-    "~/.config/waybar/modules/*.jsonc"
-  ],
+  "height": 46,
+  "spacing": 4,
 
   "modules-left": [
-    "group/leaf-inverse",
-    "group/pill-right"
+    "hyprland/workspaces",
+    "custom/power"
   ],
+
   "modules-center": [
-    "group/pill-in"
+    "custom/media",
+    "window"
   ],
+
   "modules-right": [
-    "group/pill-left",
-    "group/leaf"
+    "idle_inhibitor",
+    "cpu",
+    "memory",
+    "custom/notification",
+    "tray",
+    "network",
+    "pulseaudio",
+    "battery",
+    "backlight",
+    "clock",
+    "custom/lock",
+    "custom/theme",
+    "custom/style"
   ],
 
-  "group/leaf-inverse": {
-    "orientation": "horizontal",
-    "modules": [
-      "custom/power",
-      "custom/style",
-      "custom/theme",
-      "hyprland/workspaces"
-    ]
-  },
-  
-  "group/pill-right": {
-    "orientation": "horizontal",
-    "modules": [
-      "cpu",
-      "memory",
-      "wlr/taskbar"
-    ]
+  "custom/media": {
+    "format": "{icon} {consume}{title} - {artist}",
+    "format-disconnected": "󰝌 Disconnected",
+    "format-stopped": "󰝌 {consume}",
+    "unknown-tooltip": false,
+    "return-type": "json",
+    "tooltip-format": "{title} - {artist}",
+    "tooltip-format-disconnected": "No media",
+    "interval": 1,
+    "exec": "~/.local/bin/bitbeast-media",
+    "on-click": "playerctl play-pause",
+    "on-click-right": "playerctl next",
+    "on-click-middle": "playerctl previous",
+    "escape": true
   },
 
-  "group/pill-in": {
-    "orientation": "horizontal",
-    "modules": [
-      "custom/media",
-      "clock",
-      "custom/notification"
-    ]
+  "custom/power": {
+    "format": "󰗿",
+    "tooltip": "Power Menu (click)",
+    "on-click": "wlogout --launcher-icons",
+    "tooltip-format": "Click to power off"
   },
 
-  "group/pill-left": {
-    "orientation": "horizontal",
-    "modules": [
-      "tray",
-      "idle_inhibitor",
-      "custom/bluetooth",
-      "network",
-      "network#bandwidthDownBytes",
-      "network#bandwidthUpBytes",
-      "pulseaudio",
-      "pulseaudio#microphone"
-    ]
+  "custom/lock": {
+    "format": "󰌾",
+    "tooltip": "Lock Screen (Super+L)",
+    "on-click": " ~/.local/bin/bitbeast lock",
+    "tooltip-format": "Lock screen"
   },
-  
-  "group/leaf": {
-    "orientation": "horizontal",
-    "modules": [
-      "backlight",
-      "custom/batterybar",
-      "battery",
-      "custom/lock"
-    ]
+
+  "custom/notification": {
+    "format": "{icon}",
+    "format-icons": {
+      "notification": "󰂚",
+      "none": "󰂚",
+      "dnd-notification": "󱏧",
+      "dnd-none": "󱏧"
+    },
+    "return-type": "json",
+    "exec": "~/.local/bin/bitbeast-notification",
+    "on-click": "~/.local/bin/bitbeast-notification-popdown popdown",
+    "on-click-right": "~/.local/bin/bitbeast-notification-popdown dnd",
+    "tooltip-format": "{tooltip}"
+  },
+
+  "custom/theme": {
+    "format": "BitBeast",
+    "tooltip": "Pick Theme (Super+W)",
+    "on-click": "~/.local/bin/bitbeast pick",
+    "tooltip-format": "Pick BitBeast theme"
+  },
+
+  "custom/style": {
+    "format": "",
+    "tooltip": "Cycle Style (Super+Shift+W)",
+    "on-click": "~/.local/bin bitbeast style cycle",
+    "tooltip-format": "Cycle waybar style"
+  },
+
+  "cpu": {
+    "format": "󰍴{}%",
+    "tooltip-format": "CPU: {}%",
+    "interval": 2,
+    "on-click": "~/.local/bin/bitbeast-sysinfo all"
+  },
+
+  "memory": {
+    "format": "󰍾{}%",
+    "tooltip-format": "RAM: {}%",
+    "interval": 2,
+    "on-click": "~/.local/bin/bitbeast-sysinfo all"
+  },
+
+  "battery": {
+    "format": "{capacity}% {icon}",
+    "format-charging": "󰂄 {}%",
+    "format-plugged": "󰂄 {}%",
+    "format-alt": "{icon}",
+    "format-icons": {
+      "10": "󰁺",
+      "20": "󰁻",
+      "30": "󰁼",
+      "40": "󰁽",
+      "50": "󰁿",
+      "60": "󰂀",
+      "70": "󰂁",
+      "80": "󰂂",
+      "90": "󰣁",
+      "100": "󰁹"
+    },
+    "on-click": "stacer",
+    "tooltip-format": "Battery: {}%"
+  },
+
+  "network": {
+    "format": "󰤨 {ifname}",
+    "format-wifi": "󰤨 {signalStrength}%",
+    "format-ethernet": "󰈀 {ifname}",
+    "format-disconnected": "󰤭",
+    "interval": 2,
+    "tooltip-format": "{ifname}: {ipaddr}"
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-bluetooth": "{icon} {volume}%",
+    "format-bluetooth-muted": "󰝛",
+    "format-muted": "󰝟 {volume}%",
+    "format-icons": {
+      "100": "󰕘",
+      "50": "󰕘",
+      "30": "󰕘",
+      "0": "󰕑"
+    },
+    "on-click": "pavucontrol",
+    "tooltip-format": "Volume: {}%"
+  },
+
+  "tray": {
+    "spacing": 8,
+    "icon-size": 18
+  },
+
+  "clock": {
+    "format": "{:󰉋 %H:%M}",
+    "format-alt": "{:󰉕 %a, %b %d}",
+    "tooltip-format": "{:%C}",
+    "interval": 1,
+    "on-click-right": "ncal -3"
+  },
+
+  "backlight": {
+    "format": "{icon}{percent}%",
+    "format-icons": {
+      "100": "󰦨",
+      "50": "󰛨",
+      "25": "󰛤",
+      "10": "󰛤",
+      "0": "󰛤"
+    },
+    "on-click": "brightnessctl set 10%+",
+    "on-click-right": "brightnessctl set 10%-",
+    "tooltip-format": "Brightness: {}%"
+  },
+
+  "window": {
+    "format": "{}",
+    "max-length": 50,
+    "separate-outputs": true,
+    "tooltip": false
+  },
+
+  "workspaces": {
+    "format": "{icon}",
+    "format-icons": {
+      "1": "一",
+      "2": "二",
+      "3": "三",
+      "4": "四",
+      "5": "五",
+      "6": "六",
+      "7": "七",
+      "8": "八",
+      "9": "九",
+      "10": "十"
+    },
+    "disable-scrolling": false,
+    "persistent-nums": true,
+    "on-click": "activate",
+    "on-click-right": "move",
+    "tooltip": true
+  },
+
+  "hyprland/workspaces": {
+    "disable-scrolling": false,
+    "all-outputs": false,
+    "format": "{icon}",
+    "format-icons": {
+      "1": "",
+      "2": "",
+      "3": "",
+      "4": "",
+      "5": "",
+      "6": "",
+      "7": "",
+      "8": "",
+      "9": "",
+      "10": ""
+    },
+    "persistent-workspaces": {
+      "*": [1, 2, 3, 4, 5, 6, 7, 8]
+    },
+    "on-click-right": "movetoworkspace",
+    "show-special": true
+  },
+
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "󰍆",
+      "deactivated": "󰍆"
+    },
+    "tooltip": true
+  },
+
+  "wlr/taskbar": {
+    "format": "{icon}",
+    "format-icons": {
+      "1": "",
+      "2": "",
+      "3": "",
+      "4": "",
+      "5": "",
+      "6": "",
+      "7": "",
+      "8": ""
+    },
+    "on-click": "activate",
+    "on-click-right": "close",
+    "tooltip": true
   }
 }

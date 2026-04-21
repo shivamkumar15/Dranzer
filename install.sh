@@ -262,7 +262,7 @@ export ZSH="\$HOME/.oh-my-zsh"
 
 ZSH_THEME="$SELECTED_THEME/$SELECTED_THEME"
 
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting)
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting colors emotty emoji)
 
 # Enable Powerlevel10k instant prompt
 if [[ -r "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh" ]]; then
@@ -297,7 +297,7 @@ export ZSH="\$HOME/.oh-my-zsh"
 
 ZSH_THEME="$SELECTED_THEME"
 
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting)
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting colors emotty emoji)
 
 source \$ZSH/oh-my-zsh.sh
 EOF
@@ -333,10 +333,15 @@ install_dir "$REPO_DIR/web-wallpaper-selector" "$DATA_HOME/bitbeast/web-wallpape
 install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
 install_file "$REPO_DIR/.local/bin/bitbeast-battery" "$BIN_DIR/bitbeast-battery"
 install_file "$REPO_DIR/.local/bin/bitbeast-media" "$BIN_DIR/bitbeast-media"
+install_file "$REPO_DIR/.local/bin/bitbeast-media-popup" "$BIN_DIR/bitbeast-media-popup"
+install_file "$REPO_DIR/.local/bin/bitbeast-notification" "$BIN_DIR/bitbeast-notification"
+install_file "$REPO_DIR/.local/bin/bitbeast-notification-popdown" "$BIN_DIR/bitbeast-notification-popdown"
 install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
+install_file "$REPO_DIR/.local/bin/bitbeast-sysinfo" "$BIN_DIR/bitbeast-sysinfo"
 install_file "$REPO_DIR/.local/bin/bitbeast-wallpaper-selector" "$BIN_DIR/bitbeast-wallpaper-selector"
+install_file "$REPO_DIR/.local/bin/bitbeast-workspaces" "$BIN_DIR/bitbeast-workspaces"
 install_file "$REPO_DIR/.local/bin/circular_cava.py" "$BIN_DIR/circular_cava.py"
-chmod +x "$BIN_DIR/bitbeast" "$BIN_DIR/bitbeast-battery" "$BIN_DIR/bitbeast-media" "$BIN_DIR/bitbeast-session" "$BIN_DIR/bitbeast-wallpaper-selector" "$BIN_DIR/circular_cava.py"
+chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py"
 
 if [ "$APPLY_RUNTIME" -eq 1 ]; then
     "$BIN_DIR/bitbeast" "$THEME_NAME"

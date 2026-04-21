@@ -1,0 +1,87 @@
+#!/bin/bash
+# BitBeast System Info Popdown - Shows detailed system stats on hover/click
+
+get_cpu() {
+    top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*%\) id.*/\1/" | awk '{print 100 - $1}'
+}
+
+get_cpu_cores() {
+    for cpu in /sys/class/thermal/thermal_zone*; do
+        [ -f "$cpu/temp" ] && cat "$cpu/temp" 2>/dev/null | awk '{printf "%.1f", $1/1000}'
+    done | head -1
+}
+
+get_ram() {
+    free -h | awk '/^Mem:/ {print $3 "/" $2}'
+}
+
+get_ram_percent() {
+    free | awk '/^Mem:/ {printf "%.0f", ($3/$2)*100}'
+}
+
+get_disk() {
+    df -h "$HOME" | awk 'NR==2 {print $3 "/" $2}'
+}
+
+get_disk_percent() {
+    df "$HOME" | awk 'NR==2 {print $5}' | tr -d '%'
+}
+
+get_uptime() {
+    uptime -p 2>/dev/null || uptime | awk '{print $3}' | tr -d ','
+}
+
+get_kernel() {
+    uname -r | cut -d- -f1
+}
+
+get_packages() {
+    if command -v pacman >/dev/null 2>&1; then
+        pacman -Qq | wc -l
+    elif command -v dpkg >/dev/null 2>&1; then
+        dpkg -l | grep -c ^ii
+    else
+        echo "N/A"
+    fi
+}
+
+case "${1:-}" in
+    cpu)
+        printf "%.0f%%" "$(get_cpu)"
+        ;;
+    cpu-temp)
+        get_cpu_cores
+        ;;
+    ram)
+        get_ram
+        ;;
+    ram-percent)
+        get_ram_percent
+        ;;
+    disk)
+        get_disk
+        ;;
+    disk-percent)
+        get_disk_percent
+        ;;
+    uptime)
+        get_uptime
+        ;;
+    kernel)
+        get_kernel
+        ;;
+    packages)
+        get_packages
+        ;;
+    all)
+        cat <<EOF
+{
+  "text": "󰍴 $(get_cpu)% | 󰍾 $(get_ram)",
+  "tooltip": "CPU: $(get_cpu)%\nRAM: $(get_ram)\nDisk: $(get_disk)\nUptime: $(get_uptime)\nKernel: $(get_kernel)\nPackages: $(get_packages)"
+}
+EOF
+        ;;
+    *)
+        get_cpu
+        ;;
+esac

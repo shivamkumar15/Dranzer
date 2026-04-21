@@ -46,6 +46,11 @@ Usage:
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
+  bitbeast zsh <theme-name>
+  bitbeast zsh list
+  bitbeast zsh cycle
+  bitbeast zsh pick
+  bitbeast auto-theme
 
 Available themes:
 EOF_USAGE
@@ -466,6 +471,7 @@ restore_wallpaper() {
 
     [ -n "$wallpaper_path" ] || return 1
     apply_wallpaper "$wallpaper_path"
+    generate_zsh_prompt_colors
 }
 
 reload_cava() {
@@ -568,6 +574,9 @@ activate_theme() {
     reload_cava
     reload_hyprland
     reload_cursor "$theme_dir/colors.conf"
+
+    update_zsh_theme "$theme_name" || true
+    generate_zsh_prompt_colors
 
     printf 'BitBeast theme activated: %s\n' "$theme_name"
 }
@@ -679,10 +688,8 @@ EOF_STYLE_LIST
 }
 
 session_init() {
-    # Small delay to let Hyprland finish initializing
     sleep 1
 
-    # First time launch safety net (if waybar theme is missing completely)
     if [ ! -f "$WAYBAR_DIR/bitbeast.css" ]; then
         theme_name=$(current_theme_name || echo "root")
         if [ "$theme_name" != "root" ]; then
@@ -695,6 +702,7 @@ session_init() {
     ensure_waybar_style || true
     restore_wallpaper || true
     restart_waybar || true
+    generate_zsh_prompt_colors
 }
 
 brightness_control() {
@@ -744,6 +752,189 @@ set_avatar() {
     mkdir -p "$STATE_DIR"
     cp "$avatar_src" "$STATE_DIR/avatar.png"
     printf 'Avatar updated successfully to %s\n' "$avatar_src"
+}
+
+zsh_theme_file() {
+    printf '%s\n' "$HOME/.zshrc"
+}
+
+update_zsh_theme() {
+    zsh_theme=$1
+    zshrc=$(zsh_theme_file)
+
+    if [ ! -f "$zshrc" ]; then
+        printf 'Error: .zshrc not found\n' >&2
+        return 1
+    fi
+
+    if grep -q '^ZSH_THEME=' "$zshrc"; then
+        sed -i "s|^ZSH_THEME=.*|ZSH_THEME=\"$zsh_theme\"|" "$zshrc"
+    else
+        printf 'ZSH_THEME="%s"\n' "$zsh_theme" >> "$zshrc"
+    fi
+
+    if command -v chpwd >/dev/null 2>&1; then
+        chpwd >/dev/null 2>&1 || true
+    fi
+
+    printf 'Zsh theme updated to: %s\n' "$zsh_theme"
+}
+
+generate_zsh_prompt_colors() {
+    colors_conf="$STATE_DIR/current.conf"
+
+    if [ ! -f "$colors_conf" ]; then
+        colors_conf="$THEMES_DIR/dranzer/colors.conf"
+    fi
+
+    bg=$(sed -n 's/^\$bg[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    primary=$(sed -n 's/^\$primary[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    secondary=$(sed -n 's/^\$secondary[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    accent=$(sed -n 's/^\$accent[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    text=$(sed -n 's/^\$text[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+
+    [ -n "$bg" ] || bg="0d0405"
+    [ -n "$primary" ] || primary="e8450c"
+    [ -n "$secondary" ] || secondary="7b120f"
+    [ -n "$accent" ] || accent="ffd166"
+    [ -n "$text" ] || text="fff1dd"
+
+    primary_hex="#$primary"
+    accent_hex="#$accent"
+    text_hex="#$text"
+    bg_hex="#$bg"
+
+    mkdir -p "$HOME/.zsh"
+    cat > "$HOME/.zsh/bitbeast-prompt.zsh" <<EOF_ZSH
+#!/bin/zsh
+
+BITBEAST_BG="$bg_hex"
+BITBEAST_PRIMARY="$primary_hex"
+BITBEAST_ACCENT="$accent_hex"
+BITBEAST_TEXT="$text_hex"
+
+PS1="%F{$primary}%n%f%F{$text}@%f%F{$accent}%m%f %F{$text}%~%f "
+RPROMPT="%F{$secondary}%(3L|+)…%f"
+EOF_ZSH
+    chmod +x "$HOME/.zsh/bitbeast-prompt.zsh"
+
+    if [ -f "$HOME/.zshrc" ]; then
+        if ! grep -q 'bitbeast-prompt.zsh' "$HOME/.zshrc"; then
+            printf '\nsource "$HOME/.zsh/bitbeast-prompt.zsh"\n' >> "$HOME/.zshrc"
+        fi
+    fi
+
+    if grep -q '^ZSH_THEME=' "$HOME/.zshrc"; then
+        sed -i 's|^ZSH_THEME=.*|ZSH_THEME="bitbeast"|' "$HOME/.zshrc"
+    else
+        printf '\nZSH_THEME="bitbeast"\n' >> "$HOME/.zshrc"
+    fi
+
+    printf 'Zsh prompt colors updated from BitBeast theme\n'
+}
+
+list_zsh_themes() {
+    if [ -d "$HOME/.oh-my-zsh/themes" ]; then
+        ls "$HOME/.oh-my-zsh/themes"/*.zsh-theme 2>/dev/null | xargs -n1 basename | sed 's/\.zsh-theme$//' | sort
+    fi
+}
+
+cycle_zsh_theme() {
+    themes=$(list_zsh_themes)
+    current_theme=$(grep '^ZSH_THEME=' "$HOME/.zshrc" 2>/dev/null | sed 's/.*="\?\([^"]*\)"\?/\1/' | head -1)
+
+    [ -n "$current_theme" ] || current_theme="robbyrussell"
+
+    next_theme=""
+    found_current=0
+
+    for theme in $themes; do
+        if [ "$found_current" -eq 1 ]; then
+            next_theme=$theme
+            break
+        fi
+
+        if [ "$theme" = "$current_theme" ]; then
+            found_current=1
+        fi
+    done
+
+    [ -n "$next_theme" ] || next_theme=$(printf '%s\n' "$themes" | head -1)
+
+    [ -n "$next_theme" ] && update_zsh_theme "$next_theme"
+}
+
+pick_zsh_theme() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for pick-zsh-theme\n' >&2
+        exit 1
+    fi
+
+    current_theme=$(grep '^ZSH_THEME=' "$HOME/.zshrc" 2>/dev/null | sed 's/.*="\?\([^"]*\)"\?/\1/' | head -1)
+    [ -n "$current_theme" ] || current_theme="robbyrussell"
+
+    selection=$(
+        list_zsh_themes | while IFS= read -r theme_name; do
+            [ -n "$theme_name" ] || continue
+            if [ "$theme_name" = "$current_theme" ]; then
+                printf '%s\tactive\n' "$theme_name"
+            else
+                printf '%s\ttheme\n' "$theme_name"
+            fi
+        done
+    )
+
+    [ -n "$selection" ] || {
+        printf 'No zsh themes available\n' >&2
+        exit 1
+    }
+
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Zsh Theme")
+    chosen_theme=$(printf '%s' "$choice" | cut -f1)
+
+    [ -n "$chosen_theme" ] || exit 0
+
+    update_zsh_theme "$chosen_theme"
+}
+
+detect_theme_from_wallpaper() {
+    wallpaper_path=${1:-}
+
+    if [ -z "$wallpaper_path" ]; then
+        wallpaper_path=$(saved_wallpaper_path || fallback_wallpaper_path || true)
+    fi
+
+    if [ -z "$wallpaper_path" ] || [ ! -f "$wallpaper_path" ]; then
+        printf 'No wallpaper to analyze\n' >&2
+        return 1
+    fi
+
+    if command -v magick >/dev/null 2>&1; then
+        dominant_color=$(magick "$wallpaper_path" -resize 1x1 -format '%[hex:u]' info:)
+    elif command -v convert >/dev/null 2>&1; then
+        dominant_color=$(convert "$wallpaper_path" -resize 1x1 -format '%[hex:u]' info:)
+    elif command -v chafa >/dev/null 2>&1; then
+        dominant_color=""
+    else
+        printf 'ImageMagick is required for wallpaper theme detection\n' >&2
+        return 1
+    fi
+
+    if [ -n "$dominant_color" ]; then
+        brightness=$((16#${dominant_color:1:2} + 16#${dominant_color:3:2} + 16#${dominant_color:5:2}))
+        brightness=$((brightness / 3))
+
+        if [ "$brightness" -lt 85 ]; then
+            update_zsh_theme "darkblood"
+            activate_theme "dranzer"
+        elif [ "$brightness" -lt 170 ]; then
+            update_zsh_theme "bira"
+            activate_theme "draciel"
+        else
+            update_zsh_theme "robbyrussell"
+            activate_theme "galeon"
+        fi
+    fi
 }
 
 command_name=${1:-}
@@ -881,6 +1072,34 @@ EOF_COLORS
     brightness)
         [ $# -eq 2 ] || { usage; exit 1; }
         brightness_control "$2"
+        ;;
+    zsh)
+        if [ $# -lt 2 ]; then
+            usage
+            exit 1
+        fi
+
+        case $2 in
+            list)
+                list_zsh_themes
+                ;;
+            cycle)
+                cycle_zsh_theme
+                ;;
+            pick)
+                pick_zsh_theme
+                ;;
+            *)
+                [ $# -eq 2 ] || {
+                    usage
+                    exit 1
+                }
+                update_zsh_theme "$2"
+                ;;
+        esac
+        ;;
+    auto-theme)
+        detect_theme_from_wallpaper "$2"
         ;;
     *)
         if [ $# -ne 1 ]; then

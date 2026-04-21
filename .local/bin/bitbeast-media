@@ -1,33 +1,114 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# BitBeast Media - Modern music player control with album art
 
-status=$(playerctl status 2>/dev/null)
-if [ -z "$status" ]; then
-  # No player running or detected
-  echo '{"text": "", "class": "stopped"}'
-  exit 0
+CACHE_DIR="$HOME/.cache/bitbeast"
+mkdir -p "$CACHE_DIR"
+
+get_player() {
+    playerctl -l 2>/dev/null | grep -E "spotify|firefox|chromium|mpv|vlc|audacious|rhythmbox" | head -1
+}
+
+get_album_art() {
+    local player=$1
+    local url=$(playerctl -p "$player" metadata mpris:artUrl 2>/dev/null)
+    
+    if [ -z "$url" ]; then
+        echo ""
+        return
+    fi
+    
+    if [[ "$url" == file://* ]]; then
+        echo "${url#file://}"
+        return
+    fi
+    
+    if [[ "$url" == http://* ]] || [[ "$url" == https://* ]]; then
+        local cached="$CACHE_DIR/$(echo "$url" | md5sum | cut -d' ' -f1).jpg"
+        
+        if [ ! -f "$cached" ]; then
+            curl -sL "$url" -o "$cached" 2>/dev/null
+        fi
+        
+        if [ -f "$cached" ]; then
+            echo "$cached"
+        fi
+    fi
+}
+
+get_status() {
+    playerctl status 2>/dev/null
+}
+
+get_title() {
+    playerctl -p "$PLAYER" metadata title 2>/dev/null | cut -c1-40
+}
+
+get_artist() {
+    playerctl -p "$PLAYER" metadata artist 2>/dev/null | cut -c1-30
+}
+
+get_position() {
+    playerctl position 2>/dev/null | cut -d. -f1
+}
+
+get_duration() {
+    playerctl -p "$PLAYER" metadata mpris:length 2>/dev/null | cut -d. -f1 | awk '{printf "%d", $1/1000000}'
+}
+
+format_time() {
+    local secs=$1
+    printf "%d:%02d" $((secs/60)) $((secs%60))
+}
+
+PLAYER=$(get_player)
+
+if [ -z "$PLAYER" ]; then
+    echo '{"text": "󰝌 ", "class": "stopped", "tooltip": "No media playing"}'
+    exit 0
 fi
 
-if [ "$status" = "Paused" ]; then
-  title=$(playerctl metadata --format '{{ title }}' 2>/dev/null)
-  artist=$(playerctl metadata --format '{{ artist }}' 2>/dev/null)
-  text="󰏤  ${title}"
-  if [ -n "$artist" ]; then text="󰏤  ${artist} - ${title}"; fi
-  if [ ${#text} -gt 40 ]; then text="${text:0:37}..."; fi
-  echo "{\"text\": \"$text\", \"class\": \"paused\"}"
-  exit 0
+STATUS=$(get_status)
+TITLE=$(get_title)
+ARTIST=$(get_artist)
+POSITION=$(get_position)
+DURATION=$(get_duration)
+
+if [ -z "$TITLE" ]; then
+    TITLE=$(playerctl -p "$PLAYER" metadata xesam:url 2>/dev/null | xargs basename 2>/dev/null | cut -c1-40)
 fi
 
-if [ "$status" = "Playing" ]; then
-  title=$(playerctl metadata --format '{{ title }}' 2>/dev/null)
-  artist=$(playerctl metadata --format '{{ artist }}' 2>/dev/null)
-  
-  frames=("󰎆" "󰎈" "󰎊" "󰎌")
-  frame=${frames[ $RANDOM % ${#frames[@]} ]}
-  
-  text="${frame}  ${title}"
-  if [ -n "$artist" ]; then text="${frame}  ${artist} - ${title}"; fi
-  if [ ${#text} -gt 40 ]; then text="${text:0:37}..."; fi
-  
-  echo "{\"text\": \"$text\", \"class\": \"playing\"}"
-  exit 0
+if [ -z "$TITLE" ]; then
+    echo '{"text": "󰝌 ", "class": "stopped", "tooltip": "No media playing"}'
+    exit 0
 fi
+
+ALBUM_ART=$(get_album_art "$PLAYER")
+
+CASE="playing"
+if [ "$STATUS" = "Playing" ]; then
+    CASE="playing"
+    ICON="󰹢"
+elif [ "$STATUS" = "Paused" ]; then
+    CASE="paused"
+    ICON="󰐊"
+else
+    CASE="stopped"
+    ICON="󰝌 "
+fi
+
+TOOLTIP="$TITLE by $ARTIST"
+TOOLTIP+="\nPosition: $(format_time $POSITION)/$(format_time $DURATION)"
+
+cat <<EOF
+{
+  "text": "$ICON $TITLE",
+  "class": "$CASE",
+  "alt": "$ICON",
+  "tooltip": "$TOOLTIP"
+EOF
+
+if [ -n "$ALBUM_ART" ] && [ -f "$ALBUM_ART" ]; then
+    echo ', "image-path": "'"$ALBUM_ART"'"'
+fi
+
+echo "}"

@@ -1,102 +1,295 @@
-/* BitBeast Waybar CSS - HyDE Modular Integration */
+/* BitBeast Waybar - Modern Glassmorphic Design */
 
-/* 1. Theme Variables (BitBeast) */
 @import url("bitbeast.css");
-/* 2. HyDE Theme Bridge */
 @import url("theme.css");
-/* 3. Global CSS Reset */
 @import url("includes/global.css");
-/* 4. Shape Defines */
 @import url("includes/border-radius.css");
 
-/* Group / Module Wrapper Styling */
-
-#leaf, #leaf-inverse, #pill, #pill-in, #pill-out, #pill-down, #pill-up, #pill-left, #pill-right {
-    background-color: alpha(@main-bg, 0.7);
-    border: 1px solid alpha(@glow, 0.3);
-    box-shadow: 0 8px 32px 0 alpha(@bg, 0.37);
-    margin: 6px 4px;
-    padding: 0 4px;
+* {
     border-radius: 12px;
-    transition: all 0.3s ease-in-out;
 }
 
-#leaf:hover, #leaf-inverse:hover, #pill-left:hover, #pill-right:hover, #pill-in:hover {
-    border: 1px solid alpha(@glow, 0.6);
-    background-color: alpha(@main-bg, 0.8);
-    box-shadow: 0 8px 32px 0 alpha(@glow, 0.2);
-}
-
-#leaf > widget > label,
-#leaf > widget > box > label,
-#leaf > widget > box > button,
-#leaf-inverse > widget > label,
-#leaf-inverse > widget > box > label,
-#leaf-inverse > widget > box > button,
-#pill-in > widget > label,
-#pill-in > widget > box > label,
-#pill-in > widget > box > button,
-#pill-left > widget > label,
-#pill-left > widget > box > label,
-#pill-left > widget > box > button,
-#pill-right > widget > label,
-#pill-right > widget > box > label,
-#pill-right > widget > box > button {
-    padding: 0 12px;
+window#waybar {
+    background: transparent;
     color: @main-fg;
+    font-family: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", monospace;
+    font-size: 13px;
+    font-weight: 500;
 }
 
-/* Base states */
-button { border: none; font-family: inherit; }
-button:hover { background-color: alpha(@wb-hov-bg, 0.5); color: @wb-hov-fg; }
-
-/* Custom Overrides & Tooltips */
 tooltip {
-    background: @main-bg;
-    border: 1px solid alpha(@glow, 0.3);
+    background: alpha(@main-bg, 0.85);
+    border: 1px solid @glow;
+    border-radius: 16px;
     color: @main-fg;
-    box-shadow: 0 5px 15px alpha(@bg, 0.8);
+    padding: 8px 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
-tooltip label { color: @main-fg; padding: 4px; }
 
-/* Workspaces */
-#workspaces button {
-    padding: 0 8px;
-    color: alpha(@main-fg, 0.5);
-    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+tooltip label {
+    color: @main-fg;
+    padding: 4px 8px;
 }
+
+/* Main Bar Container */
+#window-controls,
+#workspaces,
+#clock,
+#battery,
+#network,
+#pulseaudio,
+#tray,
+#custom-power,
+#custom-media,
+#custom-notification,
+#custom-lock,
+#idle_inhibitor,
+#cpu,
+#memory,
+#backlight,
+#custom-theme,
+#custom-style {
+    margin: 4px 6px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, alpha(@main-bg, 0.6) 0%, alpha(@secondary, 0.3) 100%);
+    border: 1px solid alpha(@glow, 0.2);
+    border-radius: 16px;
+    color: @main-fg;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glow effect on hover */
+#window-controls:hover,
+#workspaces:hover,
+#clock:hover,
+#battery:hover,
+#network:hover,
+#pulseaudio:hover,
+#tray:hover,
+#custom-power:hover,
+#custom-media:hover,
+#custom-notification:hover,
+#custom-lock:hover,
+#idle_inhibitor:hover,
+#cpu:hover,
+#memory:hover,
+#backlight:hover,
+#custom-theme:hover,
+#custom-style:hover {
+    background: linear-gradient(135deg, alpha(@main-bg, 0.8) 0%, alpha(@primary, 0.4) 100%);
+    border: 1px solid @glow;
+    box-shadow: 0 0 20px alpha(@glow, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Active workspace button */
 #workspaces button.active {
-    color: @wb-act-bg;
-    background-color: alpha(@wb-act-bg, 0.1);
-    border-radius: 8px;
-    text-shadow: 0 0 12px alpha(@wb-act-bg, 1);
-}
-#workspaces button.urgent { color: @error-bg; }
-#workspaces button:hover { 
-    color: @wb-hov-bg; 
-    background-color: alpha(@wb-hov-bg, 0.1);
+    background: linear-gradient(135deg, @primary 0%, @secondary 100%);
+    color: @text;
+    border-radius: 12px;
+    box-shadow: 0 0 16px alpha(@primary, 0.5);
 }
 
-/* Bandwidth Modules */
-#network.bandwidthDownBytes {
-    color: #4CAF50; /* Green for download */
-    font-weight: bold;
+#workspaces button.urgent {
+    background: @error-bg;
+    color: @text;
+    animation: pulse 1s ease-in-out infinite;
 }
 
-#network.bandwidthUpBytes {
-    color: #FF9800; /* Orange for upload */
-    font-weight: bold;
-}
-
-/* Universal Module Hover */
-#battery, #clock, #cpu, #memory, #network, #pulseaudio, #tray, #backlight, #custom-media, #custom-power, #custom-theme, #custom-style, #custom-lock, #custom-notification, #custom-bluetooth, #idle_inhibitor {
+#workspaces button {
+    color: alpha(@main-fg, 0.6);
+    border-radius: 10px;
+    margin: 2px 4px;
+    padding: 4px 10px;
     transition: all 0.2s ease;
+}
+
+#workspaces button:hover {
+    color: @glow;
+    background: alpha(@glow, 0.15);
+}
+
+/* Tray icons */
+#tray {
+    padding: 4px 8px;
+}
+
+#tray > .tray-icon {
     border-radius: 8px;
+    margin: 0 2px;
 }
 
-#battery:hover, #clock:hover, #cpu:hover, #memory:hover, #network:hover, #pulseaudio:hover, #tray:hover, #backlight:hover, #custom-media:hover {
-    background-color: alpha(@main-fg, 0.1);
+/* Battery states */
+#battery {
+    background: linear-gradient(135deg, alpha(@main-bg, 0.6) 0%, alpha(@accent, 0.2) 100%);
 }
 
-/* Custom styling imports based on BitBeast active Style variant */
-@import url("bitbeast-style.css");
+#battery.warning {
+    background: linear-gradient(135deg, alpha(@main-bg, 0.6) 0%, alpha(#ff9800, 0.3) 100%);
+    color: #ff9800;
+}
+
+#battery.critical {
+    background: linear-gradient(135deg, alpha(@main-bg, 0.6) 0%, alpha(@error-bg, 0.4) 100%);
+    color: @error-bg;
+    animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Network */
+#network.disconnected {
+    color: @error-bg;
+}
+
+/* Pulseaudio */
+#pulseaudio.muted {
+    color: alpha(@main-fg, 0.4);
+}
+
+/* Clock */
+#clock {
+    font-weight: 600;
+}
+
+#clock {
+}
+
+/* Custom Power Button */
+#custom-power {
+    background: linear-gradient(135deg, alpha(@error-bg, 0.2) 0%, alpha(@main-bg, 0.6) 100%);
+    border-color: alpha(@error-bg, 0.3);
+}
+
+#custom-power:hover {
+    background: linear-gradient(135deg, alpha(@error-bg, 0.4) 0%, alpha(@error-bg, 0.2) 100%);
+    border-color: @error-bg;
+    box-shadow: 0 0 20px alpha(@error-bg, 0.4);
+}
+
+/* Custom Lock Button */
+#custom-lock {
+    background: linear-gradient(135deg, alpha(@accent, 0.2) 0%, alpha(@main-bg, 0.6) 100%);
+}
+
+#custom-lock:hover {
+    background: linear-gradient(135deg, alpha(@accent, 0.4) 0%, alpha(@accent, 0.2) 100%);
+    box-shadow: 0 0 20px alpha(@accent, 0.4);
+}
+
+/* Notification - has notifications indicator */
+#custom-notification {
+}
+
+#custom-notification.has-notifications {
+    background: linear-gradient(135deg, alpha(@primary, 0.3) 0%, alpha(@main-bg, 0.6) 100%);
+}
+
+
+
+/* Media player - special styling */
+#custom-media {
+    background: linear-gradient(135deg, alpha(@primary, 0.15) 0%, alpha(@main-bg, 0.6) 100%);
+    padding: 6px 12px;
+}
+
+#custom-media.playing {
+    background: linear-gradient(135deg, alpha(@primary, 0.25) 0%, alpha(@accent, 0.15) 100%);
+    border-color: alpha(@primary, 0.4);
+}
+
+#custom-media > icon {
+    margin-right: 8px;
+}
+
+#custom-media > label {
+}
+
+#custom-media > img {
+    margin-right: 8px;
+    border-radius: 6px;
+}
+
+/* Idle inhibitor */
+#idle_inhibitor {
+    background: linear-gradient(135deg, alpha(@accent, 0.15) 0%, alpha(@main-bg, 0.6) 100%);
+}
+
+#idle_inhibitor.activated {
+    background: linear-gradient(135deg, alpha(@accent, 0.3) 0%, alpha(@accent, 0.15) 100%);
+    border-color: @accent;
+}
+
+/* Backlight */
+#backlight {
+    padding: 6px 10px;
+}
+
+/* CPU & Memory */
+#cpu, #memory {
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+/* Theme/Style buttons */
+#custom-theme, #custom-style {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+/* Window title in center */
+#window {
+    color: alpha(@main-fg, 0.7);
+    font-size: 12px;
+    padding: 6px 16px;
+    background: transparent;
+    margin: 4px 8px;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Popdown menu base */
+.popdown {
+    background: alpha(@main-bg, 0.92);
+    border: 1px solid alpha(@glow, 0.25);
+    border-radius: 20px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* Battery bar if used */
+#battery bar {
+    background: alpha(@secondary, 0.3);
+    border-radius: 2px;
+}
+
+#battery bar.level {
+    background: linear-gradient(90deg, @primary, @accent);
+    border-radius: 2px;
+}
+
+/* Module tooltips */
+#battery + tooltip,
+#network + tooltip,
+#custom-media + tooltip {
+    background: alpha(@main-bg, 0.9);
+    border-radius: 12px;
+    padding: 8px 12px;
