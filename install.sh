@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 set -eu
 
@@ -162,10 +162,151 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-THEME_NAME=$(printf '%s' "$THEME_NAME" | tr '[:upper:]' '[:lower:]')
-ensure_theme_exists "$THEME_NAME"
+setup_zsh() {
+    ZSH_DIR="$HOME/.oh-my-zsh"
+    ZSHRC="$HOME/.zshrc"
 
-check_dependencies
+    if [ ! -d "$ZSH_DIR" ]; then
+        printf '\033[1;33m⚠ Oh My Zsh not found. Skipping zsh setup.\033[0m\n'
+        return
+    fi
+
+    printf '\n\033[1;36m=== Zsh Theme Selection ===\033[0m\n'
+    printf 'Select a theme for your terminal:\n\n'
+
+    themes=(
+        "powerlevel10k:Powerlevel10k (Popular, feature-rich, icons)"
+        "robbyrussell:Robbyrussell (Default, clean)"
+        "agnoster:Agnoster (Segments, needs powerline fonts)"
+        "YS:YS (Minimal, good colors)"
+        "lambda:Lambda (Minimal, git info)"
+        "minimal:Minimal (Ultra clean)"
+        "pi:Pi (Japanese style)"
+        "avit:Avit (Compact, shows time)"
+        "kennethreitz:Kenneth Reitz (Python dev)"
+        "fishy:Fishy (Fish shell style)"
+        "steeef:steeef (Green, git-aware)"
+        "candy:Candy (Colorful)"
+        "wedisagree:We disagree (Dark theme)"
+        "sunaku:Sunaku (Clean, patched)"
+        "smt:SMT (Simple)"
+        "frisk:Frisk (Pastel)"
+        "sorin:Sorin (Clean)"
+        "emotty:Emotty (Emoji-based)"
+        "gallois:Gallois (French)"
+    )
+
+    for i in "${!themes[@]}"; do
+        idx=$((i + 1))
+        desc="${themes[$i]#*:}"
+        printf '  \033[1;33m%2d\033[0m. %s\n' "$idx" "$desc"
+    done
+
+    printf '\n  \033[1;33m20\033[0m. Skip zsh setup\n'
+    printf '\nEnter selection [1-20] (default: 1): '
+    read -r choice
+
+    choice=${choice:-1}
+
+    case $choice in
+        20|[Nn]*) printf 'Skipping zsh setup.\n'; return ;;
+        *)
+            if ! printf '%s\n' "$choice" | grep -qE '^[0-9]+$' || [ "$choice" -lt 1 ] || [ "$choice" -gt 19 ]; then
+                printf 'Invalid selection. Using default (Powerlevel10k).\n'
+                choice=1
+            fi
+            SELECTED_THEME="${themes[$((choice - 1))]%%:*}"
+            ;;
+    esac
+
+    mkdir -p "$ZSH_DIR/custom/themes"
+    mkdir -p "$ZSH_DIR/plugins"
+
+    if [ "$SELECTED_THEME" = "powerlevel10k" ]; then
+        if [ ! -d "$ZSH_DIR/custom/themes/powerlevel10k" ]; then
+            printf 'Installing Powerlevel10k...\n'
+            git clone --depth 1 https://github.com/romkatv/powerlevel10k.git "$ZSH_DIR/custom/themes/powerlevel10k"
+        else
+            printf 'Updating Powerlevel10k...\n'
+            (cd "$ZSH_DIR/custom/themes/powerlevel10k" && git pull)
+        fi
+    fi
+
+    if [ ! -d "$ZSH_DIR/plugins/zsh-autosuggestions" ]; then
+        printf 'Installing zsh-autosuggestions...\n'
+        git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_DIR/plugins/zsh-autosuggestions"
+    else
+        printf 'Updating zsh-autosuggestions...\n'
+        (cd "$ZSH_DIR/plugins/zsh-autosuggestions" && git pull)
+    fi
+
+    if [ ! -d "$ZSH_DIR/plugins/zsh-syntax-highlighting" ]; then
+        printf 'Installing zsh-syntax-highlighting...\n'
+        git clone --depth 1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_DIR/plugins/zsh-syntax-highlighting"
+    else
+        printf 'Updating zsh-syntax-highlighting...\n'
+        (cd "$ZSH_DIR/plugins/zsh-syntax-highlighting" && git pull)
+    fi
+
+    if [ -f "$ZSHRC" ]; then
+        backup_path "$ZSHRC"
+    fi
+
+    if [ "$SELECTED_THEME" = "powerlevel10k" ]; then
+        cat > "$ZSHRC" << EOF
+# If you come from bash you might have to change your \$PATH.
+# export PATH=\$HOME/bin:\$HOME/.local/bin:/usr/local/bin:\$PATH
+
+# Path to your Oh My Zsh installation.
+export ZSH="\$HOME/.oh-my-zsh"
+
+ZSH_THEME="$SELECTED_THEME/$SELECTED_THEME"
+
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting)
+
+# Enable Powerlevel10k instant prompt
+if [[ -r "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh" ]]; then
+  source "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh"
+fi
+
+source \$ZSH/oh-my-zsh.sh
+
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+EOF
+
+        cat > "$HOME/.p10k.zsh" << 'EOF'
+typeset -g POWERLEVEL9K_MODE=nerdfont-complete
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(dir vcs newline prompt_char)
+typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time background_jobs context time)
+typeset -g POWERLEVEL9K_DIR_TRUNCATION_STRATEGY=truncate_to_last
+typeset -g POWERLEVEL9K_SHORTEN_DIR_LENGTH=1
+typeset -g POWERLEVEL9K_STATUS_OK=false
+typeset -g POWERLEVEL9K_VCS_CLEAN_FOREGROUND=76
+typeset -g POWERLEVEL9K_VCS_DIRTY_FOREGROUND=196
+typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_FOREGROUND=76
+typeset -g POWERLEVEL9K_PROMPT_CHAR_ERROR_FOREGROUND=196
+EOF
+    else
+        cat > "$ZSHRC" << EOF
+# If you come from bash you might have to change your \$PATH.
+# export PATH=\$HOME/bin:\$HOME/.local/bin:/usr/local/bin:\$PATH
+
+# Path to your Oh My Zsh installation.
+export ZSH="\$HOME/.oh-my-zsh"
+
+ZSH_THEME="$SELECTED_THEME"
+
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting)
+
+source \$ZSH/oh-my-zsh.sh
+EOF
+    fi
+
+    printf 'Zsh configured with %s and plugins.\n' "$SELECTED_THEME"
+}
+
+setup_zsh
 
 mkdir -p "$BIN_DIR" "$STATE_DIR" "$WALLPAPER_DEST_DIR"
 

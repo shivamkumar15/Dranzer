@@ -567,6 +567,7 @@ activate_theme() {
     reload_kitty
     reload_cava
     reload_hyprland
+    reload_cursor "$theme_dir/colors.conf"
 
     printf 'BitBeast theme activated: %s\n' "$theme_name"
 }
