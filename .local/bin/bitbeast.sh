@@ -504,8 +504,14 @@ reload_cursor() {
     colors_file=$1
     cursor_theme=$(sed -n 's/^\$cursor_theme[[:space:]]*=[[:space:]]*\(.*\)/\1/p' "$colors_file" | tail -n 1)
     if [ -n "$cursor_theme" ]; then
-        hyprctl setcursor "$cursor_theme" 24
-        gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme"
+        # Apply cursor via hyprctl (live)
+        hyprctl setcursor "$cursor_theme" 24 >/dev/null 2>&1 || true
+        # Set environment variables for new windows
+        hyprctl keyword env XCURSOR_THEME,"$cursor_theme" >/dev/null 2>&1 || true
+        hyprctl keyword env XCURSOR_SIZE,24 >/dev/null 2>&1 || true
+        # Persist via gsettings for GTK apps
+        gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme" 2>/dev/null || true
+        gsettings set org.gnome.desktop.interface cursor-size 24 2>/dev/null || true
     fi
 }
 
@@ -698,6 +704,13 @@ session_init() {
     ensure_waybar_style || true
     restore_wallpaper || true
     restart_waybar || true
+
+    # Apply the cursor theme from the current BitBeast theme
+    theme_name=$(current_theme_name || echo "dranzer")
+    theme_dir="$THEMES_DIR/$theme_name"
+    if [ -f "$theme_dir/colors.conf" ]; then
+        reload_cursor "$theme_dir/colors.conf"
+    fi
 }
 
 brightness_control() {
