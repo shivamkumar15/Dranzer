@@ -50,11 +50,18 @@ check_dependencies() {
         ["grim"]="grim"
         ["slurp"]="slurp"
         ["wl-copy"]="wl-clipboard"
+        ["pipewire"]="pipewire"
+        ["wireplumber"]="wireplumber"
+        ["/usr/lib/xdg-desktop-portal-hyprland"]="xdg-desktop-portal-hyprland"
     )
 
-    # Required commands
-    for cmd in waybar rofi kitty hyprlock swaync playerctl git python cava curl; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
+    # Required commands/files
+    for cmd in waybar rofi kitty hyprlock swaync playerctl git python cava curl pipewire wireplumber /usr/lib/xdg-desktop-portal-hyprland; do
+        if [[ "$cmd" == /* ]]; then
+            if [ ! -f "$cmd" ]; then
+                missing_req+=("${pkg_map[$cmd]}")
+            fi
+        elif ! command -v "$cmd" >/dev/null 2>&1; then
             missing_req+=("${pkg_map[$cmd]}")
         fi
     done

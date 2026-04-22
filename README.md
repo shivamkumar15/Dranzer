@@ -15,6 +15,9 @@ Install the following packages before running the installer:
 - `playerctl`
 - `cava`
 - `swww` or `swaybg` (at least one wallpaper backend)
+- `pipewire`
+- `wireplumber`
+- `xdg-desktop-portal-hyprland` (required for screen sharing)
 - `git`
 - `bash` or another POSIX shell
 - A Wayland compositor such as `Hyprland`
