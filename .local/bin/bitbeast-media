@@ -96,19 +96,13 @@ else
     ICON="󰝌 "
 fi
 
-TOOLTIP="$TITLE by $ARTIST"
-TOOLTIP+="\nPosition: $(format_time $POSITION)/$(format_time $DURATION)"
+TOOLTIP="$TITLE by $ARTIST\nPosition: $(format_time $POSITION)/$(format_time $DURATION)"
 
-cat <<EOF
-{
-  "text": "$ICON $TITLE",
-  "class": "$CASE",
-  "alt": "$ICON",
-  "tooltip": "$TOOLTIP"
-EOF
-
+# Build valid single-line JSON
 if [ -n "$ALBUM_ART" ] && [ -f "$ALBUM_ART" ]; then
-    echo ', "image-path": "'"$ALBUM_ART"'"'
+    printf '{"text": "%s %s", "class": "%s", "alt": "%s", "tooltip": "%s", "image-path": "%s"}\n' \
+        "$ICON" "$TITLE" "$CASE" "$ICON" "$TOOLTIP" "$ALBUM_ART"
+else
+    printf '{"text": "%s %s", "class": "%s", "alt": "%s", "tooltip": "%s"}\n' \
+        "$ICON" "$TITLE" "$CASE" "$ICON" "$TOOLTIP"
 fi
-
-echo "}"

@@ -1,78 +1,333 @@
-#!/bin/bash
-# BitBeast Media Popup - Shows music controls in a nice window
+#!/usr/bin/env python3
+"""
+BitBeast Media Popup — GTK3 + GtkLayerShell drop-down media controller.
+Drops down from the top bar when the media button is clicked in Waybar.
+Click anywhere outside (or press Escape) to dismiss.
+"""
 
-CACHE_DIR="$HOME/.cache/bitbeast"
-mkdir -p "$CACHE_DIR"
+import gi, subprocess, os, hashlib, signal, sys
 
-get_player() {
-    playerctl -l 2>/dev/null | head -1
-}
+gi.require_version("Gtk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gtk, Gdk, GLib, GtkLayerShell, GdkPixbuf
 
-PLAYER=$(get_player)
+# ── Theme colors (BitBeast Dranzer defaults) ──────────────────────────
+BG        = "#150608"
+BG_ALT    = "#2c0d0f"
+PRIMARY   = "#e8450c"
+SECONDARY = "#7b120f"
+ACCENT    = "#ffd166"
+TEXT      = "#fff1dd"
+TEXT_DIM  = "rgba(255,241,221,0.55)"
+CACHE_DIR = os.path.expanduser("~/.cache/bitbeast")
 
-if [ -z "$PLAYER" ]; then
-    echo "No media player active"
-    exit 1
-fi
+os.makedirs(CACHE_DIR, exist_ok=True)
 
-TITLE=$(playerctl -p "$PLAYER" metadata title 2>/dev/null | cut -c1-50)
-ARTIST=$(playerctl -p "$PLAYER" metadata artist 2>/dev/null | cut -c1-40)
-ALBUM=$(playerctl -p "$PLAYER" metadata album 2>/dev/null | cut -c1-40)
-STATUS=$(playerctl -p "$PLAYER" status 2>/dev/null)
-POSITION=$(playerctl position 2>/dev/null | cut -d. -f1)
-DURATION=$(playerctl -p "$PLAYER" metadata mpris:length 2>/dev/null | cut -d. -f1 | awk '{printf "%d", $1/1000000}')
+# ── Helpers ───────────────────────────────────────────────────────────
 
-ART_URL=$(playerctl -p "$PLAYER" metadata mpris:artUrl 2>/dev/null)
+def cmd(args):
+    """Run a command and return stripped stdout, or empty string."""
+    try:
+        return subprocess.check_output(args, stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        return ""
 
-if [ -n "$ART_URL" ]; then
-    if [[ "$ART_URL" == file://* ]]; then
-        ART_FILE="${ART_URL#file://}"
-    elif [[ "$ART_URL" == http://* ]]; then
-        ART_HASH=$(echo "$ART_URL" | md5sum | cut -d' ' -f1)
-        ART_FILE="$CACHE_DIR/$ART_HASH.jpg"
-        if [ ! -f "$ART_FILE" ]; then
-            curl -sL "$ART_URL" -o "$ART_FILE" 2>/dev/null
-        fi
-    fi
-fi
+def get_player():
+    players = cmd(["playerctl", "-l"])
+    if not players:
+        return None
+    for p in players.splitlines():
+        if any(k in p.lower() for k in ("spotify", "firefox", "chromium", "mpv", "vlc", "audacious", "rhythmbox", "cmus")):
+            return p
+    return players.splitlines()[0]
 
-progress() {
-    if [ "$DURATION" -gt 0 ] 2>/dev/null; then
-        echo $((POSITION * 100 / DURATION))
-    else
-        echo 0
-    fi
-}
+def get_art(player):
+    url = cmd(["playerctl", "-p", player, "metadata", "mpris:artUrl"])
+    if not url:
+        return None
+    if url.startswith("file://"):
+        path = url[7:]
+        return path if os.path.isfile(path) else None
+    if url.startswith("http"):
+        h = hashlib.md5(url.encode()).hexdigest()
+        cached = os.path.join(CACHE_DIR, f"{h}.jpg")
+        if not os.path.isfile(cached):
+            subprocess.run(["curl", "-sL", url, "-o", cached], stderr=subprocess.DEVNULL)
+        return cached if os.path.isfile(cached) else None
+    return None
 
-format_time() {
-    printf "%d:%02d" $(($1/60)) $(($1%60))
-}
+def fmt_time(secs):
+    try:
+        s = int(float(secs))
+        return f"{s // 60}:{s % 60:02d}"
+    except Exception:
+        return "0:00"
 
-PLAY_ICON="󰐊"
-if [ "$STATUS" = "Playing" ]; then
-    PLAY_ICON="󰏤"
-fi
+# ── Kill any previous instance ────────────────────────────────────────
+# LOCK = os.path.join(CACHE_DIR, "media-popup.pid")
+# try:
+#     old_pid = int(open(LOCK).read().strip())
+#     os.kill(old_pid, signal.SIGTERM)
+# except Exception:
+#     pass
+# with open(LOCK, "w") as f:
+#     f.write(str(os.getpid()))
 
-cat <<EOF
-#!/bin/bash
-killall bitbeast-media-popup 2>/dev/null
-walc -t \
-    --title "BitBeast Media" \
-    --width 400 \
-    --height 180 \
-    --padding 20 \
-    --bordersize 0 \
-    --corner-radius 16 \
-    --background "#e0151530" \
-    --blur 8 \
-    --font "JetBrainsMono Nerd Font 14" \
-    --line-color "#ffffff" \
-    --text-color "#fff1dd" \
-    --background-color "#0d0405" \
-    -u 0 \
-    -d 0 \
-    "exec: playerctl play-pause" \
-    "prev: playerctl previous" \
-    "next: playerctl next" &
+# ── Detect player ────────────────────────────────────────────────────
+PLAYER = get_player()
+if not PLAYER:
+    subprocess.run(["notify-send", "-a", "BitBeast", "No Media", "No active media player found."])
+    sys.exit(0)
 
-EOF
+# ── Build CSS ─────────────────────────────────────────────────────────
+CSS = f"""
+window {{
+    background: transparent;
+}}
+#popup-frame {{
+    background-color: rgba(21, 6, 8, 0.92);
+    border: 1px solid rgba(232, 69, 12, 0.35);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+}}
+#track-title {{
+    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    color: {TEXT};
+}}
+#track-artist {{
+    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+    font-size: 12px;
+    color: {TEXT_DIM};
+    margin-top: 2px;
+}}
+#track-album {{
+    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+    font-size: 11px;
+    color: {TEXT_DIM};
+}}
+.control-btn {{
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 50%;
+    color: {TEXT};
+    min-width: 42px;
+    min-height: 42px;
+    font-size: 18px;
+    transition: all 200ms ease;
+}}
+.control-btn:hover {{
+    background: rgba(232, 69, 12, 0.25);
+    border-color: rgba(232, 69, 12, 0.5);
+    box-shadow: 0 0 12px rgba(232, 69, 12, 0.3);
+}}
+#play-btn {{
+    background: linear-gradient(135deg, {PRIMARY}, {SECONDARY});
+    border: none;
+    min-width: 52px;
+    min-height: 52px;
+    font-size: 22px;
+    box-shadow: 0 4px 16px rgba(232, 69, 12, 0.4);
+}}
+#play-btn:hover {{
+    box-shadow: 0 4px 24px rgba(232, 69, 12, 0.6);
+}}
+#progress-bar trough {{
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    min-height: 6px;
+}}
+#progress-bar progress {{
+    background: linear-gradient(90deg, {PRIMARY}, {ACCENT});
+    border-radius: 4px;
+    min-height: 6px;
+}}
+#time-label {{
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 10px;
+    color: {TEXT_DIM};
+}}
+#album-art {{
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}}
+"""
+
+# ── Window ────────────────────────────────────────────────────────────
+class MediaPopup(Gtk.Window):
+    def __init__(self):
+        super().__init__()
+        self.set_default_size(380, 10)
+
+        # Layer shell setup
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, False)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, False)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 52)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
+
+        # Apply CSS
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(CSS.encode())
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), css_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+        self.connect("key-press-event", self._on_key)
+        # self.connect("focus-out-event", lambda *_: self.destroy())
+        self.connect("destroy", lambda *_: Gtk.main_quit())
+
+        self._build_ui()
+        self._refresh()
+        GLib.timeout_add(1000, self._refresh)
+        self.show_all()
+
+    def _on_key(self, _w, event):
+        key = Gdk.keyval_name(event.keyval)
+        if key == "Escape":
+            self.destroy()
+        elif key == "space":
+            self._do("play-pause")
+        elif key == "Right":
+            self._do("next")
+        elif key == "Left":
+            self._do("previous")
+
+    def _do(self, action):
+        subprocess.Popen(["playerctl", "-p", PLAYER, action], stderr=subprocess.DEVNULL)
+        GLib.timeout_add(200, self._refresh)
+
+    def _build_ui(self):
+        frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        frame.set_name("popup-frame")
+
+        # ── Top row: album art + track info ──
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+
+        self.art_image = Gtk.Image()
+        self.art_image.set_name("album-art")
+        self.art_image.set_size_request(80, 80)
+        top.pack_start(self.art_image, False, False, 0)
+
+        info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        info_box.set_valign(Gtk.Align.CENTER)
+
+        self.title_label = Gtk.Label()
+        self.title_label.set_name("track-title")
+        self.title_label.set_xalign(0)
+        self.title_label.set_ellipsize(3)  # PANGO_ELLIPSIZE_END
+        self.title_label.set_max_width_chars(28)
+        info_box.pack_start(self.title_label, False, False, 0)
+
+        self.artist_label = Gtk.Label()
+        self.artist_label.set_name("track-artist")
+        self.artist_label.set_xalign(0)
+        self.artist_label.set_ellipsize(3)
+        self.artist_label.set_max_width_chars(28)
+        info_box.pack_start(self.artist_label, False, False, 0)
+
+        self.album_label = Gtk.Label()
+        self.album_label.set_name("track-album")
+        self.album_label.set_xalign(0)
+        self.album_label.set_ellipsize(3)
+        self.album_label.set_max_width_chars(28)
+        info_box.pack_start(self.album_label, False, False, 0)
+
+        top.pack_start(info_box, True, True, 0)
+        frame.pack_start(top, False, False, 0)
+
+        # ── Progress bar ──
+        prog_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+
+        self.progress = Gtk.ProgressBar()
+        self.progress.set_name("progress-bar")
+        prog_box.pack_start(self.progress, False, False, 0)
+
+        time_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.pos_label = Gtk.Label(label="0:00")
+        self.pos_label.set_name("time-label")
+        self.dur_label = Gtk.Label(label="0:00")
+        self.dur_label.set_name("time-label")
+        time_row.pack_start(self.pos_label, False, False, 0)
+        time_row.pack_end(self.dur_label, False, False, 0)
+        prog_box.pack_start(time_row, False, False, 0)
+
+        frame.pack_start(prog_box, False, False, 0)
+
+        # ── Controls ──
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        controls.set_halign(Gtk.Align.CENTER)
+
+        prev_btn = Gtk.Button(label="󰒮")
+        prev_btn.get_style_context().add_class("control-btn")
+        prev_btn.connect("clicked", lambda *_: self._do("previous"))
+
+        self.play_btn = Gtk.Button(label="󰏤")
+        self.play_btn.set_name("play-btn")
+        self.play_btn.get_style_context().add_class("control-btn")
+        self.play_btn.connect("clicked", lambda *_: self._do("play-pause"))
+
+        next_btn = Gtk.Button(label="󰒭")
+        next_btn.get_style_context().add_class("control-btn")
+        next_btn.connect("clicked", lambda *_: self._do("next"))
+
+        controls.pack_start(prev_btn, False, False, 0)
+        controls.pack_start(self.play_btn, False, False, 0)
+        controls.pack_start(next_btn, False, False, 0)
+
+        frame.pack_start(controls, False, False, 0)
+
+        self.add(frame)
+
+    def _refresh(self):
+        status = cmd(["playerctl", "-p", PLAYER, "status"])
+        title  = cmd(["playerctl", "-p", PLAYER, "metadata", "title"])[:45]
+        artist = cmd(["playerctl", "-p", PLAYER, "metadata", "artist"])[:35]
+        album  = cmd(["playerctl", "-p", PLAYER, "metadata", "album"])[:35]
+        pos    = cmd(["playerctl", "-p", PLAYER, "position"])
+        dur_us = cmd(["playerctl", "-p", PLAYER, "metadata", "mpris:length"])
+
+        self.title_label.set_text(title or "Unknown Track")
+        self.artist_label.set_text(artist or "Unknown Artist")
+        self.album_label.set_text(album or "")
+
+        self.play_btn.set_label("󰏤" if status == "Playing" else "󰐊")
+
+        try:
+            pos_s = float(pos)
+            dur_s = int(dur_us) / 1_000_000 if dur_us else 0
+            frac = pos_s / dur_s if dur_s > 0 else 0
+            self.progress.set_fraction(min(frac, 1.0))
+            self.pos_label.set_text(fmt_time(pos_s))
+            self.dur_label.set_text(fmt_time(dur_s))
+        except Exception:
+            self.progress.set_fraction(0)
+
+        # Album art
+        art_path = get_art(PLAYER)
+        if art_path and os.path.isfile(art_path):
+            try:
+                pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(art_path, 80, 80, True)
+                self.art_image.set_from_pixbuf(pb)
+            except Exception:
+                self.art_image.set_from_icon_name("audio-x-generic", Gtk.IconSize.DIALOG)
+        else:
+            self.art_image.set_from_icon_name("audio-x-generic", Gtk.IconSize.DIALOG)
+
+        return True  # keep the timer going
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
+    MediaPopup()
+    Gtk.main()
+    # Cleanup lock
+    try:
+        os.remove(LOCK)
+    except Exception:
+        pass

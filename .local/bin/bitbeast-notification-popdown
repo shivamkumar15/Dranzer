@@ -1,60 +1,26 @@
 #!/bin/bash
-# BitBeast Notification Popdown - Shows notifications in a dropdown
+# BitBeast Notification Popdown — Controls the SwayNC panel
 
-NOTIF_DIR="$HOME/.cache/swaync"
-STATE_FILE="$NOTIF_DIR/state.json"
-CONFIG_DIR="$HOME/.config/swaync"
-
-get_config() {
-    local key=$1
-    local default=$2
-    if [ -f "$CONFIG_DIR/config.json" ]; then
-        grep "\"$key\"" "$CONFIG_DIR/config.json" | sed 's/.*"\('$key'\)": *"\?\([^"]*\)"\?.*/\2/' | head -1
-    fi
-    [ -n "$default" ] && echo "$default"
-}
-
-clear_notifications() {
-    if command -v swaync-client >/dev/null 2>&1; then
-        swaync-client -C -r
-    fi
-}
-
-show_notification_popdown() {
-    if ! command -v swaync-client >/dev/null 2>&1; then
-        echo "swaync not installed"
-        exit 1
-    fi
-    
-    swaync-client -pp
-}
-
-toggle_dnd() {
-    if command -v swaync-client >/dev/null 2>&1; then
+case "${1:-toggle}" in
+    popdown|show|toggle)
         swaync-client -t -sw
-    fi
-}
-
-toggle_persistence() {
-    if command -v swaync-client >/dev/null 2>&1; then
-        swaync-client -m -sw
-    fi
-}
-
-case "${1:-}" in
-    clear)
-        clear_notifications
         ;;
-    popdown|show)
-        show_notification_popdown
+    open)
+        swaync-client -op
+        ;;
+    close)
+        swaync-client -cp
+        ;;
+    clear)
+        swaync-client -C
         ;;
     dnd)
-        toggle_dnd
+        swaync-client -d -sw
         ;;
-    persistent|persistence)
-        toggle_persistence
+    count)
+        swaync-client -c
         ;;
     *)
-        show_notification_popdown
+        swaync-client -t -sw
         ;;
 esac

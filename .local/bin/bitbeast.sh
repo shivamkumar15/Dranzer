@@ -903,8 +903,7 @@ EOF_COLORS
         accent=$(theme_color_hex "$colors_file" accent '#ffd166')
         text=$(theme_color_hex "$colors_file" text '#fff1dd')
         
-        # Pass theme colors to the visualizer with bars mode, huge radius and more bars/dots
-        "$SCRIPT_DIR/circular_cava.py" --mode bars --radius 14 --bars 80 "$bg" "$secondary" "$primary" "$accent" "$text"
+        kitty --class bitbeast-visualizer -T "BitBeast Visualizer" -e "$SCRIPT_DIR/circular_cava.py" --mode bars --radius 14 --bars 80 "$bg" "$secondary" "$primary" "$accent" "$text" &
         ;;
     *)
         if [ $# -ne 1 ]; then

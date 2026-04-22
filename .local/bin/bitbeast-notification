@@ -1,47 +1,5 @@
 #!/bin/bash
-# BitBeast Notification Control - Shows notification count and controls
+# BitBeast Notification module for Waybar
+# Uses swaync-client --subscribe-waybar for real-time updates
 
-TOGGLE_DND() {
-    if command -v swaync-client >/dev/null 2>&1; then
-        swaync-client -t -sw
-    fi
-}
-
-TOGGLE_DND_MODE() {
-    if command -v swaync-client >/dev/null 2>&1; then
-        swaync-client -m -sw
-    fi
-}
-
-GET_NOTIFICATIONS() {
-    local count
-    if ! command -v swaync-client >/dev/null 2>&1; then
-        echo 0
-        return
-    fi
-    count=$(swaync-client -c 2>/dev/null || echo 0)
-    echo "${count:-0}"
-}
-
-count=$(GET_NOTIFICATIONS)
-
-if [ "$1" = "count" ]; then
-    echo "$count"
-    exit 0
-fi
-
-dnd=$(swaync-client -g DND 2>/dev/null || echo "disabled")
-
-if [ "$dnd" = "enabled" ]; then
-    if [ "$count" -gt 0 ]; then
-        echo "{\"text\": \"󱏧\", \"class\": \"dnd-on\", \"tooltip\": \"DND: ON ($count notifications)\"}"
-    else
-        echo "{\"text\": \"󱏧\", \"class\": \"dnd-on-quiet\", \"tooltip\": \"DND: ON\"}"
-    fi
-else
-    if [ "$count" -gt 0 ]; then
-        echo "{\"text\": \"󰂚 $count\", \"class\": \"has-notifications\", \"tooltip\": \"$count unread notifications\"}"
-    else
-        echo "{\"text\": \"󰂚\", \"class\": \"no-notifications\", \"tooltip\": \"No notifications\"}"
-    fi
-fi
+exec swaync-client -swb
