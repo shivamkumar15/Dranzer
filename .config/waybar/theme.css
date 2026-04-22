@@ -11,5 +11,6 @@
 @define-color wb-hov-bg @secondary;
 @define-color wb-hov-fg @text;
 
-@define-color error-bg @secondary;
+@define-color error #ff5555;
+@define-color error-bg @error;
 @define-color error-fg @text;
