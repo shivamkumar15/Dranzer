@@ -28,39 +28,97 @@ Galeon.png
 "
 
 check_dependencies() {
-    missing=0
+    missing_req=()
+    missing_opt=()
+    
+    # Mapping of commands to packages (Arch Linux/pacman)
+    declare -A pkg_map=(
+        ["waybar"]="waybar"
+        ["rofi"]="rofi"
+        ["kitty"]="kitty"
+        ["hyprlock"]="hyprlock"
+        ["swaync"]="swaync"
+        ["playerctl"]="playerctl"
+        ["git"]="git"
+        ["python"]="python"
+        ["cava"]="cava"
+        ["curl"]="curl"
+        ["swww"]="swww"
+        ["swaybg"]="swaybg"
+        ["brightnessctl"]="brightnessctl"
+        ["wpctl"]="wireplumber"
+        ["grim"]="grim"
+        ["slurp"]="slurp"
+        ["wl-copy"]="wl-clipboard"
+    )
 
-    # Required
-    for cmd in waybar rofi kitty hyprlock swaync playerctl; do
+    # Required commands
+    for cmd in waybar rofi kitty hyprlock swaync playerctl git python cava curl; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            printf '\033[1;31m✗ Required:\033[0m %s is not installed\n' "$cmd" >&2
-            missing=1
+            missing_req+=("${pkg_map[$cmd]}")
         fi
     done
 
     # Wallpaper backend (at least one required)
-    if ! command -v swaybg >/dev/null 2>&1 && ! command -v swww >/dev/null 2>&1; then
-        printf '\033[1;31m✗ Required:\033[0m No wallpaper backend found. Install swww (recommended) or swaybg\n' >&2
-        missing=1
+    if ! command -v swaybg >/dev/null 2>&1 && ! command -v swww >/dev/null 2>&1 && ! command -v awww >/dev/null 2>&1; then
+        # Default to swww (or awww if preferred in this system)
+        if command -v pacman >/dev/null 2>&1 && pacman -Si awww >/dev/null 2>&1; then
+             missing_req+=("awww")
+        else
+             missing_req+=("swww")
+        fi
     fi
 
-    # Recommended
+    # Recommended commands
     for cmd in brightnessctl wpctl grim slurp wl-copy; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            printf '\033[1;33m⚠ Optional:\033[0m %s is not installed (some keybindings will not work)\n' "$cmd" >&2
+            missing_opt+=("${pkg_map[$cmd]}")
         fi
     done
 
-    if [ "$missing" -eq 1 ]; then
-        printf '\n\033[1;33mInstall missing required dependencies before continuing.\033[0m\n' >&2
-        printf 'Continue anyway? [y/N] ' >&2
+    if [ ${#missing_req[@]} -eq 0 ] && [ ${#missing_opt[@]} -eq 0 ]; then
+        return
+    fi
+
+    printf '\n\033[1;36m=== Dependency Check ===\033[0m\n'
+    
+    if [ ${#missing_req[@]} -gt 0 ]; then
+        printf '\033[1;31mMissing Required:\033[0m %s\n' "${missing_req[*]}"
+    fi
+    
+    if [ ${#missing_opt[@]} -gt 0 ]; then
+        printf '\033[1;33mMissing Optional:\033[0m %s\n' "${missing_opt[*]}"
+    fi
+
+    if command -v pacman >/dev/null 2>&1; then
+        printf '\nDetecting Arch-based system (pacman). Install missing dependencies? [Y/n] '
         read -r confirm
         case $confirm in
-            [yY]*) ;;
-            *) exit 1 ;;
+            [nN]*) 
+                if [ ${#missing_req[@]} -gt 0 ]; then
+                    printf 'Required dependencies missing. Exit.\n'
+                    exit 1
+                fi
+                ;;
+            *)
+                printf 'Installing dependencies...\n'
+                sudo pacman -S --needed --noconfirm "${missing_req[@]}" "${missing_opt[@]}"
+                ;;
         esac
+    else
+        printf '\n\033[1;33mPlease install missing dependencies manually.\033[0m\n'
+        if [ ${#missing_req[@]} -gt 0 ]; then
+            printf 'Continue anyway? [y/N] '
+            read -r confirm
+            case $confirm in
+                [yY]*) ;;
+                *) exit 1 ;;
+            esac
+        fi
     fi
 }
+
+
 
 
 usage() {
@@ -161,6 +219,8 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+check_dependencies
 
 setup_zsh() {
     ZSH_DIR="$HOME/.oh-my-zsh"
