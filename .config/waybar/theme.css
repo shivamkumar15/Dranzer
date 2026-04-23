@@ -1,5 +1,9 @@
 /* Bridge between HyDE variables and BitBeast variables */
 
+@define-color background @bg;
+@define-color foreground @text;
+@define-color transparent rgba(0, 0, 0, 0);
+
 @define-color bar-bg @bg;
 @define-color main-bg @bg;
 @define-color glow @accent;

@@ -1,0 +1,917 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+from datetime import datetime
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
+
+PID_DIR = os.path.expanduser("~/.cache/bitbeast")
+PID_FILE = os.path.join(PID_DIR, "power-popup.pid")
+BG = "#11141d"
+TEXT = "#f5f7ff"
+TEXT_DIM = "rgba(245,247,255,0.66)"
+PRIMARY = "#ff4d67"
+PRIMARY_ALT = "#ff3658"
+ACCENT = "#ff7b8e"
+
+
+def cmd(args):
+    try:
+        return subprocess.check_output(args, stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        return ""
+
+
+def run(args):
+    try:
+        subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
+def toggle_existing_instance() -> bool:
+    os.makedirs(PID_DIR, exist_ok=True)
+
+    if not os.path.exists(PID_FILE):
+        return False
+
+    try:
+        with open(PID_FILE, "r", encoding="utf-8") as handle:
+            old_pid = int(handle.read().strip())
+    except Exception:
+        return False
+
+    if old_pid <= 0:
+        return False
+
+    try:
+        os.kill(old_pid, signal.SIGTERM)
+        return True
+    except ProcessLookupError:
+        return False
+    except Exception:
+        return False
+
+
+def write_pid_file():
+    os.makedirs(PID_DIR, exist_ok=True)
+    with open(PID_FILE, "w", encoding="utf-8") as handle:
+        handle.write(str(os.getpid()))
+
+
+def remove_pid_file():
+    try:
+        if os.path.exists(PID_FILE):
+            os.remove(PID_FILE)
+    except OSError:
+        pass
+
+
+def get_player():
+    players = cmd(["playerctl", "-l"])
+    if not players:
+        return None
+    for player in players.splitlines():
+        lowered = player.lower()
+        if any(name in lowered for name in ("spotify", "firefox", "chromium", "mpv", "vlc", "rhythmbox", "cmus")):
+            return player
+    return players.splitlines()[0]
+
+
+def fmt_time(seconds):
+    try:
+        seconds = int(float(seconds))
+    except Exception:
+        return "0:00"
+    return f"{seconds // 60}:{seconds % 60:02d}"
+
+
+def get_volume_percent():
+    output = cmd(["pactl", "get-sink-volume", "@DEFAULT_SINK@"]) or ""
+    match = re.search(r"(\d+)%", output)
+    return int(match.group(1)) if match else 0
+
+
+def set_volume_percent(value):
+    subprocess.run(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{int(value)}%"], stderr=subprocess.DEVNULL)
+
+
+def get_volume_muted():
+    output = cmd(["pactl", "get-sink-mute", "@DEFAULT_SINK@"]) or ""
+    return output.endswith("yes")
+
+
+def get_brightness_percent():
+    output = cmd(["brightnessctl", "-m"])
+    if not output:
+        return 0
+    parts = output.split(",")
+    if len(parts) < 4:
+        return 0
+    try:
+        return int(parts[3].rstrip("%"))
+    except Exception:
+        return 0
+
+
+def set_brightness_percent(value):
+    subprocess.run(["brightnessctl", "set", f"{int(value)}%"], stderr=subprocess.DEVNULL)
+
+
+def wifi_enabled():
+    return cmd(["nmcli", "radio", "wifi"]).strip().lower() == "enabled"
+
+
+def toggle_wifi():
+    run(["nmcli", "radio", "wifi", "off" if wifi_enabled() else "on"])
+
+
+def bluetooth_enabled():
+    return "Powered: yes" in cmd(["bluetoothctl", "show"])
+
+
+def toggle_bluetooth():
+    run(["bluetoothctl", "power", "off" if bluetooth_enabled() else "on"])
+
+
+def airplane_enabled():
+    radios = cmd(["nmcli", "radio", "all"]).lower()
+    return "disabled" in radios and "enabled" not in radios
+
+
+def toggle_airplane():
+    if airplane_enabled():
+        run(["nmcli", "radio", "all", "on"])
+        run(["bluetoothctl", "power", "on"])
+    else:
+        run(["nmcli", "radio", "all", "off"])
+        run(["bluetoothctl", "power", "off"])
+
+
+def notifications_count():
+    output = cmd(["swaync-client", "-c"])
+    try:
+        return int(output)
+    except Exception:
+        return 0
+
+
+def notification_summary():
+    count = notifications_count()
+    return "No new notifications" if count == 0 else f"{count} pending notifications"
+
+
+def sink_name():
+    sink = cmd(["pactl", "get-default-sink"])
+    if sink:
+        return sink.rsplit(".", 1)[-1].replace("_", " ").title()
+    info = cmd(["pactl", "info"])
+    match = re.search(r"Default Sink:\s*(.+)", info)
+    if not match:
+        return "Default Output"
+    return match.group(1).rsplit(".", 1)[-1].replace("_", " ").title()
+
+
+def cpu_usage_percent(previous):
+    line = ""
+    try:
+        with open("/proc/stat", "r", encoding="utf-8") as handle:
+            line = handle.readline()
+    except Exception:
+        return 0.0, previous
+
+    fields = [int(value) for value in line.split()[1:]]
+    idle = fields[3] + fields[4]
+    total = sum(fields)
+
+    if previous is None:
+        return 0.0, (idle, total)
+
+    prev_idle, prev_total = previous
+    delta_idle = idle - prev_idle
+    delta_total = total - prev_total
+    if delta_total <= 0:
+        return 0.0, (idle, total)
+    usage = 100.0 * (1.0 - (delta_idle / delta_total))
+    return max(0.0, min(usage, 100.0)), (idle, total)
+
+
+def ram_usage_percent():
+    values = {}
+    try:
+        with open("/proc/meminfo", "r", encoding="utf-8") as handle:
+            for line in handle:
+                key, raw = line.split(":", 1)
+                values[key] = int(raw.strip().split()[0])
+    except Exception:
+        return 0
+    total = values.get("MemTotal", 1)
+    available = values.get("MemAvailable", 0)
+    return int(((total - available) / total) * 100)
+
+
+def disk_usage_percent():
+    usage = shutil.disk_usage("/")
+    return int((usage.used / usage.total) * 100)
+
+
+CSS = f"""
+window {{
+    background: transparent;
+}}
+
+#panel {{
+    background: rgba(17, 20, 29, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 28px;
+    padding: 18px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.48);
+}}
+
+.card {{
+    background: rgba(24, 29, 40, 0.98);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 24px;
+    padding: 18px;
+}}
+
+.soft-card {{
+    background: rgba(17, 22, 31, 0.98);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 16px;
+}}
+
+.section-title {{
+    color: {TEXT};
+    font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+}}
+
+.section-subtitle {{
+    color: {TEXT_DIM};
+    font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+}}
+
+.media-title {{
+    color: {TEXT};
+    font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 17px;
+    font-weight: 900;
+}}
+
+.media-sub {{
+    color: {TEXT_DIM};
+    font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+}}
+
+.wave {{
+    color: {PRIMARY};
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 12px;
+    font-weight: 800;
+}}
+
+.time {{
+    color: {TEXT};
+    font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+}}
+
+.date {{
+    color: {TEXT_DIM};
+    font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+}}
+
+.small-stat {{
+    color: {TEXT_DIM};
+    font-family: "Inter", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+}}
+
+.glyph {{
+    color: {TEXT};
+    font-size: 22px;
+}}
+
+.accent-glyph {{
+    color: {PRIMARY};
+    font-size: 22px;
+}}
+
+.tile-btn,
+.mini-btn,
+.transport-btn,
+.footer-btn,
+.row-btn {{
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(17, 22, 31, 0.98);
+    color: {TEXT};
+}}
+
+.tile-btn:hover,
+.mini-btn:hover,
+.transport-btn:hover,
+.footer-btn:hover,
+.row-btn:hover {{
+    border-color: rgba(255,255,255,0.18);
+}}
+
+.tile-active {{
+    background: linear-gradient(180deg, rgba(255, 77, 103, 0.96), rgba(255, 54, 88, 0.96));
+    border-color: rgba(255, 123, 142, 0.42);
+    box-shadow: 0 0 20px rgba(255, 77, 103, 0.18);
+}}
+
+.tile-inactive {{
+    background: rgba(17, 22, 31, 0.98);
+}}
+
+.mini-btn {{
+    min-width: 86px;
+    min-height: 54px;
+    padding: 10px 14px;
+}}
+
+.tile-btn {{
+    min-width: 118px;
+    min-height: 98px;
+    padding: 10px;
+}}
+
+.transport-btn {{
+    min-width: 46px;
+    min-height: 46px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+}}
+
+#play-btn {{
+    min-width: 72px;
+    min-height: 72px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 77, 103, 1.0), rgba(255, 54, 88, 0.98));
+    border-color: rgba(255, 123, 142, 0.52);
+    box-shadow: 0 0 22px rgba(255, 77, 103, 0.28);
+}}
+
+.row-btn {{
+    min-height: 86px;
+    padding: 12px 16px;
+    border-radius: 22px;
+}}
+
+.footer-btn {{
+    min-height: 56px;
+    padding: 12px 14px;
+    border-radius: 18px;
+}}
+
+#danger-btn {{
+    background: rgba(255, 77, 103, 0.14);
+    border-color: rgba(255, 77, 103, 0.26);
+}}
+
+#danger-btn:hover {{
+    background: rgba(255, 77, 103, 0.20);
+}}
+
+scale trough {{
+    min-width: 26px;
+    background: rgba(8, 12, 18, 0.92);
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+}}
+
+scale highlight {{
+    background: linear-gradient(180deg, rgba(255, 77, 103, 1.0), rgba(255, 54, 88, 1.0));
+    border-radius: 999px;
+}}
+
+scale slider {{
+    min-width: 24px;
+    min-height: 24px;
+    background: {TEXT};
+    border-radius: 999px;
+    border: 4px solid {PRIMARY};
+}}
+
+progressbar trough {{
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    min-height: 6px;
+}}
+
+progressbar progress {{
+    background: linear-gradient(90deg, rgba(255, 77, 103, 1.0), rgba(255, 123, 142, 1.0));
+    border-radius: 999px;
+    min-height: 6px;
+}}
+"""
+
+
+class ControlCenter(Gtk.Window):
+    def __init__(self):
+        super().__init__()
+        self.player = None
+        self.previous_cpu = None
+        self._updating_sliders = False
+
+        self.set_default_size(1360, 640)
+
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 90)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, 22)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
+
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS.encode())
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+        self.connect("key-press-event", self.on_key_press)
+        self.connect("focus-out-event", self.on_focus_out)
+        self.connect("destroy", self.on_destroy)
+
+        self.build_ui()
+        self.refresh()
+        GLib.timeout_add(1500, self.refresh)
+        self.show_all()
+
+    def on_destroy(self, *_args):
+        remove_pid_file()
+        Gtk.main_quit()
+
+    def on_focus_out(self, *_args):
+        self.destroy()
+
+    def on_key_press(self, _widget, event):
+        if Gdk.keyval_name(event.keyval) == "Escape":
+            self.destroy()
+
+    def launch(self, command):
+        run(command)
+        self.destroy()
+
+    def build_label(self, text, css_class, xalign=0.0):
+        label = Gtk.Label(label=text)
+        label.set_xalign(xalign)
+        label.get_style_context().add_class(css_class)
+        return label
+
+    def build_icon_label(self, glyph, css_class="glyph"):
+        label = Gtk.Label(label=glyph)
+        label.get_style_context().add_class(css_class)
+        return label
+
+    def build_media_card(self):
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        card.get_style_context().add_class("card")
+
+        self.wave_label = self.build_label("··· ···· ····· ···· ···", "wave", 0.0)
+        card.pack_start(self.wave_label, False, False, 0)
+
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        self.art_image = Gtk.Image()
+        self.art_image.set_size_request(72, 72)
+        self.art_image.set_from_icon_name("audio-x-generic", Gtk.IconSize.DIALOG)
+        top.pack_start(self.art_image, False, False, 0)
+
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.media_title = self.build_label("No active media", "media-title", 0.0)
+        self.media_artist = self.build_label("Start a player to see controls", "media-sub", 0.0)
+        info.pack_start(self.media_title, False, False, 0)
+        info.pack_start(self.media_artist, False, False, 0)
+        top.pack_start(info, True, True, 0)
+        card.pack_start(top, False, False, 0)
+
+        self.progress = Gtk.ProgressBar()
+        card.pack_start(self.progress, False, False, 0)
+
+        time_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.media_pos = self.build_label("0:00", "section-subtitle", 0.0)
+        self.media_dur = self.build_label("0:00", "section-subtitle", 1.0)
+        time_row.pack_start(self.media_pos, False, False, 0)
+        time_row.pack_end(self.media_dur, False, False, 0)
+        card.pack_start(time_row, False, False, 0)
+
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        controls.set_halign(Gtk.Align.CENTER)
+
+        prev_btn = Gtk.Button(label="󰒮")
+        prev_btn.get_style_context().add_class("transport-btn")
+        prev_btn.connect("clicked", lambda *_: self.media_action("previous"))
+
+        self.play_btn = Gtk.Button(label="󰐊")
+        self.play_btn.set_name("play-btn")
+        self.play_btn.get_style_context().add_class("transport-btn")
+        self.play_btn.connect("clicked", lambda *_: self.media_action("play-pause"))
+
+        next_btn = Gtk.Button(label="󰒭")
+        next_btn.get_style_context().add_class("transport-btn")
+        next_btn.connect("clicked", lambda *_: self.media_action("next"))
+
+        controls.pack_start(prev_btn, False, False, 0)
+        controls.pack_start(self.play_btn, False, False, 0)
+        controls.pack_start(next_btn, False, False, 0)
+        card.pack_start(controls, False, False, 0)
+
+        return card
+
+    def build_tile(self, glyph, title, callback):
+        button = Gtk.Button()
+        button.get_style_context().add_class("tile-btn")
+        button.get_style_context().add_class("tile-inactive")
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        content.set_halign(Gtk.Align.CENTER)
+        content.set_valign(Gtk.Align.CENTER)
+
+        icon = self.build_icon_label(glyph)
+        label = self.build_label(title, "section-title", 0.5)
+
+        content.pack_start(icon, False, False, 0)
+        content.pack_start(label, False, False, 0)
+        button.add(content)
+        button.connect("clicked", lambda *_: callback())
+        return button
+
+    def build_quick_grid(self):
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        card.get_style_context().add_class("card")
+
+        title = self.build_label("Quick toggles", "section-title", 0.0)
+        subtitle = self.build_label("Fast access controls", "section-subtitle", 0.0)
+        card.pack_start(title, False, False, 0)
+        card.pack_start(subtitle, False, False, 0)
+
+        grid = Gtk.Grid()
+        grid.set_row_spacing(10)
+        grid.set_column_spacing(10)
+
+        self.wifi_tile = self.build_tile("󰤨", "Wi-Fi", self.on_wifi_toggle)
+        self.bluetooth_tile = self.build_tile("󰂯", "Bluetooth", self.on_bluetooth_toggle)
+        self.airplane_tile = self.build_tile("󰀝", "Airplane", self.on_airplane_toggle)
+        notify_tile = self.build_tile("󰂚", "Notifications", self.on_notifications_toggle)
+        lock_tile = self.build_tile("󰌾", "Lock", self.on_lock)
+        settings_tile = self.build_tile("󰒓", "Network", self.on_network_settings)
+
+        grid.attach(self.wifi_tile, 0, 0, 1, 1)
+        grid.attach(self.bluetooth_tile, 1, 0, 1, 1)
+        grid.attach(self.airplane_tile, 2, 0, 1, 1)
+        grid.attach(notify_tile, 0, 1, 1, 1)
+        grid.attach(lock_tile, 1, 1, 1, 1)
+        grid.attach(settings_tile, 2, 1, 1, 1)
+
+        card.pack_start(grid, False, False, 0)
+        return card
+
+    def build_slider_column(self):
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        card.get_style_context().add_class("card")
+        card.set_size_request(360, -1)
+
+        top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        notify_btn = Gtk.Button()
+        notify_btn.get_style_context().add_class("mini-btn")
+        notify_btn.connect("clicked", lambda *_: self.on_notifications_toggle())
+        notify_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        notify_box.pack_start(self.build_icon_label("󰂚", "accent-glyph"), False, False, 0)
+        notify_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        notify_text.pack_start(self.build_label("Notifications", "section-title", 0.0), False, False, 0)
+        self.notifications_hint = self.build_label("No new notifications", "section-subtitle", 0.0)
+        notify_text.pack_start(self.notifications_hint, False, False, 0)
+        notify_box.pack_start(notify_text, True, True, 0)
+        notify_btn.add(notify_box)
+
+        settings_btn = Gtk.Button()
+        settings_btn.get_style_context().add_class("mini-btn")
+        settings_btn.connect("clicked", lambda *_: self.on_audio_settings())
+        settings_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        settings_box.pack_start(self.build_icon_label("󰕾"), False, False, 0)
+        settings_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        settings_text.pack_start(self.build_label("Audio", "section-title", 0.0), False, False, 0)
+        settings_text.pack_start(self.build_label("Open mixer", "section-subtitle", 0.0), False, False, 0)
+        settings_box.pack_start(settings_text, True, True, 0)
+        settings_btn.add(settings_box)
+
+        top_row.pack_start(notify_btn, True, True, 0)
+        top_row.pack_start(settings_btn, True, True, 0)
+        card.pack_start(top_row, False, False, 0)
+
+        sliders = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=42)
+        sliders.set_halign(Gtk.Align.CENTER)
+
+        vol_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        vol_box.set_halign(Gtk.Align.CENTER)
+        vol_box.pack_start(self.build_icon_label("󰕾"), False, False, 0)
+        self.volume_scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 100, 1)
+        self.volume_scale.set_inverted(True)
+        self.volume_scale.set_draw_value(False)
+        self.volume_scale.set_size_request(42, 320)
+        self.volume_scale.connect("value-changed", self.on_volume_changed)
+        vol_box.pack_start(self.volume_scale, True, True, 0)
+        self.volume_label = self.build_label("Volume", "section-title", 0.5)
+        vol_box.pack_start(self.volume_label, False, False, 0)
+
+        bri_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        bri_box.set_halign(Gtk.Align.CENTER)
+        bri_box.pack_start(self.build_icon_label("󰃠"), False, False, 0)
+        self.brightness_scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 100, 1)
+        self.brightness_scale.set_inverted(True)
+        self.brightness_scale.set_draw_value(False)
+        self.brightness_scale.set_size_request(42, 320)
+        self.brightness_scale.connect("value-changed", self.on_brightness_changed)
+        bri_box.pack_start(self.brightness_scale, True, True, 0)
+        self.brightness_label = self.build_label("Brightness", "section-title", 0.5)
+        bri_box.pack_start(self.brightness_label, False, False, 0)
+
+        sliders.pack_start(vol_box, False, False, 0)
+        sliders.pack_start(bri_box, False, False, 0)
+        card.pack_start(sliders, True, True, 0)
+
+        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        power_btn = Gtk.Button()
+        power_btn.set_name("danger-btn")
+        power_btn.get_style_context().add_class("footer-btn")
+        power_btn.connect("clicked", lambda *_: self.run_action("shutdown"))
+        power_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        power_box.pack_start(self.build_icon_label("⏻", "accent-glyph"), False, False, 0)
+        power_box.pack_start(self.build_label("Power", "section-title", 0.0), False, False, 0)
+        power_btn.add(power_box)
+
+        lock_btn = Gtk.Button()
+        lock_btn.get_style_context().add_class("footer-btn")
+        lock_btn.connect("clicked", lambda *_: self.on_lock())
+        lock_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lock_box.pack_start(self.build_icon_label("󰌾"), False, False, 0)
+        lock_box.pack_start(self.build_label("Lock", "section-title", 0.0), False, False, 0)
+        lock_btn.add(lock_box)
+
+        footer.pack_start(power_btn, True, True, 0)
+        footer.pack_start(lock_btn, True, True, 0)
+        card.pack_start(footer, False, False, 0)
+
+        return card
+
+    def build_row_card(self, glyph, title, subtitle, callback):
+        button = Gtk.Button()
+        button.get_style_context().add_class("row-btn")
+        button.connect("clicked", lambda *_: callback())
+
+        outer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        outer.set_valign(Gtk.Align.CENTER)
+
+        icon_holder = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        icon_holder.set_size_request(48, 48)
+        icon_holder.pack_start(self.build_icon_label(glyph, "accent-glyph"), True, True, 0)
+
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        title_label = self.build_label(title, "section-title", 0.0)
+        subtitle_label = self.build_label(subtitle, "section-subtitle", 0.0)
+        text.pack_start(title_label, False, False, 0)
+        text.pack_start(subtitle_label, False, False, 0)
+
+        arrow = self.build_icon_label("󰅂")
+
+        outer.pack_start(icon_holder, False, False, 0)
+        outer.pack_start(text, True, True, 0)
+        outer.pack_end(arrow, False, False, 0)
+
+        button.add(outer)
+        return button, subtitle_label
+
+    def build_status_column(self):
+        column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        column.set_size_request(360, -1)
+
+        notifications_btn, self.notification_card_subtitle = self.build_row_card(
+            "󰂚", "Notifications", "No new notifications", self.on_notifications_toggle
+        )
+        output_btn, self.output_card_subtitle = self.build_row_card(
+            "󰓃", "Media output", "Default Output", self.on_audio_settings
+        )
+
+        time_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        time_card.get_style_context().add_class("card")
+        self.time_label = self.build_label("00:00", "time", 0.0)
+        self.date_label = self.build_label("Monday, Jan 01", "date", 0.0)
+        time_card.pack_start(self.time_label, False, False, 0)
+        time_card.pack_start(self.date_label, False, False, 0)
+
+        divider = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        time_card.pack_start(divider, False, False, 6)
+
+        stats_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
+        self.cpu_stat = self.build_label("CPU 0%", "small-stat", 0.0)
+        self.ram_stat = self.build_label("RAM 0%", "small-stat", 0.0)
+        self.disk_stat = self.build_label("Disk 0%", "small-stat", 0.0)
+        stats_row.pack_start(self.cpu_stat, True, True, 0)
+        stats_row.pack_start(self.ram_stat, True, True, 0)
+        stats_row.pack_start(self.disk_stat, True, True, 0)
+        time_card.pack_start(stats_row, False, False, 0)
+
+        session_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        session_card.get_style_context().add_class("card")
+        session_card.pack_start(self.build_label("Session actions", "section-title", 0.0), False, False, 0)
+        grid = Gtk.Grid()
+        grid.set_row_spacing(10)
+        grid.set_column_spacing(10)
+        grid.attach(self.build_footer_action("󰤄", "Suspend", lambda *_: self.run_action("suspend")), 0, 0, 1, 1)
+        grid.attach(self.build_footer_action("󰍃", "Logout", lambda *_: self.run_action("logout")), 1, 0, 1, 1)
+        grid.attach(self.build_footer_action("󰜉", "Restart", lambda *_: self.run_action("reboot")), 0, 1, 1, 1)
+        grid.attach(self.build_footer_action("⏻", "Shutdown", lambda *_: self.run_action("shutdown"), danger=True), 1, 1, 1, 1)
+        session_card.pack_start(grid, False, False, 0)
+
+        column.pack_start(notifications_btn, False, False, 0)
+        column.pack_start(output_btn, False, False, 0)
+        column.pack_start(time_card, False, False, 0)
+        column.pack_start(session_card, True, True, 0)
+        return column
+
+    def build_footer_action(self, glyph, text, callback, danger=False):
+        button = Gtk.Button()
+        button.get_style_context().add_class("footer-btn")
+        if danger:
+            button.set_name("danger-btn")
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        box.pack_start(self.build_icon_label(glyph, "accent-glyph" if danger else "glyph"), False, False, 0)
+        box.pack_start(self.build_label(text, "section-title", 0.0), False, False, 0)
+        button.add(box)
+        button.connect("clicked", callback)
+        return button
+
+    def build_ui(self):
+        panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
+        panel.set_name("panel")
+
+        left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        left.set_size_request(380, -1)
+        left.pack_start(self.build_media_card(), False, False, 0)
+        left.pack_start(self.build_quick_grid(), True, True, 0)
+
+        panel.pack_start(left, False, False, 0)
+        panel.pack_start(self.build_slider_column(), False, False, 0)
+        panel.pack_start(self.build_status_column(), False, False, 0)
+        self.add(panel)
+
+    def set_tile_state(self, button, active):
+        context = button.get_style_context()
+        context.remove_class("tile-active")
+        context.remove_class("tile-inactive")
+        context.add_class("tile-active" if active else "tile-inactive")
+
+    def on_wifi_toggle(self):
+        toggle_wifi()
+        GLib.timeout_add(300, self.refresh)
+
+    def on_bluetooth_toggle(self):
+        toggle_bluetooth()
+        GLib.timeout_add(300, self.refresh)
+
+    def on_airplane_toggle(self):
+        toggle_airplane()
+        GLib.timeout_add(400, self.refresh)
+
+    def on_notifications_toggle(self):
+        run([os.path.expanduser("~/.local/bin/bitbeast-notification-popdown"), "toggle"])
+        self.destroy()
+
+    def on_lock(self):
+        self.launch(["hyprlock"])
+
+    def on_network_settings(self):
+        self.launch(["kitty", "-e", "nmtui"])
+
+    def on_audio_settings(self):
+        self.launch(["pavucontrol"])
+
+    def on_volume_changed(self, scale):
+        if self._updating_sliders:
+            return
+        set_volume_percent(scale.get_value())
+
+    def on_brightness_changed(self, scale):
+        if self._updating_sliders:
+            return
+        set_brightness_percent(scale.get_value())
+
+    def media_action(self, action):
+        player = get_player()
+        if player:
+            run(["playerctl", "-p", player, action])
+            GLib.timeout_add(150, self.refresh)
+
+    def run_action(self, action):
+        run([os.path.expanduser("~/.local/bin/bitbeast-session"), action])
+        self.destroy()
+
+    def refresh_media(self):
+        self.player = get_player()
+        if not self.player:
+            self.media_title.set_text("No active media")
+            self.media_artist.set_text("Start a player to see controls")
+            self.progress.set_fraction(0.0)
+            self.media_pos.set_text("0:00")
+            self.media_dur.set_text("0:00")
+            self.play_btn.set_label("󰐊")
+            self.wave_label.set_text("··· ···· ····· ···· ···")
+            self.art_image.set_from_icon_name("audio-x-generic", Gtk.IconSize.DIALOG)
+            return
+
+        status = cmd(["playerctl", "-p", self.player, "status"])
+        title = cmd(["playerctl", "-p", self.player, "metadata", "title"])[:40] or "Unknown Track"
+        artist = cmd(["playerctl", "-p", self.player, "metadata", "artist"])[:34] or "Unknown Artist"
+        pos = cmd(["playerctl", "-p", self.player, "position"])
+        dur_us = cmd(["playerctl", "-p", self.player, "metadata", "mpris:length"])
+
+        self.media_title.set_text(title)
+        self.media_artist.set_text(artist)
+        self.play_btn.set_label("󰏤" if status == "Playing" else "󰐊")
+        self.wave_label.set_text("▁▁▂▃▅▃▂▆▃▁▂▅▆▃▂▁")
+        self.art_image.set_from_icon_name("audio-x-generic", Gtk.IconSize.DIALOG)
+
+        try:
+            pos_s = float(pos)
+            dur_s = int(dur_us) / 1_000_000 if dur_us else 0
+            self.progress.set_fraction(min(pos_s / dur_s, 1.0) if dur_s > 0 else 0.0)
+            self.media_pos.set_text(fmt_time(pos_s))
+            self.media_dur.set_text(fmt_time(dur_s))
+        except Exception:
+            self.progress.set_fraction(0.0)
+            self.media_pos.set_text("0:00")
+            self.media_dur.set_text("0:00")
+
+    def refresh_toggles(self):
+        self.set_tile_state(self.wifi_tile, wifi_enabled())
+        self.set_tile_state(self.bluetooth_tile, bluetooth_enabled())
+        self.set_tile_state(self.airplane_tile, airplane_enabled())
+
+    def refresh_sliders(self):
+        self._updating_sliders = True
+        volume = get_volume_percent()
+        brightness = get_brightness_percent()
+        self.volume_scale.set_value(max(0, min(volume, 100)))
+        self.brightness_scale.set_value(max(0, min(brightness, 100)))
+        self.volume_label.set_text("Muted" if get_volume_muted() else f"Volume {volume}%")
+        self.brightness_label.set_text(f"Brightness {brightness}%")
+        self._updating_sliders = False
+
+    def refresh_status(self):
+        self.notifications_hint.set_text(notification_summary())
+        self.notification_card_subtitle.set_text(notification_summary())
+        self.output_card_subtitle.set_text(sink_name())
+
+        now = datetime.now()
+        self.time_label.set_text(now.strftime("%H:%M"))
+        self.date_label.set_text(now.strftime("%A, %b %d"))
+
+        cpu, self.previous_cpu = cpu_usage_percent(self.previous_cpu)
+        self.cpu_stat.set_text(f"CPU {int(cpu)}%")
+        self.ram_stat.set_text(f"RAM {ram_usage_percent()}%")
+        self.disk_stat.set_text(f"Disk {disk_usage_percent()}%")
+
+    def refresh(self):
+        self.refresh_media()
+        self.refresh_toggles()
+        self.refresh_sliders()
+        self.refresh_status()
+        return True
+
+
+if toggle_existing_instance():
+    remove_pid_file()
+    sys.exit(0)
+
+write_pid_file()
+signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
+
+if __name__ == "__main__":
+    ControlCenter()
+    Gtk.main()

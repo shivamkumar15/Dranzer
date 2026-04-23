@@ -28,6 +28,7 @@ KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
 DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-hud}"
+HANCORE_DIR="$WAYBAR_DIR/hancore-themes"
 
 usage() {
     cat >&2 <<EOF_USAGE
@@ -51,6 +52,11 @@ Usage:
   bitbeast zsh cycle
   bitbeast zsh pick
   bitbeast auto-theme
+  bitbeast hancore <version>
+  bitbeast hancore list
+  bitbeast hancore cycle
+  bitbeast hancore pick
+  bitbeast hancore restore
 
 Available themes:
 EOF_USAGE
@@ -60,6 +66,11 @@ EOF_USAGE
 Available Waybar styles:
 EOF_STYLES
     list_styles >&2
+    cat >&2 <<EOF_HANCORE
+
+Available HANCORE Waybar themes:
+EOF_HANCORE
+    list_hancore >&2
 }
 
 warn() {
@@ -78,6 +89,223 @@ list_styles() {
         [ -f "$file_path" ] || continue
         basename "$file_path" .css
     done | LC_ALL=C sort
+}
+
+# ---------------------------------------------------------------------------
+# HANCORE Waybar themes
+# ---------------------------------------------------------------------------
+
+list_hancore() {
+    [ -d "$HANCORE_DIR" ] || return 0
+    for dir in "$HANCORE_DIR"/*; do
+        [ -d "$dir" ] || continue
+        [ -f "$dir/config.jsonc" ] && [ -f "$dir/style.css" ] || continue
+        basename "$dir"
+    done | LC_ALL=C sort -V
+}
+
+current_hancore_name() {
+    if [ -f "$STATE_DIR/current.hancore" ]; then
+        sed -n '1p' "$STATE_DIR/current.hancore"
+    fi
+}
+
+is_hancore_active() {
+    [ -f "$STATE_DIR/current.hancore" ] && [ -n "$(current_hancore_name)" ]
+}
+
+# Ensure the omarchy color-variable shim exists so hancore CSS @import works
+ensure_omarchy_shim() {
+    shim_dir="$WAYBAR_DIR/omarchy/current/theme"
+    shim_file="$shim_dir/waybar.css"
+
+    mkdir -p "$shim_dir"
+
+    # Read current BitBeast colors and map them to the @background / @foreground
+    # variables that hancore themes expect from the omarchy import.
+    colors_conf="$STATE_DIR/current.conf"
+    [ -f "$colors_conf" ] || colors_conf="$THEMES_DIR/dranzer/colors.conf"
+
+    bg_hex=$(theme_color_hex "$colors_conf" bg '#150608')
+    primary_hex=$(theme_color_hex "$colors_conf" primary '#e8450c')
+    accent_hex=$(theme_color_hex "$colors_conf" accent '#ffd166')
+    text_hex=$(theme_color_hex "$colors_conf" text '#fff1dd')
+    secondary_hex=$(theme_color_hex "$colors_conf" secondary '#7b120f')
+
+    cat > "$shim_file" <<EOF_SHIM
+/* Auto-generated omarchy shim -- maps BitBeast colors for HANCORE themes */
+@define-color background ${bg_hex};
+@define-color foreground ${text_hex};
+@define-color base ${bg_hex};
+@define-color text ${text_hex};
+@define-color bg ${bg_hex};
+@define-color fg ${text_hex};
+@define-color transparent rgba(0,0,0,0);
+@define-color muted ${secondary_hex};
+@define-color subtle ${secondary_hex};
+@define-color iris ${accent_hex};
+@define-color foam ${accent_hex};
+@define-color rose ${primary_hex};
+@define-color love ${primary_hex};
+@define-color gold ${accent_hex};
+@define-color red ${primary_hex};
+@define-color grey ${secondary_hex};
+@define-color hover_bg ${secondary_hex};
+@define-color hover_fg ${text_hex};
+@define-color border ${accent_hex};
+@define-color border-active ${accent_hex};
+@define-color border-inactive ${secondary_hex};
+@define-color border-active_ws ${accent_hex};
+@define-color border-inactive_ws ${secondary_hex};
+@define-color ia ${secondary_hex};
+@define-color rd ${primary_hex};
+@define-color cp-black ${bg_hex};
+@define-color cp-dark ${bg_hex};
+@define-color cp-cream ${text_hex};
+@define-color cp-gray ${secondary_hex};
+@define-color cp-green ${accent_hex};
+@define-color cp-orange ${primary_hex};
+@define-color cp-red ${primary_hex};
+EOF_SHIM
+}
+
+activate_hancore() {
+    version=$1
+    hancore_theme_dir="$HANCORE_DIR/$version"
+
+    if [ ! -d "$hancore_theme_dir" ]; then
+        printf 'Unknown HANCORE version: %s\n' "$version" >&2
+        printf 'Available versions:\n' >&2
+        list_hancore >&2
+        exit 1
+    fi
+
+    require_file "$hancore_theme_dir/config.jsonc"
+    require_file "$hancore_theme_dir/style.css"
+
+    mkdir -p "$STATE_DIR" "$WAYBAR_DIR"
+
+    # Generate the omarchy CSS shim so @import resolves correctly
+    ensure_omarchy_shim
+
+    # Copy helper scripts (window_pill.py, scrolling-mpris.py) if present
+    for helper in window_pill.py scrolling-mpris.py; do
+        if [ -f "$hancore_theme_dir/$helper" ]; then
+            cp "$hancore_theme_dir/$helper" "$WAYBAR_DIR/$helper"
+            chmod +x "$WAYBAR_DIR/$helper"
+        fi
+    done
+
+    # Copy supplementary assets (rose-pine.css, SVGs, shell scripts)
+    for asset in "$hancore_theme_dir"/*; do
+        [ -f "$asset" ] || continue
+        asset_name=$(basename "$asset")
+        case "$asset_name" in
+            config.jsonc|style.css|*.png) continue ;;
+            *) cp "$asset" "$WAYBAR_DIR/$asset_name" ;;
+        esac
+    done
+
+    # Record active hancore version
+    printf '%s\n' "$version" > "$STATE_DIR/current.hancore"
+
+    if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
+        printf 'HANCORE Waybar theme activated: %s\n' "$version"
+        return 0
+    fi
+
+    # Kill existing waybar, relaunch with hancore config + style
+    pkill -x waybar >/dev/null 2>&1 || true
+    sleep 0.3
+    waybar -c "$hancore_theme_dir/config.jsonc" \
+           -s "$hancore_theme_dir/style.css" \
+           >/dev/null 2>&1 &
+
+    printf 'HANCORE Waybar theme activated: %s\n' "$version"
+}
+
+restore_bitbeast_waybar() {
+    # Clear hancore state and return to normal BitBeast waybar
+    rm -f "$STATE_DIR/current.hancore"
+
+    # Clean up copied helper scripts
+    for helper in window_pill.py scrolling-mpris.py; do
+        rm -f "$WAYBAR_DIR/$helper"
+    done
+
+    ensure_waybar_style || true
+
+    if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
+        printf 'Restored BitBeast Waybar\n'
+        return 0
+    fi
+
+    pkill -x waybar >/dev/null 2>&1 || true
+    sleep 0.3
+    waybar >/dev/null 2>&1 &
+
+    printf 'Restored BitBeast Waybar\n'
+}
+
+cycle_hancore() {
+    versions=$(list_hancore)
+    [ -n "$versions" ] || {
+        printf 'No HANCORE themes available in %s\n' "$HANCORE_DIR" >&2
+        exit 1
+    }
+
+    current_version=$(current_hancore_name)
+    next_version=
+    first_version=
+    found_current=0
+
+    for v in $versions; do
+        [ -n "$first_version" ] || first_version=$v
+
+        if [ "$found_current" -eq 1 ]; then
+            next_version=$v
+            break
+        fi
+
+        if [ "$v" = "$current_version" ]; then
+            found_current=1
+        fi
+    done
+
+    [ -n "$next_version" ] || next_version=$first_version
+    activate_hancore "$next_version"
+}
+
+pick_hancore() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast hancore pick\n' >&2
+        exit 1
+    fi
+
+    current_version=$(current_hancore_name)
+    selection=$(
+        while IFS= read -r version; do
+            [ -n "$version" ] || continue
+            if [ "$version" = "$current_version" ]; then
+                printf '%s\tactive\n' "$version"
+            else
+                printf '%s\n' "$version"
+            fi
+        done <<EOF_HANCORE_LIST
+$(list_hancore)
+EOF_HANCORE_LIST
+    )
+
+    [ -n "$selection" ] || {
+        printf 'No HANCORE themes available in %s\n' "$HANCORE_DIR" >&2
+        exit 1
+    }
+
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "HANCORE Waybar")
+    chosen_version=$(printf '%s' "$choice" | cut -f1)
+
+    [ -n "$chosen_version" ] || exit 0
+    activate_hancore "$chosen_version"
 }
 
 require_file() {
@@ -518,6 +746,13 @@ restart_waybar() {
 activate_style() {
     style_name=$1
 
+    # Switching to a BitBeast style exits hancore mode
+    if is_hancore_active; then
+        rm -f "$STATE_DIR/current.hancore"
+        pkill -x waybar >/dev/null 2>&1 || true
+        sleep 0.3
+    fi
+
     write_active_style "$style_name"
 
     if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
@@ -538,6 +773,13 @@ activate_theme() {
         printf 'Unknown BitBeast theme: %s\n' "$theme_name" >&2
         usage
         exit 1
+    fi
+
+    # Switching BitBeast theme exits hancore mode
+    if is_hancore_active; then
+        rm -f "$STATE_DIR/current.hancore"
+        pkill -x waybar >/dev/null 2>&1 || true
+        sleep 0.3
     fi
 
     require_file "$theme_dir/colors.conf"
@@ -1100,6 +1342,35 @@ EOF_COLORS
         ;;
     auto-theme)
         detect_theme_from_wallpaper "$2"
+        ;;
+    hancore)
+        if [ $# -lt 2 ]; then
+            printf 'Available HANCORE Waybar themes:\n'
+            list_hancore
+            exit 0
+        fi
+
+        case $2 in
+            list)
+                list_hancore
+                ;;
+            cycle)
+                cycle_hancore
+                ;;
+            pick)
+                pick_hancore
+                ;;
+            restore)
+                restore_bitbeast_waybar
+                ;;
+            *)
+                [ $# -eq 2 ] || {
+                    usage
+                    exit 1
+                }
+                activate_hancore "$2"
+                ;;
+        esac
         ;;
     *)
         if [ $# -ne 1 ]; then

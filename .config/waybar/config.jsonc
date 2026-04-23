@@ -5,143 +5,88 @@
   "exclusive": true,
   "passthrough": false,
   "gtk-layer-shell": true,
-  "height": 46,
-  "spacing": 4,
+  "height": 62,
+  "spacing": 6,
+  "margin-top": 10,
+  "margin-left": 16,
+  "margin-right": 16,
+  "margin-bottom": 0,
 
   "modules-left": [
-    "hyprland/workspaces",
-    "custom/power"
+    "clock",
+    "hyprland/workspaces"
   ],
 
   "modules-center": [
-    "custom/media",
-    "window"
+    "custom/media"
   ],
 
   "modules-right": [
-    "idle_inhibitor",
-    "cpu",
-    "memory",
-    "custom/notification",
-    "tray",
-    "network",
     "pulseaudio",
-    "battery",
     "backlight",
-    "clock",
-    "custom/lock",
-    "custom/theme",
-    "custom/style"
+    "custom/bluetooth",
+    "network",
+    "custom/style",
+    "custom/power"
   ],
 
   "custom/media": {
-    "format": "{icon} {consume}{title} - {artist}",
-    "format-disconnected": "󰝌 Disconnected",
-    "format-stopped": "󰝌 {consume}",
+    "format": "{}",
+    "format-disconnected": "󰝌 no media",
+    "format-stopped": "󰎈 paused",
     "unknown-tooltip": false,
     "return-type": "json",
-    "tooltip-format": "{title} - {artist}",
+    "tooltip-format": "{}",
     "tooltip-format-disconnected": "No media",
     "interval": 1,
     "exec": "~/.local/bin/bitbeast-media",
     "on-click": "playerctl play-pause",
     "on-click-right": "playerctl next",
     "on-click-middle": "playerctl previous",
-    "escape": true
+    "escape": true,
+    "max-length": 38
   },
 
   "custom/power": {
-    "format": "󰗿",
-    "tooltip": "Power Menu (click)",
-    "on-click": "wlogout --launcher-icons",
-    "tooltip-format": "Click to power off"
-  },
-
-  "custom/lock": {
-    "format": "󰌾",
-    "tooltip": "Lock Screen (Super+L)",
-    "on-click": " ~/.local/bin/bitbeast lock",
-    "tooltip-format": "Lock screen"
-  },
-
-  "custom/notification": {
-    "format": "{icon}",
-    "format-icons": {
-      "notification": "󰂚",
-      "none": "󰂚",
-      "dnd-notification": "󱏧",
-      "dnd-none": "󱏧"
-    },
-    "return-type": "json",
-    "exec": "~/.local/bin/bitbeast-notification",
-    "on-click": "~/.local/bin/bitbeast-notification-popdown popdown",
-    "on-click-right": "~/.local/bin/bitbeast-notification-popdown dnd",
-    "tooltip-format": "{tooltip}"
-  },
-
-  "custom/theme": {
-    "format": "BitBeast",
-    "tooltip": "Pick Theme (Super+W)",
-    "on-click": "~/.local/bin/bitbeast pick",
-    "tooltip-format": "Pick BitBeast theme"
+    "format": "⏻",
+    "tooltip": "Session controls",
+    "on-click": "~/.local/bin/bitbeast-power-popup",
+    "tooltip-format": "Open power popdown"
   },
 
   "custom/style": {
-    "format": "",
-    "tooltip": "Cycle Style (Super+Shift+W)",
-    "on-click": "~/.local/bin bitbeast style cycle",
-    "tooltip-format": "Cycle waybar style"
-  },
-
-  "cpu": {
-    "format": "󰍴{}%",
-    "tooltip-format": "CPU: {}%",
-    "interval": 2,
-    "on-click": "~/.local/bin/bitbeast-sysinfo all"
-  },
-
-  "memory": {
-    "format": "󰍾{}%",
-    "tooltip-format": "RAM: {}%",
-    "interval": 2,
-    "on-click": "~/.local/bin/bitbeast-sysinfo all"
-  },
-
-  "battery": {
-    "format": "{capacity}% {icon}",
-    "format-charging": "󰂄 {}%",
-    "format-plugged": "󰂄 {}%",
-    "format-alt": "{icon}",
-    "format-icons": {
-      "10": "󰁺",
-      "20": "󰁻",
-      "30": "󰁼",
-      "40": "󰁽",
-      "50": "󰁿",
-      "60": "󰂀",
-      "70": "󰂁",
-      "80": "󰂂",
-      "90": "󰣁",
-      "100": "󰁹"
-    },
-    "on-click": "stacer",
-    "tooltip-format": "Battery: {}%"
+    "format": "󰏘 {}",
+    "exec": "~/.local/bin/bitbeast current-style",
+    "interval": 3600,
+    "tooltip-format": "Waybar themes\nLeft click: next\nRight click: pick",
+    "on-click": "~/.local/bin/bitbeast style cycle",
+    "on-click-right": "~/.local/bin/bitbeast pick-style"
   },
 
   "network": {
-    "format": "󰤨 {ifname}",
+    "format": "󰤭 net",
     "format-wifi": "󰤨 {signalStrength}%",
-    "format-ethernet": "󰈀 {ifname}",
-    "format-disconnected": "󰤭",
+    "format-ethernet": "󰈀 wired",
+    "format-disconnected": "󰤮 off",
     "interval": 2,
-    "tooltip-format": "{ifname}: {ipaddr}"
+    "tooltip-format": "{ifname}: {ipaddr}",
+    "on-click": "kitty -e nmtui"
+  },
+
+  "custom/bluetooth": {
+    "format": "{}",
+    "exec": "if command -v bluetoothctl >/dev/null 2>&1; then if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then echo '󰂯'; else echo '󰂲'; fi; else echo '󰂯'; fi",
+    "interval": 5,
+    "tooltip-format": "Bluetooth",
+    "on-click": "bluetoothctl power on && blueman-manager",
+    "on-click-right": "bluetoothctl power off"
   },
 
   "pulseaudio": {
-    "format": "{icon} {volume}%",
-    "format-bluetooth": "{icon} {volume}%",
-    "format-bluetooth-muted": "󰝛",
-    "format-muted": "󰝟 {volume}%",
+    "format": "󰕾 {volume}",
+    "format-bluetooth": "󰂰 {volume}",
+    "format-bluetooth-muted": "󰝟",
+    "format-muted": "󰖁",
     "format-icons": {
       "100": "󰕘",
       "50": "󰕘",
@@ -152,21 +97,17 @@
     "tooltip-format": "Volume: {}%"
   },
 
-  "tray": {
-    "spacing": 8,
-    "icon-size": 18
-  },
-
   "clock": {
-    "format": "{:󰉋 %H:%M}",
-    "format-alt": "{:󰉕 %a, %b %d}",
+    "format": "{:%a %d  %H:%M}",
+    "format-alt": "{:%A %d %B  %H:%M}",
     "tooltip-format": "{:%C}",
     "interval": 1,
+    "on-click": "~/.local/bin/bitbeast-power-popup",
     "on-click-right": "ncal -3"
   },
 
   "backlight": {
-    "format": "{icon}{percent}%",
+    "format": "󰃠 {percent}",
     "format-icons": {
       "100": "󰦨",
       "50": "󰛨",
@@ -177,13 +118,6 @@
     "on-click": "brightnessctl set 10%+",
     "on-click-right": "brightnessctl set 10%-",
     "tooltip-format": "Brightness: {}%"
-  },
-
-  "window": {
-    "format": "{}",
-    "max-length": 50,
-    "separate-outputs": true,
-    "tooltip": false
   },
 
   "workspaces": {
@@ -210,18 +144,12 @@
   "hyprland/workspaces": {
     "disable-scrolling": false,
     "all-outputs": false,
+    "sort-by-number": true,
     "format": "{icon}",
     "format-icons": {
-      "1": "",
-      "2": "",
-      "3": "",
-      "4": "",
-      "5": "",
-      "6": "",
-      "7": "",
-      "8": "",
-      "9": "",
-      "10": ""
+      "default": "◆",
+      "active": "◈",
+      "urgent": "◇"
     },
     "persistent-workspaces": {
       "*": [1, 2, 3, 4, 5, 6, 7, 8]
@@ -230,29 +158,10 @@
     "show-special": true
   },
 
-  "idle_inhibitor": {
-    "format": "{icon}",
-    "format-icons": {
-      "activated": "󰍆",
-      "deactivated": "󰍆"
-    },
-    "tooltip": true
-  },
-
-  "wlr/taskbar": {
-    "format": "{icon}",
-    "format-icons": {
-      "1": "",
-      "2": "",
-      "3": "",
-      "4": "",
-      "5": "",
-      "6": "",
-      "7": "",
-      "8": ""
-    },
-    "on-click": "activate",
-    "on-click-right": "close",
-    "tooltip": true
+  "network#bandwidthDownBytes": {
+    "format": "󰇚 {bandwidthDownBytes}",
+    "interval": 1,
+    "tooltip": false,
+    "min-length": 10
   }
 }

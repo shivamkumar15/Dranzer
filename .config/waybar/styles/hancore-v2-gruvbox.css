@@ -1,0 +1,85 @@
+/* HANCORE V2 Gruvbox adapted for BitBeast */
+
+window#waybar {
+    background: transparent;
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+#workspaces {
+    margin: 6px 3px;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+#workspaces button {
+    margin: 0 3px 0 0;
+    padding: 0 8px;
+    border-radius: 2px;
+    background-color: #3c3836;
+    color: #ebdbb2;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.8);
+}
+
+#workspaces button.active {
+    background-color: #fabd2f;
+    color: #282828;
+}
+
+#workspaces button:hover {
+    background-color: #504945;
+    color: #fabd2f;
+}
+
+#clock,
+#custom-media,
+#pulseaudio,
+#backlight,
+#custom-bluetooth,
+#network,
+#custom-style,
+#custom-power {
+    min-width: 14px;
+    margin: 6px 3px;
+    padding: 0 8px;
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(10, 10, 10, 0.8);
+}
+
+#clock,
+#network,
+#custom-style {
+    background-color: #3c3836;
+    color: #ebdbb2;
+}
+
+#custom-media,
+#pulseaudio,
+#backlight,
+#custom-bluetooth {
+    background-color: #504945;
+    color: #ebdbb2;
+}
+
+#custom-power {
+    background-color: #cc241d;
+    color: #fbf1c7;
+}
+
+#clock:hover,
+#custom-media:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#custom-bluetooth:hover,
+#network:hover,
+#custom-style:hover {
+    background-color: #504945;
+    color: #fabd2f;
+}
