@@ -1,0 +1,20 @@
+/* Bridge between HyDE variables and BitBeast variables */
+
+@define-color background @bg;
+@define-color foreground @text;
+@define-color transparent rgba(0, 0, 0, 0);
+
+@define-color bar-bg @bg;
+@define-color main-bg @bg;
+@define-color glow @accent;
+@define-color main-fg @text;
+
+@define-color wb-act-bg @primary;
+@define-color wb-act-fg @text;
+
+@define-color wb-hov-bg @secondary;
+@define-color wb-hov-fg @text;
+
+@define-color error #ff5555;
+@define-color error-bg @error;
+@define-color error-fg @text;

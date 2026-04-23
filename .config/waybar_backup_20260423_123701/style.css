@@ -1,0 +1,8 @@
+/*
+ * BitBeast Waybar stylesheet loader
+ */
+
+@import url("bitbeast.css");
+@import url("theme.css");
+@import url("base.css");
+@import url("bitbeast-style.css");

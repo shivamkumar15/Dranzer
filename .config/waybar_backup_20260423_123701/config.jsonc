@@ -1,0 +1,167 @@
+{
+  "layer": "top",
+  "position": "top",
+  "mod": "dock",
+  "exclusive": true,
+  "passthrough": false,
+  "gtk-layer-shell": true,
+  "height": 62,
+  "spacing": 6,
+  "margin-top": 10,
+  "margin-left": 16,
+  "margin-right": 16,
+  "margin-bottom": 0,
+
+  "modules-left": [
+    "clock",
+    "hyprland/workspaces"
+  ],
+
+  "modules-center": [
+    "custom/media"
+  ],
+
+  "modules-right": [
+    "pulseaudio",
+    "backlight",
+    "custom/bluetooth",
+    "network",
+    "custom/style",
+    "custom/power"
+  ],
+
+  "custom/media": {
+    "format": "{}",
+    "format-disconnected": "󰝌 no media",
+    "format-stopped": "󰎈 paused",
+    "unknown-tooltip": false,
+    "return-type": "json",
+    "tooltip-format": "{}",
+    "tooltip-format-disconnected": "No media",
+    "interval": 1,
+    "exec": "~/.local/bin/bitbeast-media",
+    "on-click": "playerctl play-pause",
+    "on-click-right": "playerctl next",
+    "on-click-middle": "playerctl previous",
+    "escape": true,
+    "max-length": 38
+  },
+
+  "custom/power": {
+    "format": "⏻",
+    "tooltip": "Session controls",
+    "on-click": "~/.local/bin/bitbeast-power-popup",
+    "tooltip-format": "Open power popdown"
+  },
+
+  "custom/style": {
+    "format": "󰏘 {}",
+    "exec": "~/.local/bin/bitbeast current-style",
+    "interval": 3600,
+    "tooltip-format": "Waybar themes\nLeft click: next\nRight click: pick",
+    "on-click": "~/.local/bin/bitbeast style cycle",
+    "on-click-right": "~/.local/bin/bitbeast pick-style"
+  },
+
+  "network": {
+    "format": "󰤭 net",
+    "format-wifi": "󰤨 {signalStrength}%",
+    "format-ethernet": "󰈀 wired",
+    "format-disconnected": "󰤮 off",
+    "interval": 2,
+    "tooltip-format": "{ifname}: {ipaddr}",
+    "on-click": "kitty -e nmtui"
+  },
+
+  "custom/bluetooth": {
+    "format": "{}",
+    "exec": "if command -v bluetoothctl >/dev/null 2>&1; then if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then echo '󰂯'; else echo '󰂲'; fi; else echo '󰂯'; fi",
+    "interval": 5,
+    "tooltip-format": "Bluetooth",
+    "on-click": "bluetoothctl power on && blueman-manager",
+    "on-click-right": "bluetoothctl power off"
+  },
+
+  "pulseaudio": {
+    "format": "󰕾 {volume}",
+    "format-bluetooth": "󰂰 {volume}",
+    "format-bluetooth-muted": "󰝟",
+    "format-muted": "󰖁",
+    "format-icons": {
+      "100": "󰕘",
+      "50": "󰕘",
+      "30": "󰕘",
+      "0": "󰕑"
+    },
+    "on-click": "pavucontrol",
+    "tooltip-format": "Volume: {}%"
+  },
+
+  "clock": {
+    "format": "{:%a %d  %H:%M}",
+    "format-alt": "{:%A %d %B  %H:%M}",
+    "tooltip-format": "{:%C}",
+    "interval": 1,
+    "on-click": "~/.local/bin/bitbeast-power-popup",
+    "on-click-right": "ncal -3"
+  },
+
+  "backlight": {
+    "format": "󰃠 {percent}",
+    "format-icons": {
+      "100": "󰦨",
+      "50": "󰛨",
+      "25": "󰛤",
+      "10": "󰛤",
+      "0": "󰛤"
+    },
+    "on-click": "brightnessctl set 10%+",
+    "on-click-right": "brightnessctl set 10%-",
+    "tooltip-format": "Brightness: {}%"
+  },
+
+  "workspaces": {
+    "format": "{icon}",
+    "format-icons": {
+      "1": "一",
+      "2": "二",
+      "3": "三",
+      "4": "四",
+      "5": "五",
+      "6": "六",
+      "7": "七",
+      "8": "八",
+      "9": "九",
+      "10": "十"
+    },
+    "disable-scrolling": false,
+    "persistent-nums": true,
+    "on-click": "activate",
+    "on-click-right": "move",
+    "tooltip": true
+  },
+
+  "hyprland/workspaces": {
+    "disable-scrolling": false,
+    "all-outputs": false,
+    "sort-by-number": true,
+    "format": "{icon}",
+    "format-icons": {
+      "default": "◆",
+      "active": "◈",
+      "urgent": "◇"
+    },
+    "persistent-workspaces": {
+      "*": [1, 2, 3, 4, 5, 6, 7, 8]
+    },
+    "on-click-right": "movetoworkspace",
+    "show-special": true
+  },
+
+  "network#bandwidthDownBytes": {
+    "format": "󰇚 {bandwidthDownBytes}",
+    "interval": 1,
+    "tooltip": false,
+    "min-length": 10
+  }
+}

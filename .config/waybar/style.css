@@ -1,8 +1,127 @@
-/*
- * BitBeast Waybar stylesheet loader
- */
+/* Premium Waybar Style - Pill Layout */
 
-@import url("bitbeast.css");
-@import url("theme.css");
-@import url("base.css");
-@import url("bitbeast-style.css");
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "JetBrainsMono Nerd Font", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    min-height: 0;
+}
+
+window#waybar {
+    background: transparent;
+    color: #ffffff;
+}
+
+/* Common pill style */
+.modules-left,
+.modules-center,
+.modules-right {
+    background: rgba(18, 18, 18, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 2px 12px;
+    margin: 5px 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Individual module spacing */
+#workspaces,
+#custom-cava,
+#window,
+#clock,
+#temperature.center,
+#network,
+#cpu,
+#memory,
+#temperature,
+#custom-bluetooth,
+#battery,
+#pulseaudio {
+    margin: 0 6px;
+    padding: 0 4px;
+}
+
+/* Workspaces Styling */
+#workspaces button {
+    padding: 0 8px;
+    color: #a0a0a0;
+    transition: all 0.3s ease;
+}
+
+#workspaces button.active {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+#workspaces button.urgent {
+    color: #ff4d4d;
+}
+
+#workspaces button:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+/* Center Module Seam */
+#clock {
+    margin-right: 0;
+    padding-right: 4px;
+    color: #e0e0e0;
+    font-weight: bold;
+}
+
+#temperature.center {
+    margin-left: 0;
+    padding-left: 0;
+    color: #e0e0e0;
+    font-weight: bold;
+}
+
+/* Module Specific Colors */
+#custom-cava {
+    color: #ff9a00;
+}
+
+#network {
+    color: #8be9fd;
+}
+
+#cpu {
+    color: #50fa7b;
+}
+
+#memory {
+    color: #ff79c6;
+}
+
+#temperature {
+    color: #f1fa8c;
+}
+
+#battery {
+    color: #ffb86c;
+}
+
+#pulseaudio {
+    color: #bd93f9;
+}
+
+/* Animations */
+@keyframes blink {
+    to {
+        background-color: #ffffff;
+        color: #000000;
+    }
+}
+
+#battery.critical:not(.charging) {
+    background-color: #f53c3c;
+    color: #ffffff;
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}

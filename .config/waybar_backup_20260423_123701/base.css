@@ -1,0 +1,211 @@
+/*
+ * BitBeast Waybar base layout
+ */
+
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    min-height: 0;
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+window#waybar {
+    background: transparent;
+    color: @main-fg;
+}
+
+tooltip,
+menu {
+    background: alpha(@main-bg, 0.97);
+    color: @main-fg;
+    border: 1px solid alpha(@accent, 0.18);
+    border-radius: 18px;
+    box-shadow: 0 18px 42px alpha(@main-bg, 0.45);
+}
+
+tooltip label {
+    padding: 8px 12px;
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+    background: alpha(@main-bg, 0.72);
+    border: 1px solid alpha(@main-fg, 0.09);
+    border-radius: 18px;
+    margin: 4px 8px 0 8px;
+    padding: 5px 7px;
+    box-shadow: 0 14px 36px alpha(@main-bg, 0.24), inset 0 1px 0 alpha(@main-fg, 0.05);
+}
+
+.modules-left {
+    padding-left: 10px;
+}
+
+.modules-center {
+    min-width: 420px;
+    background: alpha(@secondary, 0.20);
+    border-color: alpha(@primary, 0.20);
+}
+
+.modules-right {
+    padding-right: 10px;
+}
+
+#clock,
+#workspaces,
+#custom-media,
+#pulseaudio,
+#backlight,
+#custom-bluetooth,
+#network,
+#custom-style,
+#custom-power {
+    margin: 2px 4px;
+    border-radius: 14px;
+}
+
+#clock,
+#pulseaudio,
+#backlight,
+#custom-bluetooth,
+#network,
+#custom-style {
+    padding: 10px 14px;
+    background: alpha(@main-fg, 0.05);
+    border: 1px solid alpha(@main-fg, 0.08);
+    box-shadow: inset 0 1px 0 alpha(@main-fg, 0.04);
+}
+
+#clock:hover,
+#custom-media:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#custom-bluetooth:hover,
+#network:hover,
+#custom-style:hover,
+#custom-power:hover,
+#workspaces button:hover {
+    color: @main-fg;
+}
+
+#clock:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#custom-bluetooth:hover,
+#network:hover,
+#custom-style:hover {
+    background: alpha(@main-fg, 0.09);
+    border-color: alpha(@accent, 0.24);
+}
+
+#clock {
+    min-width: 168px;
+    padding-left: 16px;
+    padding-right: 16px;
+    color: #fff4e4;
+    background: linear-gradient(90deg, alpha(@primary, 0.88), alpha(@secondary, 0.82));
+    border: 1px solid alpha(@accent, 0.30);
+    box-shadow: 0 0 18px alpha(@primary, 0.12);
+}
+
+#workspaces {
+    padding: 5px 6px;
+    background: alpha(@main-fg, 0.03);
+    border: 1px solid alpha(@main-fg, 0.08);
+}
+
+#workspaces button {
+    min-width: 24px;
+    min-height: 24px;
+    margin: 0 4px;
+    padding: 0;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: alpha(@main-fg, 0.42);
+}
+
+#workspaces button:hover {
+    background: alpha(@main-fg, 0.06);
+    border-color: alpha(@main-fg, 0.10);
+}
+
+#workspaces button.active {
+    min-width: 42px;
+    color: #fff6eb;
+    background: linear-gradient(90deg, alpha(@accent, 0.92), alpha(@primary, 0.92));
+    border-color: alpha(@accent, 0.46);
+    box-shadow: 0 0 16px alpha(@accent, 0.14);
+}
+
+#workspaces button.urgent {
+    color: #fff6eb;
+    background: alpha(#ff5d73, 0.84);
+    border-color: alpha(#ff5d73, 0.90);
+}
+
+#custom-media {
+    min-width: 360px;
+    padding: 11px 18px;
+    background: linear-gradient(90deg, alpha(@main-bg, 0.28), alpha(@main-fg, 0.05));
+    border: 1px solid alpha(@main-fg, 0.08);
+    color: alpha(@main-fg, 0.90);
+}
+
+#custom-media.playing {
+    color: @accent;
+    border-color: alpha(@accent, 0.22);
+    box-shadow: 0 0 18px alpha(@accent, 0.07), inset 0 1px 0 alpha(@main-fg, 0.05);
+}
+
+#custom-media.paused,
+#custom-media.stopped {
+    color: alpha(@main-fg, 0.58);
+}
+
+#pulseaudio {
+    color: #ffd48d;
+}
+
+#backlight {
+    color: #ffe071;
+}
+
+#custom-bluetooth {
+    min-width: 20px;
+    padding-left: 14px;
+    padding-right: 14px;
+    color: #c6b6ff;
+}
+
+#network {
+    color: #97dbff;
+}
+
+#custom-style {
+    color: #b8f1dc;
+}
+
+#custom-power {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    background: alpha(@main-fg, 0.05);
+    border: 1px solid alpha(@primary, 0.26);
+    color: @primary;
+    font-size: 18px;
+    box-shadow: inset 0 1px 0 alpha(@main-fg, 0.04);
+}
+
+#custom-power:hover {
+    background: linear-gradient(180deg, alpha(@primary, 0.94), alpha(@secondary, 0.90));
+    border-color: alpha(@accent, 0.44);
+    color: #fff4e4;
+    box-shadow: 0 0 20px alpha(@primary, 0.20);
+}
