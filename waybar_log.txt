@@ -1,4 +1,0 @@
-[2026-04-22 15:00:19.132] [info] Using configuration file /home/sniperxmaster/.config/waybar/config.jsonc
-[2026-04-22 15:00:19.133] [info] Discovered appearance 'dark'
-[2026-04-22 15:00:19.145] [info] Using CSS file /home/sniperxmaster/.config/waybar/style.css
-[2026-04-22 15:00:19.145] [error] style.css:86:13'transform' is not a valid property name
