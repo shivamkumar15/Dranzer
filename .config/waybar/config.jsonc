@@ -5,11 +5,11 @@
   "exclusive": true,
   "passthrough": false,
   "gtk-layer-shell": true,
-  "height": 40,
-  "spacing": 4,
-  "margin-top": 10,
-  "margin-left": 16,
-  "margin-right": 16,
+  "height": 32,
+  "spacing": 2,
+  "margin-top": 6,
+  "margin-left": 12,
+  "margin-right": 12,
 
   "modules-left": [
     "hyprland/workspaces",
@@ -23,7 +23,9 @@
   ],
 
   "modules-right": [
+    "custom/netspeed",
     "network",
+    "backlight",
     "cpu",
     "memory",
     "temperature",
@@ -43,7 +45,15 @@
   "custom/cava": {
     "exec": "~/.local/bin/waybar-cava.sh",
     "format": "{}",
-    "tooltip": false
+    "tooltip": false,
+    "restart-interval": 2
+  },
+
+  "custom/netspeed": {
+    "exec": "~/.local/bin/waybar-netspeed.sh",
+    "format": "{}",
+    "tooltip": false,
+    "restart-interval": 2
   },
 
   "hyprland/window": {
@@ -67,12 +77,19 @@
   },
 
   "network": {
-    "format": "󰤭 net",
+    "format": "󰤭",
     "format-wifi": "󰤨 {signalStrength}%",
-    "format-ethernet": "󰈀 wired",
+    "format-ethernet": "󰈀",
     "format-disconnected": "󰤮 off",
     "tooltip-format": "{ifname}: {ipaddr}",
     "on-click": "kitty -e nmtui"
+  },
+
+  "backlight": {
+    "format": "{icon} {percent}%",
+    "format-icons": ["󰃞", "󰃟", "󰃠"],
+    "on-scroll-down": "brightnessctl set 5%-",
+    "on-scroll-up": "brightnessctl set +5%"
   },
 
   "cpu": {

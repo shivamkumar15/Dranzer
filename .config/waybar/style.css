@@ -4,7 +4,7 @@
     border: none;
     border-radius: 0;
     font-family: "JetBrainsMono Nerd Font", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     min-height: 0;
 }
 
@@ -19,9 +19,9 @@ window#waybar {
 .modules-right {
     background: rgba(18, 18, 18, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 2px 12px;
-    margin: 5px 0;
+    border-radius: 16px;
+    padding: 1px 9px;
+    margin: 3px 0;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -31,15 +31,17 @@ window#waybar {
 #window,
 #clock,
 #temperature.center,
+#custom-netspeed,
 #network,
+#backlight,
 #cpu,
 #memory,
 #temperature,
 #custom-bluetooth,
 #battery,
 #pulseaudio {
-    margin: 0 6px;
-    padding: 0 4px;
+    margin: 0 4px;
+    padding: 0 3px;
 }
 
 /* Workspaces Styling */
@@ -86,6 +88,14 @@ window#waybar {
 
 #network {
     color: #8be9fd;
+}
+
+#custom-netspeed {
+    color: #7ee2c2;
+}
+
+#backlight {
+    color: #ffd166;
 }
 
 #cpu {
