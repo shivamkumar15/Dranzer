@@ -1,6 +1,7 @@
 import os
 import glob
 import re
+import subprocess
 
 # Awesome Rofi CSS patch
 ROFI_PATCH = """
@@ -86,22 +87,55 @@ button {
 button selected { background-color: @primary; text-color: #ffffff; box-shadow: 0px 0px 15px @primary; }
 """
 
-# Neon Cava Gradients
-NEON_GRADIENTS = {
-    'dranzer': ['#440000', '#990000', '#FF0000', '#FF4400', '#FF8800', '#FFAA00', '#FFCC00', '#FFEE00'],
-    'burningcerbrus': ['#220033', '#440066', '#8800AA', '#AA00FF', '#FF00FF', '#FF44AA', '#FF8844', '#FFCC00'],
-    'driger': ['#002200', '#004400', '#008800', '#00FF00', '#44FF00', '#88FF00', '#CCFF00', '#FFFF00'],
-    'dragoon': ['#000044', '#000088', '#0000FF', '#0044FF', '#0088FF', '#00CCFF', '#00FFFF', '#AAFFFF'],
-    'draciel': ['#001122', '#002244', '#004488', '#0088FF', '#00FFFF', '#88FFFF', '#CCAAFF', '#FFEEFF'],
-    'galeon': ['#110022', '#220044', '#440088', '#8800FF', '#CC00FF', '#FF00FF', '#FFBB00', '#FFFF77']
-}
+# Theme to Wallpaper mapping is now dynamic via wallpaper.conf
+REPO_DIR = '/home/sniperxmaster/Dranzer'
+BASE_DIR = os.path.join(REPO_DIR, '.config/bitbeasts')
+WALLPAPER_DIR = REPO_DIR # Default in repo
 
-base_dir = '/home/sniperxmaster/Dranzer/.config/bitbeasts'
-themes = glob.glob(f'{base_dir}/*')
+def resolve_wallpaper_path(wallpaper_value):
+    if wallpaper_value.startswith("@wallpapers/"):
+        return os.path.join(WALLPAPER_DIR, wallpaper_value.replace("@wallpapers/", ""))
+    elif wallpaper_value.startswith("~/"):
+        return os.path.expanduser(wallpaper_value)
+    return wallpaper_value
+
+def extract_colors(wallpaper_path, count=8):
+    if not os.path.exists(wallpaper_path):
+        print(f"Warning: Wallpaper not found: {wallpaper_path}")
+        return None
+    
+    try:
+        # Use magick to extract dominant colors
+        cmd = [
+            "magick", wallpaper_path, 
+            "-colors", str(count), 
+            "-format", "%c", "histogram:info:"
+        ]
+        result = subprocess.check_output(cmd).decode()
+        
+        # Parse hex colors from output
+        colors = re.findall(r'#([0-9A-Fa-f]{6})', result)
+        
+        # Sort colors by luminance for a smooth gradient
+        def get_luminance(hex_color):
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            return 0.299*r + 0.587*g + 0.114*b
+        
+        colors.sort(key=get_luminance)
+        return ['#' + c for c in colors]
+    except Exception as e:
+        print(f"Error extracting colors from {wallpaper_path}: {e}")
+        return None
+
+themes = glob.glob(f'{BASE_DIR}/*')
 
 for theme_path in themes:
     if not os.path.isdir(theme_path): continue
     theme_name = os.path.basename(theme_path)
+    
+    print(f"Processing theme: {theme_name}")
     
     # Rofi
     rofi_file = os.path.join(theme_path, 'rofi.rasi')
@@ -123,15 +157,41 @@ for theme_path in themes:
     # Cava
     cava_file = os.path.join(theme_path, 'cava.conf')
     if os.path.exists(cava_file):
-        # Force a premium configuration
-        colors = NEON_GRADIENTS.get(theme_name, NEON_GRADIENTS['dranzer'])
+        # Dynamically extract colors from wallpaper.conf
+        colors = None
+        wallpaper_conf = os.path.join(theme_path, 'wallpaper.conf')
+        if os.path.exists(wallpaper_conf):
+            with open(wallpaper_conf, 'r') as f:
+                conf_content = f.read()
+                match = re.search(r'wallpaper\s*=\s*["\']?([^"\']+)["\']?', conf_content)
+                if match:
+                    wallpaper_path = resolve_wallpaper_path(match.group(1))
+                    colors = extract_colors(wallpaper_path)
         
+        # Fallback to a default red gradient if extraction fails
+        if not colors:
+            colors = ['#440000', '#990000', '#FF0000', '#FF4400', '#FF8800', '#FFAA00', '#FFCC00', '#FFEE00']
+        
+        # Ensure we have exactly 8 colors for the gradient
+        if len(colors) < 8:
+            # Duplicate the last color if needed
+            while len(colors) < 8:
+                colors.append(colors[-1])
+        elif len(colors) > 8:
+            colors = colors[:8]
+
         color_block = "[color]\ngradient = 1\n"
         color_block += f"gradient_count = {len(colors)}\n"
         for i, color in enumerate(colors):
             color_block += f"gradient_color_{i+1} = '{color}'\n"
-        color_block += "background = '#0a0a0a'\n"
-        color_block += f"foreground = '{colors[-2]}'\n"
+        
+        # Use the darkest color for background (if available)
+        bg_color = colors[0] if colors else '#0a0a0a'
+        # Use a bright color for foreground
+        fg_color = colors[-2] if len(colors) > 1 else '#ffffff'
+        
+        color_block += f"background = '#0a0a0a'\n" # Keep background dark for premium look
+        color_block += f"foreground = '{fg_color}'\n"
 
         cava_config = f"""[general]
 bars = 64
@@ -162,4 +222,5 @@ gravity = 140
         with open(cava_file, 'w') as f:
             f.write(cava_config)
 
-print("Successfully updated Rofi and Cava for all themes with premium settings.")
+print("\nSuccessfully updated Rofi and Cava for all themes with dynamic wallpaper-matched colors.")
+
