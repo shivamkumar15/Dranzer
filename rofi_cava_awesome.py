@@ -194,7 +194,7 @@ for theme_path in themes:
         color_block += f"foreground = '{fg_color}'\n"
 
         cava_config = f"""[general]
-bars = 64
+bars = 0
 bar_width = 2
 bar_spacing = 1
 framerate = 144
@@ -223,4 +223,3 @@ gravity = 140
             f.write(cava_config)
 
 print("\nSuccessfully updated Rofi and Cava for all themes with dynamic wallpaper-matched colors.")
-

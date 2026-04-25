@@ -256,6 +256,27 @@ theme_wallpaper_path() {
     printf '%s\n' "$wallpaper_path"
 }
 
+build_kitty_theme() {
+    theme_dir=$1
+    target_path=$2
+    wallpaper_path=$3
+
+    require_file "$theme_dir/kitty.conf"
+    mkdir -p "$(dirname "$target_path")"
+    cp "$theme_dir/kitty.conf" "$target_path"
+
+    if [ -f "$wallpaper_path" ]; then
+        wallpaper_escaped=$(printf '%s' "$wallpaper_path" | sed 's/\\/\\\\/g; s/ /\\ /g')
+        cat >> "$target_path" <<EOF_KITTY
+
+# BitBeast wallpaper overlay
+background_image $wallpaper_escaped
+background_image_layout scaled
+background_tint 0.45
+EOF_KITTY
+    fi
+}
+
 current_theme_name() {
     if [ -f "$STATE_DIR/current.theme" ]; then
         sed -n '1p' "$STATE_DIR/current.theme"
@@ -566,15 +587,16 @@ activate_theme() {
 
     mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR"
 
+    wallpaper_path=$(theme_wallpaper_path "$theme_dir")
+
     cp "$theme_dir/colors.conf" "$STATE_DIR/current.conf"
     cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
     cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
-    cp "$theme_dir/kitty.conf" "$KITTY_DIR/bitbeast.conf"
+    build_kitty_theme "$theme_dir" "$KITTY_DIR/bitbeast.conf" "$wallpaper_path"
     build_rofi_theme "$theme_dir" "$ROFI_DIR/bitbeast.rasi" "$theme_dir/colors.conf"
     cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
 
-    wallpaper_path=$(theme_wallpaper_path "$theme_dir")
     printf 'wallpaper="%s"\n' "$wallpaper_path" > "$STATE_DIR/wallpaper.conf"
     ensure_waybar_style || warn 'failed to sync Waybar style.'
 
