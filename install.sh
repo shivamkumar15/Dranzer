@@ -166,7 +166,9 @@ install_file() {
     source_path=$1
     target_path=$2
 
-    mkdir -p "$(dirname "$target_path")"
+    if [ ! -f "$source_path" ]; then
+        return
+    fi
 
     if [ -f "$target_path" ] && cmp -s "$source_path" "$target_path"; then
         return
@@ -179,6 +181,10 @@ install_file() {
 install_dir() {
     source_path=$1
     target_path=$2
+
+    if [ ! -d "$source_path" ]; then
+        return
+    fi
 
     if [ -d "$target_path" ] && diff -qr "$source_path" "$target_path" >/dev/null 2>&1; then
         return
