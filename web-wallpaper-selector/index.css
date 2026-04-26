@@ -43,7 +43,24 @@ body {
     background-size: cover;
     background-position: center;
     filter: blur(40px) brightness(0.5);
-    transition: background-image 0.5s ease-in-out;
+    opacity: 0;
+    transform: translateX(var(--bg-shift, 0px)) scale(1.14);
+    transition: opacity 0.4s cubic-bezier(0.18, 0.72, 0.18, 1),
+                transform 0.8s cubic-bezier(0.18, 0.72, 0.18, 1);
+    z-index: 0;
+}
+
+.background.visible {
+    opacity: 1;
+    transform: translateX(0px) scale(1.04);
+}
+
+.background.exiting {
+    opacity: 0;
+    transform: translateX(var(--bg-exit-shift, 0px)) scale(1.01);
+}
+
+.background-next {
     z-index: 0;
 }
 
@@ -52,7 +69,21 @@ body {
     position: absolute;
     inset: 0;
     background: var(--bg-overlay);
+    will-change: opacity;
     z-index: 1;
+}
+
+.overlay.pulse {
+    animation: overlay-brightness-pulse 0.45s cubic-bezier(0.2, 0.75, 0.22, 1);
+}
+
+@keyframes overlay-brightness-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    42% {
+        opacity: 0.9;
+    }
 }
 
 /* Glassmorphism Panel */

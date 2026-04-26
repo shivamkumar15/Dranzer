@@ -89,11 +89,16 @@ theme_color_hex() {
     color_name=$2
     fallback=$3
 
-    color_value=$(sed -n 's/^\$'"$color_name"'[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_file" | tail -n 1)
+    color_value=$(sed -n 's/^\$'"$color_name"'[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_file" | tail -n 1 | tr -d ' ')
     if [ -n "$color_value" ]; then
-        printf '#%s\n' "$color_value"
+        # Convert hex to rrggbb format if it has commas
+        if echo "$color_value" | grep -q ","; then
+             printf '#%02x%02x%02x\n' $(echo $color_value | tr ',' ' ')
+        else
+             printf '#%s\n' "$color_value"
+        fi
     else
-        printf '%s\n' "$fallback"
+        printf '#%s\n' "${fallback#\#}"
     fi
 }
 
@@ -103,11 +108,11 @@ build_rofi_theme() {
     colors_file=$3
     require_file "$colors_file"
 
-    bg=$(theme_color_hex "$colors_file" bg '#0a0b10')
-    primary=$(theme_color_hex "$colors_file" primary '#00f2ff')
-    secondary=$(theme_color_hex "$colors_file" secondary '#161925')
-    accent=$(theme_color_hex "$colors_file" accent '#00f2ff')
-    text=$(theme_color_hex "$colors_file" text '#e0e6ed')
+    bg=$(theme_color_hex "$colors_file" bg '0a0b10')
+    primary=$(theme_color_hex "$colors_file" primary '00f2ff')
+    secondary=$(theme_color_hex "$colors_file" secondary '161925')
+    accent=$(theme_color_hex "$colors_file" accent '00f2ff')
+    text=$(theme_color_hex "$colors_file" text 'e0e6ed')
     muted="${text}99"
 
     mkdir -p "$(dirname "$target_path")"
@@ -370,6 +375,27 @@ ensure_swww_daemon() {
     return 0
 }
 
+ensure_awww_daemon() {
+    if ! command -v awww >/dev/null 2>&1; then
+        return 1
+    fi
+
+    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
+        awww-daemon >/dev/null 2>&1 &
+        _awww_tries=0
+        while [ "$_awww_tries" -lt 10 ]; do
+            sleep 0.5
+            if awww query >/dev/null 2>&1; then
+                return 0
+            fi
+            _awww_tries=$((_awww_tries + 1))
+        done
+        warn "awww-daemon started but may not be fully ready"
+    fi
+
+    return 0
+}
+
 apply_wallpaper_swww() {
     wallpaper_path=$1
 
@@ -429,6 +455,57 @@ apply_wallpaper_swww() {
     return 1
 }
 
+apply_wallpaper_awww() {
+    wallpaper_path=$1
+
+    ensure_awww_daemon || return 1
+
+    wallpaper_name=$(basename "$wallpaper_path")
+
+    case "$wallpaper_name" in
+        BurningCerbrus.png)
+            tr_type="wave";   tr_angle=45;  tr_step=90;  tr_duration=1;  tr_bezier=".25,.1,.25,1"
+            ;;
+        Dracel.png)
+            tr_type="grow";   tr_angle=0;   tr_step=90;  tr_duration=1;  tr_bezier=".33,0,.67,1"
+            ;;
+        Dragoon.png)
+            tr_type="wipe";   tr_angle=30;  tr_step=90;  tr_duration=1;  tr_bezier=".42,0,.58,1"
+            ;;
+        Dranzer.png)
+            tr_type="outer";  tr_angle=0;   tr_step=90;  tr_duration=1.2;  tr_bezier=".16,1,.3,1"
+            ;;
+        Drigger.png)
+            tr_type="simple"; tr_angle=0;   tr_step=5;   tr_duration=1;  tr_bezier=".22,.61,.36,1"
+            ;;
+        Galeon.png)
+            tr_type="center"; tr_angle=0;   tr_step=90;  tr_duration=0.8;  tr_bezier=".65,0,.35,1"
+            ;;
+        *)
+            tr_type="random"; tr_angle=0;   tr_step=90;  tr_duration=1;  tr_bezier=".42,0,.58,1"
+            ;;
+    esac
+
+    attempt=1
+    while [ "$attempt" -le 5 ]; do
+        if awww img "$wallpaper_path" \
+            --transition-type "$tr_type" \
+            --transition-duration "$tr_duration" \
+            --transition-fps 144 \
+            --transition-angle "$tr_angle" \
+            --transition-step "$tr_step" \
+            --transition-bezier "$tr_bezier" \
+            >/dev/null 2>&1; then
+            return 0
+        fi
+
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    return 1
+}
+
 apply_wallpaper_swaybg() {
     wallpaper_path=$1
 
@@ -452,6 +529,13 @@ apply_wallpaper() {
         return 1
     fi
 
+    if command -v awww >/dev/null 2>&1; then
+        pkill -x swaybg >/dev/null 2>&1 || true
+        if apply_wallpaper_awww "$wallpaper_path"; then
+            return 0
+        fi
+    fi
+
     # Prefer swww for its smooth animated transitions (wave, grow, wipe, etc.)
     if command -v swww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
@@ -468,7 +552,7 @@ apply_wallpaper() {
         fi
     fi
 
-    warn 'No wallpaper backend available. Install swww (recommended) or swaybg.'
+    warn 'No wallpaper backend available. Install awww (recommended), swww, or swaybg.'
     return 1
 }
 
@@ -844,11 +928,11 @@ case $command_name in
         accent_rgb=$(sed -n 's/^\$accent[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
         text_rgb=$(sed -n 's/^\$text[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
 
-        [ -n "$bg_rgb" ] || bg_rgb="0d0405"
-        [ -n "$primary_rgb" ] || primary_rgb="f44336"
-        [ -n "$secondary_rgb" ] || secondary_rgb="8d0b0b"
-        [ -n "$accent_rgb" ] || accent_rgb="ffc107"
-        [ -n "$text_rgb" ] || text_rgb="fff5f5"
+        [ -n "$bg_rgb" ] || bg_rgb="13, 4, 5"
+        [ -n "$primary_rgb" ] || primary_rgb="244, 67, 54"
+        [ -n "$secondary_rgb" ] || secondary_rgb="141, 11, 11"
+        [ -n "$accent_rgb" ] || accent_rgb="255, 193, 7"
+        [ -n "$text_rgb" ] || text_rgb="255, 245, 245"
         
         # Get glow color from waybar.css
         glow_hex="#ffd166" # fallback
@@ -919,11 +1003,11 @@ EOF_COLORS
         colors_file="$theme_dir/colors.conf"
         [ -f "$colors_file" ] || colors_file="$THEMES_DIR/dranzer/colors.conf"
         
-        bg=$(theme_color_hex "$colors_file" bg '#0a0a0a')
-        primary=$(theme_color_hex "$colors_file" primary '#e8450c')
-        secondary=$(theme_color_hex "$colors_file" secondary '#7b120f')
-        accent=$(theme_color_hex "$colors_file" accent '#ffd166')
-        text=$(theme_color_hex "$colors_file" text '#fff1dd')
+        bg=$(theme_color_hex "$colors_file" bg '0a0a0a')
+        primary=$(theme_color_hex "$colors_file" primary 'e8450c')
+        secondary=$(theme_color_hex "$colors_file" secondary '7b120f')
+        accent=$(theme_color_hex "$colors_file" accent 'ffd166')
+        text=$(theme_color_hex "$colors_file" text 'fff1dd')
         
         kitty --class bitbeast-visualizer -T "BitBeast Visualizer" -e "$SCRIPT_DIR/circular_cava.py" --mode bars --radius 14 --bars 80 "$bg" "$secondary" "$primary" "$accent" "$text" &
         ;;

@@ -13,6 +13,20 @@ let selectedIndex = Math.floor(wallpapers.length / 2);
 
 const carousel = document.getElementById('carousel');
 const background = document.getElementById('background');
+const backgroundNext = document.getElementById('background-next');
+const overlay = document.querySelector('.overlay');
+
+let currentBackground = background;
+let nextBackground = backgroundNext;
+let currentBackgroundPath = '';
+let backgroundTransitionToken = 0;
+let previousSelectedIndex = selectedIndex;
+
+const backgroundSlideDistance = 40;
+const backgroundTransitionDurationMs = 400;
+const brightnessPulseDurationMs = 450;
+
+let brightnessPulseToken = 0;
 
 // Config
 const cardWidth = 180;
@@ -67,7 +81,9 @@ function updateSelection() {
     
     // Update background
     const selectedWallpaper = wallpapers[selectedIndex];
-    background.style.backgroundImage = `url('${selectedWallpaper.path}')`;
+    const direction = Math.sign(selectedIndex - previousSelectedIndex);
+    setBackground(selectedWallpaper.path, direction);
+    previousSelectedIndex = selectedIndex;
     
     // Calculate translation to keep selected item in center
     // Assuming container is perfectly centered, we just shift by the offset
@@ -81,6 +97,76 @@ function updateSelection() {
     const translateX = diff * itemSize;
     
     carousel.style.transform = `translateX(${translateX}px)`;
+}
+
+function setBackground(path, direction = 0) {
+    if (!path || currentBackgroundPath === path) {
+        return;
+    }
+
+    if (!currentBackgroundPath) {
+        currentBackgroundPath = path;
+        currentBackground.style.backgroundImage = `url('${path}')`;
+        currentBackground.style.setProperty('--bg-shift', '0px');
+        currentBackground.style.setProperty('--bg-exit-shift', '0px');
+        currentBackground.classList.add('visible');
+        return;
+    }
+
+    const token = ++backgroundTransitionToken;
+    const incomingShift = direction === 0 ? 0 : (direction > 0 ? backgroundSlideDistance : -backgroundSlideDistance);
+    const outgoingShift = -incomingShift;
+
+    nextBackground.style.backgroundImage = `url('${path}')`;
+    nextBackground.style.setProperty('--bg-shift', `${incomingShift}px`);
+    nextBackground.style.setProperty('--bg-exit-shift', '0px');
+    nextBackground.classList.remove('exiting');
+
+    currentBackground.style.setProperty('--bg-exit-shift', `${outgoingShift}px`);
+    currentBackground.classList.add('exiting');
+    triggerBrightnessPulse();
+    nextBackground.classList.add('visible');
+    currentBackground.classList.remove('visible');
+
+    window.setTimeout(() => {
+        if (token !== backgroundTransitionToken) {
+            return;
+        }
+
+        const previousBackground = currentBackground;
+        currentBackground = nextBackground;
+        nextBackground = previousBackground;
+
+        currentBackgroundPath = path;
+        currentBackground.classList.remove('exiting');
+        currentBackground.style.setProperty('--bg-shift', '0px');
+        currentBackground.style.setProperty('--bg-exit-shift', '0px');
+
+        nextBackground.classList.remove('visible');
+        nextBackground.classList.remove('exiting');
+        nextBackground.style.backgroundImage = '';
+        nextBackground.style.setProperty('--bg-shift', '0px');
+        nextBackground.style.setProperty('--bg-exit-shift', '0px');
+    }, backgroundTransitionDurationMs);
+}
+
+function triggerBrightnessPulse() {
+    if (!overlay) {
+        return;
+    }
+
+    const token = ++brightnessPulseToken;
+    overlay.classList.remove('pulse');
+    void overlay.offsetWidth;
+    overlay.classList.add('pulse');
+
+    window.setTimeout(() => {
+        if (token !== brightnessPulseToken) {
+            return;
+        }
+
+        overlay.classList.remove('pulse');
+    }, brightnessPulseDurationMs);
 }
 
 // Keyboard navigation
