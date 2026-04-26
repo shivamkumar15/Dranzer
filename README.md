@@ -14,7 +14,7 @@ Install the following packages before running the installer:
 - `swaync`
 - `playerctl`
 - `cava`
-- `swww` or `swaybg` (at least one wallpaper backend)
+- `awww` or `swww` or `swaybg` (at least one wallpaper backend, `awww` recommended)
 - `pipewire`
 - `wireplumber`
 - `xdg-desktop-portal-hyprland` (required for screen sharing)
@@ -163,7 +163,7 @@ If existing files are overwritten, backups are stored under:
 ## Troubleshooting
 
 - If `bitbeast` is not found: ensure `~/.local/bin` is in your `$PATH`
-- If a theme fails: verify that required tools are installed and the wallpaper backend (`swww` or `swaybg`) exists
+- If a theme fails: verify that required tools are installed and the wallpaper backend (`awww`, `swww` or `swaybg`) exists
 - If icons are missing: install a Nerd Font
 - If audio isn't detected: check that your audio source is set correctly in Cava config
 

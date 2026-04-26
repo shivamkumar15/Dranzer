@@ -68,12 +68,7 @@ check_dependencies() {
 
     # Wallpaper backend (at least one required)
     if ! command -v swaybg >/dev/null 2>&1 && ! command -v swww >/dev/null 2>&1 && ! command -v awww >/dev/null 2>&1; then
-        # Default to swww (or awww if preferred in this system)
-        if command -v pacman >/dev/null 2>&1 && pacman -Si awww >/dev/null 2>&1; then
-             missing_req+=("awww")
-        else
-             missing_req+=("swww")
-        fi
+        missing_req+=("awww")
     fi
 
     # Recommended commands
