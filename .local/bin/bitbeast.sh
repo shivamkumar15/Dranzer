@@ -270,16 +270,7 @@ build_kitty_theme() {
     mkdir -p "$(dirname "$target_path")"
     cp "$theme_dir/kitty.conf" "$target_path"
 
-    if [ -f "$wallpaper_path" ]; then
-        wallpaper_escaped=$(printf '%s' "$wallpaper_path" | sed 's/\\/\\\\/g; s/ /\\ /g')
-        cat >> "$target_path" <<EOF_KITTY
-
-# BitBeast wallpaper overlay
-background_image $wallpaper_escaped
-background_image_layout scaled
-background_tint 0.45
-EOF_KITTY
-    fi
+    # Do not set background image in terminal per user preference
 }
 
 current_theme_name() {
