@@ -44,6 +44,7 @@ Usage:
   bitbeast restore-wallpaper
   bitbeast session-init
   bitbeast clipboard
+  bitbeast keybindings
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
@@ -685,6 +686,95 @@ clipboard_picker() {
     paste_active_window_clipboard
 }
 
+list_hypr_keybindings() {
+    hypr_config="$HYPR_DIR/hyprland.conf"
+    if [ ! -f "$hypr_config" ] && [ -f "$REPO_DIR/.config/hypr/hyprland.conf" ]; then
+        hypr_config="$REPO_DIR/.config/hypr/hyprland.conf"
+    fi
+
+    if [ ! -f "$hypr_config" ]; then
+        printf 'Hyprland config not found at %s\n' "$HYPR_DIR/hyprland.conf" >&2
+        exit 1
+    fi
+
+    awk '
+function trim(s) {
+    sub(/^[[:space:]]+/, "", s)
+    sub(/[[:space:]]+$/, "", s)
+    return s
+}
+function normalize(s) {
+    gsub(/\$mod/, "SUPER", s)
+    gsub(/\$terminal/, "kitty", s)
+    gsub(/\$browser/, "firefox", s)
+    gsub(/\$menu/, "rofi", s)
+    gsub(/\$bitbeast/, "bitbeast", s)
+    return s
+}
+/^[[:space:]]*#[[:space:]]*/ {
+    section = $0
+    sub(/^[[:space:]]*#[[:space:]]*/, "", section)
+    section = trim(section)
+    if (section != "") {
+        print ""
+        print "[" section "]"
+    }
+    next
+}
+/^[[:space:]]*bind[[:alpha:]]*[[:space:]]*=/ {
+    line = $0
+    sub(/^[[:space:]]*bind[[:alpha:]]*[[:space:]]*=[[:space:]]*/, "", line)
+    count = split(line, parts, /,[[:space:]]*/)
+    if (count < 3) {
+        next
+    }
+
+    modifiers = normalize(trim(parts[1]))
+    key = trim(parts[2])
+    action = trim(parts[3])
+    details = ""
+
+    for (i = 4; i <= count; i++) {
+        details = details (details == "" ? "" : ", ") trim(parts[i])
+    }
+
+    details = normalize(details)
+    combo = modifiers
+
+    if (combo != "") {
+        combo = combo "+" key
+    } else {
+        combo = key
+    }
+
+    if (action == "exec") {
+        print combo " -> " details
+    } else if (details != "") {
+        print combo " -> " action " " details
+    } else {
+        print combo " -> " action
+    }
+}
+' "$hypr_config"
+}
+
+show_keybindings() {
+    keybindings=$(list_hypr_keybindings)
+    [ -n "$keybindings" ] || {
+        printf 'No keybindings found in Hyprland config\n' >&2
+        exit 1
+    }
+
+    if command -v rofi >/dev/null 2>&1; then
+        keybind_lines="${BITBEAST_KEYBINDINGS_LINES:-36}"
+        keybind_width="${BITBEAST_KEYBINDINGS_WIDTH:-1400px}"
+        printf '%s\n' "$keybindings" | rofi -dmenu -i -l "$keybind_lines" -theme-str "window { width: $keybind_width; } inputbar { padding: 4px 8px; } prompt { padding: 0px; }" -p "Keys" >/dev/null
+        return 0
+    fi
+
+    printf '%s\n' "$keybindings"
+}
+
 activate_style() {
     style_name=$1
 
@@ -1037,6 +1127,9 @@ EOF_COLORS
         ;;
     clipboard)
         clipboard_picker
+        ;;
+    keybindings)
+        show_keybindings
         ;;
     session-init)
         session_init
