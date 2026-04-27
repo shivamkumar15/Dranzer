@@ -50,6 +50,7 @@ check_dependencies() {
         ["grim"]="grim"
         ["slurp"]="slurp"
         ["wl-copy"]="wl-clipboard"
+        ["cliphist"]="cliphist"
         ["pipewire"]="pipewire"
         ["wireplumber"]="wireplumber"
         ["/usr/lib/xdg-desktop-portal-hyprland"]="xdg-desktop-portal-hyprland"
@@ -72,7 +73,7 @@ check_dependencies() {
     fi
 
     # Recommended commands
-    for cmd in brightnessctl wpctl grim slurp wl-copy; do
+    for cmd in brightnessctl wpctl grim slurp wl-copy cliphist; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing_opt+=("${pkg_map[$cmd]}")
         fi

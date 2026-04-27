@@ -43,6 +43,7 @@ Usage:
   bitbeast current-style
   bitbeast restore-wallpaper
   bitbeast session-init
+  bitbeast clipboard
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
@@ -628,6 +629,62 @@ restart_waybar() {
     fi
 }
 
+start_clipboard_watchers() {
+    command -v wl-paste >/dev/null 2>&1 || return 0
+    command -v cliphist >/dev/null 2>&1 || return 0
+
+    if ! pgrep -af "wl-paste --type text --watch cliphist store" >/dev/null 2>&1; then
+        wl-paste --type text --watch cliphist store >/dev/null 2>&1 &
+    fi
+
+    if ! pgrep -af "wl-paste --type image --watch cliphist store" >/dev/null 2>&1; then
+        wl-paste --type image --watch cliphist store >/dev/null 2>&1 &
+    fi
+}
+
+paste_active_window_clipboard() {
+    if ! command -v hyprctl >/dev/null 2>&1; then
+        return 0
+    fi
+
+    active_window=$(hyprctl -j activewindow 2>/dev/null || true)
+    window_class=$(printf '%s\n' "$active_window" | sed -n 's/.*"class": "\([^"]*\)".*/\1/p' | head -n 1)
+
+    case $window_class in
+        kitty|Alacritty|foot|WezTerm|org.wezfurlong.wezterm|com.mitchellh.ghostty)
+            hyprctl dispatch sendshortcut CTRL_SHIFT,V,activewindow >/dev/null 2>&1 || true
+            ;;
+        *)
+            hyprctl dispatch sendshortcut CTRL,V,activewindow >/dev/null 2>&1 || true
+            ;;
+    esac
+}
+
+clipboard_picker() {
+    start_clipboard_watchers || true
+
+    if ! command -v cliphist >/dev/null 2>&1; then
+        printf 'cliphist is required for clipboard history\n' >&2
+        exit 1
+    fi
+
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast clipboard\n' >&2
+        exit 1
+    fi
+
+    if ! command -v wl-copy >/dev/null 2>&1; then
+        printf 'wl-copy is required for clipboard history\n' >&2
+        exit 1
+    fi
+
+    selection=$(cliphist list | rofi -dmenu -i -p "Clipboard")
+    [ -n "$selection" ] || exit 0
+
+    printf '%s' "$selection" | cliphist decode | wl-copy
+    paste_active_window_clipboard
+}
+
 activate_style() {
     style_name=$1
 
@@ -804,6 +861,7 @@ session_init() {
     ensure_waybar_style || true
     restore_wallpaper || true
     restart_waybar || true
+    start_clipboard_watchers || true
 
     # Apply the cursor theme from the current BitBeast theme
     theme_name=$(current_theme_name || echo "dranzer")
@@ -976,6 +1034,9 @@ EOF_COLORS
         ;;
     restore-wallpaper)
         restore_wallpaper
+        ;;
+    clipboard)
+        clipboard_picker
         ;;
     session-init)
         session_init
