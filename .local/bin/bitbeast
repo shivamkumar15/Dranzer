@@ -902,9 +902,44 @@ show_keybindings() {
     }
 
     if command -v rofi >/dev/null 2>&1; then
-        keybind_lines="${BITBEAST_KEYBINDINGS_LINES:-36}"
+        display_height=1080
+        if command -v hyprctl >/dev/null 2>&1; then
+            focused_height=$(hyprctl -j monitors 2>/dev/null | awk '
+                /"focused"[[:space:]]*:[[:space:]]*true/ { focused = 1 }
+                focused && /"height"[[:space:]]*:/ {
+                    value = $0
+                    gsub(/[^0-9]/, "", value)
+                    if (value != "") {
+                        print value
+                        exit
+                    }
+                }
+                /}/ { focused = 0 }
+            ')
+
+            if [ -n "$focused_height" ]; then
+                display_height="$focused_height"
+            else
+                first_height=$(hyprctl -j monitors 2>/dev/null | awk '
+                    /"height"[[:space:]]*:/ {
+                        value = $0
+                        gsub(/[^0-9]/, "", value)
+                        if (value != "") {
+                            print value
+                            exit
+                        }
+                    }
+                ')
+                [ -n "$first_height" ] && display_height="$first_height"
+            fi
+        fi
+
+        auto_lines=$((display_height / 30))
+        [ "$auto_lines" -lt 12 ] && auto_lines=12
+        [ "$auto_lines" -gt 60 ] && auto_lines=60
+        keybind_lines="${BITBEAST_KEYBINDINGS_LINES:-$auto_lines}"
         keybind_width="${BITBEAST_KEYBINDINGS_WIDTH:-1400px}"
-        printf '%s\n' "$keybindings" | rofi -dmenu -i -l "$keybind_lines" -theme-str "window { width: $keybind_width; } inputbar { padding: 4px 8px; } prompt { padding: 0px; }" -p "Keys" >/dev/null
+        printf '%s\n' "$keybindings" | rofi -dmenu -i -l "$keybind_lines" -theme-str "window { width: $keybind_width; border-radius: 16px; }" -p "Keys" >/dev/null
         return 0
     fi
 
