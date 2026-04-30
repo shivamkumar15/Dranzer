@@ -43,7 +43,7 @@
   },
 
   "custom/cava": {
-    "exec": "~/.local/bin/waybar-cava.sh",
+    "exec": "~/.local/bin/waybar-cava.sh 12 12",
     "format": "{}",
     "tooltip": false,
     "restart-interval": 2
