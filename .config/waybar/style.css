@@ -28,6 +28,7 @@ window#waybar {
 /* Individual module spacing */
 #workspaces,
 #custom-cava,
+#custom-media,
 #window,
 #clock,
 #temperature.center,
@@ -116,6 +117,10 @@ window#waybar {
 
 #pulseaudio {
     color: #bd93f9;
+}
+
+#custom-media {
+    color: #a2d2fb;
 }
 
 /* Animations */

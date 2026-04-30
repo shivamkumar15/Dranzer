@@ -18,6 +18,7 @@
   ],
 
   "modules-center": [
+    "custom/media",
     "clock",
     "temperature#center"
   ],
@@ -134,5 +135,16 @@
       "default": ["󰕑", "󰕘"]
     },
     "on-click": "pavucontrol"
+  },
+
+  "custom/media": {
+    "format": "{}",
+    "return-type": "json",
+    "exec": "~/.local/bin/bitbeast-media",
+    "interval": 1,
+    "on-click": "playerctl play-pause",
+    "on-click-right": "playerctl next",
+    "on-click-middle": "playerctl previous",
+    "tooltip": false
   }
 }
