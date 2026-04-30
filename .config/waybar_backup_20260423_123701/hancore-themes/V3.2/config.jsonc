@@ -283,7 +283,7 @@
     "status-icons": {
       "paused": "▶"
     }
-    // "ignored-players": ["firefox"]
+    // "ignored-players": ["google-chrome-stable"]
   },
   "group/tray-expander": {
     "orientation": "inherit",

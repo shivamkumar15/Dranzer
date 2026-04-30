@@ -264,7 +264,7 @@
     "status-icons": {
       "paused": "󰋐"  
     }
-    // "ignored-players": ["firefox"]
+    // "ignored-players": ["google-chrome-stable"]
   },
   "custom/updatespacman": {
     "format": "{}{icon}",

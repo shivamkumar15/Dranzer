@@ -91,14 +91,14 @@
         "title<.*waydroid*.>": "",
         "class<.*grayjay*.>": "󱗆",
 		"title<.*amazon.*>": "",
-		"class<firefox|org.mozilla.firefox|librewolf|floorp|mercury-browser|[Cc]achy-browser>": "",
+		"class<google-chrome-stable|org.mozilla.google-chrome-stable|librewolf|floorp|mercury-browser|[Cc]achy-browser>": "",
 		"class<zen>": "󰰷",
 		"class<waterfox|waterfox-bin>": "",
 		"class<microsoft-edge>": "",
 		"class<Chromium|Thorium|[Cc]hrome>": "",
 		"class<brave-browser>": "🦁",
 		"class<tor browser>": "",
-		"class<firefox-developer-edition>": "🦊",
+		"class<google-chrome-stable-developer-edition>": "🦊",
 		"class<kitty|konsole>": "",
 		"class<kitty-dropterm>": "",
 		"class<com.mitchellh.ghostty>": "",
@@ -362,7 +362,7 @@
     "status-icons": {
       "paused": "󰋐"  
     },
-    "ignored-players": ["firefox", "chromium", "brave"]
+    "ignored-players": ["google-chrome-stable", "chromium", "brave"]
   },
   "idle_inhibitor": {
     "format": "{icon}",

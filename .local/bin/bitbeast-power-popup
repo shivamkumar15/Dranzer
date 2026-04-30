@@ -83,7 +83,7 @@ def get_player():
         return None
     for player in players.splitlines():
         lowered = player.lower()
-        if any(name in lowered for name in ("spotify", "firefox", "chromium", "mpv", "vlc", "rhythmbox", "cmus")):
+        if any(name in lowered for name in ("spotify", "google-chrome-stable", "chromium", "mpv", "vlc", "rhythmbox", "cmus")):
             return player
     return players.splitlines()[0]
 

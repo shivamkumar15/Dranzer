@@ -5,7 +5,7 @@ CACHE_DIR="$HOME/.cache/bitbeast"
 mkdir -p "$CACHE_DIR"
 
 get_player() {
-    playerctl -l 2>/dev/null | grep -E "spotify|firefox|chromium|mpv|vlc|audacious|rhythmbox" | head -1
+    playerctl -l 2>/dev/null | grep -E "spotify|google-chrome-stable|chromium|mpv|vlc|audacious|rhythmbox" | head -1
 }
 
 get_album_art() {

@@ -4,7 +4,7 @@
     "separate-outputs": true,
     "max-length": 40,
     "rewrite": {
-      "(.*) — Mozilla Firefox": "󰈹  $1",
+      "(.*) — Mozilla google-chrome-stable": "󰈹  $1",
       "(.*) - Visual Studio Code": "󰨞  $1",
       "(.*) — Dolphin": "󰉋  $1",
       "(.*)Spotify(.*)": "󰓇  $1",

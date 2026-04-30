@@ -235,7 +235,7 @@
       "paused": ""
     },
         "ignored-players": [
-      "firefox",
+      "google-chrome-stable",
       "chromium",
       "brave"
     ],

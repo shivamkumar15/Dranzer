@@ -230,7 +230,7 @@
       "paused": "⏸"
     },
     "max-length": 30,
-    "ignored-players": ["firefox", "chromium", "brave"]
+    "ignored-players": ["google-chrome-stable", "chromium", "brave"]
   },
   
   "custom/weather": {

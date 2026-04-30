@@ -37,7 +37,7 @@ def get_player():
     if not players:
         return None
     for p in players.splitlines():
-        if any(k in p.lower() for k in ("spotify", "firefox", "chromium", "mpv", "vlc", "audacious", "rhythmbox", "cmus")):
+        if any(k in p.lower() for k in ("spotify", "google-chrome-stable", "chromium", "mpv", "vlc", "audacious", "rhythmbox", "cmus")):
             return p
     return players.splitlines()[0]
 

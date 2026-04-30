@@ -706,7 +706,7 @@ function trim(s) {
 function normalize(s) {
     gsub(/\$mod/, "SUPER", s)
     gsub(/\$terminal/, "kitty", s)
-    gsub(/\$browser/, "firefox", s)
+    gsub(/\$browser/, "google-chrome-stable", s)
     gsub(/\$menu/, "rofi", s)
     gsub(/\$bitbeast/, "bitbeast", s)
     return s

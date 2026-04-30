@@ -292,7 +292,7 @@
     "status-icons": {
       "paused": "󰋐"  
     }
-    // "ignored-players": ["firefox"]
+    // "ignored-players": ["google-chrome-stable"]
   },
   "custom/weather": {
     "format": "{}°",

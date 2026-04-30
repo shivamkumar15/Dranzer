@@ -90,7 +90,7 @@
     "status-icons": {
       "paused": "▶"
     },
-    "ignored-players": ["firefox", "chromium", "brave"]
+    "ignored-players": ["google-chrome-stable", "chromium", "brave"]
   },
     "custom/voxtype": {
     "exec": "omarchy-voxtype-status",
