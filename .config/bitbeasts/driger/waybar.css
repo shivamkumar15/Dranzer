@@ -5,3 +5,4 @@
 @define-color accent #ffeb3b;
 @define-color text #f1f8e9;
 @define-color glow #44ff00;
+@define-color cava-color @accent;

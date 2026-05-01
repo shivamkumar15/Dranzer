@@ -86,7 +86,7 @@ window#waybar {
 
 /* Module Specific Colors */
 #custom-cava {
-    color: @accent;
+    color: @cava-color;
 }
 
 #network {
