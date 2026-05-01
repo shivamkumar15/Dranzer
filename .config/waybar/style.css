@@ -1,4 +1,6 @@
 /* Premium Waybar Style - Pill Layout */
+@import "bitbeast.css";
+
 
 * {
     border: none;
@@ -84,7 +86,7 @@ window#waybar {
 
 /* Module Specific Colors */
 #custom-cava {
-    color: #ff9a00;
+    color: @accent;
 }
 
 #network {
