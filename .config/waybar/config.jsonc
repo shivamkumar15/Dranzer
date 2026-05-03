@@ -83,7 +83,7 @@
     "format-ethernet": "󰈀",
     "format-disconnected": "󰤮 off",
     "tooltip-format": "{ifname}: {ipaddr}",
-    "on-click": "kitty -e nmtui"
+    "on-click": "nm-connection-editor"
   },
 
   "backlight": {
