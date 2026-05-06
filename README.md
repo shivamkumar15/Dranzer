@@ -5,7 +5,7 @@ A modular Hyprland theme system inspired by Beyblade BitBeasts. Each theme insta
 ## Prerequisites
 
 ### Required packages
-Install the following packages before running the installer:
+The installer now auto-installs missing dependencies when a supported package manager is found (`pacman`, `apt`, `dnf`). You can still install these manually before running it:
 
 - `waybar`
 - `rofi`
@@ -24,7 +24,7 @@ Install the following packages before running the installer:
 
 ### Recommended packages
 
-These packages are optional but improve the experience and support keybindings:
+These packages are recommended and the installer will also try to install them:
 
 - `brightnessctl` or `light`
 - `wpctl`

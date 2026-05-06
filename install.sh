@@ -30,94 +30,152 @@ Galeon.png
 check_dependencies() {
     missing_req=()
     missing_opt=()
-    
-    # Mapping of commands to packages (Arch Linux/pacman)
-    declare -A pkg_map=(
-        ["waybar"]="waybar"
-        ["rofi"]="rofi"
-        ["kitty"]="kitty"
-        ["hyprlock"]="hyprlock"
-        ["swaync"]="swaync"
-        ["playerctl"]="playerctl"
-        ["git"]="git"
-        ["python"]="python"
-        ["cava"]="cava"
-        ["curl"]="curl"
-        ["swww"]="swww"
-        ["swaybg"]="swaybg"
-        ["brightnessctl"]="brightnessctl"
-        ["wpctl"]="wireplumber"
-        ["grim"]="grim"
-        ["slurp"]="slurp"
-        ["wl-copy"]="wl-clipboard"
-        ["cliphist"]="cliphist"
-        ["pipewire"]="pipewire"
-        ["wireplumber"]="wireplumber"
-        ["/usr/lib/xdg-desktop-portal-hyprland"]="xdg-desktop-portal-hyprland"
-    )
+    install_pkgs=()
+    missing_req_labels=()
+    missing_opt_labels=()
 
-    # Required commands/files
-    for cmd in waybar rofi kitty hyprlock swaync playerctl git python cava curl pipewire wireplumber /usr/lib/xdg-desktop-portal-hyprland; do
-        if [[ "$cmd" == /* ]]; then
-            if [ ! -f "$cmd" ]; then
-                missing_req+=("${pkg_map[$cmd]}")
-            fi
-        elif ! command -v "$cmd" >/dev/null 2>&1; then
-            missing_req+=("${pkg_map[$cmd]}")
-        fi
-    done
-
-    # Wallpaper backend (at least one required)
-    if ! command -v swaybg >/dev/null 2>&1 && ! command -v swww >/dev/null 2>&1 && ! command -v awww >/dev/null 2>&1; then
-        missing_req+=("awww")
+    if command -v pacman >/dev/null 2>&1; then
+        PKG_MANAGER="pacman"
+    elif command -v apt-get >/dev/null 2>&1; then
+        PKG_MANAGER="apt"
+    elif command -v dnf >/dev/null 2>&1; then
+        PKG_MANAGER="dnf"
+    else
+        PKG_MANAGER=""
     fi
 
-    # Recommended commands
-    for cmd in brightnessctl wpctl grim slurp wl-copy cliphist; do
+    pkg_name() {
+        key=$1
+        case "$PKG_MANAGER:$key" in
+            pacman:waybar|apt:waybar|dnf:waybar) printf 'waybar' ;;
+            pacman:rofi|apt:rofi|dnf:rofi) printf 'rofi' ;;
+            pacman:kitty|apt:kitty|dnf:kitty) printf 'kitty' ;;
+            pacman:hyprlock|apt:hyprlock|dnf:hyprlock) printf 'hyprlock' ;;
+            pacman:swaync|apt:swaync|dnf:swaync) printf 'swaync' ;;
+            pacman:playerctl|apt:playerctl|dnf:playerctl) printf 'playerctl' ;;
+            pacman:cava|apt:cava|dnf:cava) printf 'cava' ;;
+            pacman:pipewire|apt:pipewire|dnf:pipewire) printf 'pipewire' ;;
+            pacman:wireplumber|apt:wireplumber|dnf:wireplumber) printf 'wireplumber' ;;
+            pacman:xdg-desktop-portal-hyprland|apt:xdg-desktop-portal-hyprland|dnf:xdg-desktop-portal-hyprland) printf 'xdg-desktop-portal-hyprland' ;;
+            pacman:git|apt:git|dnf:git) printf 'git' ;;
+            pacman:bash|apt:bash|dnf:bash) printf 'bash' ;;
+            pacman:swww|apt:swww|dnf:swww) printf 'swww' ;;
+            pacman:swaybg|apt:swaybg|dnf:swaybg) printf 'swaybg' ;;
+            pacman:awww|apt:awww|dnf:awww) printf 'awww' ;;
+            pacman:brightnessctl|apt:brightnessctl|dnf:brightnessctl) printf 'brightnessctl' ;;
+            pacman:light|apt:light|dnf:light) printf 'light' ;;
+            pacman:grim|apt:grim|dnf:grim) printf 'grim' ;;
+            pacman:slurp|apt:slurp|dnf:slurp) printf 'slurp' ;;
+            pacman:wl-copy) printf 'wl-clipboard' ;;
+            apt:wl-copy|dnf:wl-copy) printf 'wl-clipboard' ;;
+            pacman:pavucontrol|apt:pavucontrol|dnf:pavucontrol) printf 'pavucontrol' ;;
+            pacman:network-manager-applet|apt:network-manager-applet|dnf:network-manager-applet) printf 'network-manager-applet' ;;
+            pacman:blueman|apt:blueman|dnf:blueman) printf 'blueman' ;;
+            pacman:jetbrainsmono-nerd) printf 'ttf-jetbrains-mono-nerd' ;;
+            apt:jetbrainsmono-nerd) printf 'fonts-jetbrains-mono' ;;
+            dnf:jetbrainsmono-nerd) printf 'jetbrains-mono-fonts' ;;
+            *) printf '' ;;
+        esac
+    }
+
+    add_missing_req() {
+        key=$1
+        label=$2
+        pkg=$(pkg_name "$key")
+        if [ -n "$pkg" ]; then
+            missing_req+=("$pkg")
+            install_pkgs+=("$pkg")
+        else
+            missing_req_labels+=("$label")
+        fi
+    }
+
+    add_missing_opt() {
+        key=$1
+        label=$2
+        pkg=$(pkg_name "$key")
+        if [ -n "$pkg" ]; then
+            missing_opt+=("$pkg")
+            install_pkgs+=("$pkg")
+        else
+            missing_opt_labels+=("$label")
+        fi
+    }
+
+    for cmd in waybar rofi kitty hyprlock swaync playerctl cava pipewire wireplumber git bash; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            missing_opt+=("${pkg_map[$cmd]}")
+            add_missing_req "$cmd" "$cmd"
         fi
     done
 
-    if [ ${#missing_req[@]} -eq 0 ] && [ ${#missing_opt[@]} -eq 0 ]; then
+    if [ ! -f "/usr/lib/xdg-desktop-portal-hyprland" ] && ! command -v xdg-desktop-portal-hyprland >/dev/null 2>&1; then
+        add_missing_req "xdg-desktop-portal-hyprland" "xdg-desktop-portal-hyprland"
+    fi
+
+    if ! command -v swaybg >/dev/null 2>&1 && ! command -v swww >/dev/null 2>&1 && ! command -v awww >/dev/null 2>&1; then
+        add_missing_req "awww" "awww or swww or swaybg"
+    fi
+
+    if ! command -v brightnessctl >/dev/null 2>&1 && ! command -v light >/dev/null 2>&1; then
+        add_missing_opt "brightnessctl" "brightnessctl or light"
+    fi
+
+    for cmd in grim slurp wl-copy pavucontrol nm-applet blueman-manager; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            case "$cmd" in
+                nm-applet) add_missing_opt "network-manager-applet" "network-manager-applet" ;;
+                blueman-manager) add_missing_opt "blueman" "blueman" ;;
+                *) add_missing_opt "$cmd" "$cmd" ;;
+            esac
+        fi
+    done
+
+    if command -v fc-list >/dev/null 2>&1; then
+        if ! fc-list | grep -qi 'jetbrainsmono nerd'; then
+            add_missing_opt "jetbrainsmono-nerd" "JetBrainsMono Nerd Font"
+        fi
+    else
+        add_missing_opt "jetbrainsmono-nerd" "JetBrainsMono Nerd Font"
+    fi
+
+    if [ ${#missing_req[@]} -eq 0 ] && [ ${#missing_opt[@]} -eq 0 ] && [ ${#missing_req_labels[@]} -eq 0 ] && [ ${#missing_opt_labels[@]} -eq 0 ]; then
         return
     fi
 
     printf '\n\033[1;36m=== Dependency Check ===\033[0m\n'
-    
     if [ ${#missing_req[@]} -gt 0 ]; then
-        printf '\033[1;31mMissing Required:\033[0m %s\n' "${missing_req[*]}"
+        printf '\033[1;31mMissing Required Packages:\033[0m %s\n' "${missing_req[*]}"
     fi
-    
+    if [ ${#missing_req_labels[@]} -gt 0 ]; then
+        printf '\033[1;31mMissing Required (manual names):\033[0m %s\n' "${missing_req_labels[*]}"
+    fi
     if [ ${#missing_opt[@]} -gt 0 ]; then
-        printf '\033[1;33mMissing Optional:\033[0m %s\n' "${missing_opt[*]}"
+        printf '\033[1;33mMissing Recommended Packages:\033[0m %s\n' "${missing_opt[*]}"
+    fi
+    if [ ${#missing_opt_labels[@]} -gt 0 ]; then
+        printf '\033[1;33mMissing Recommended (manual names):\033[0m %s\n' "${missing_opt_labels[*]}"
     fi
 
-    if command -v pacman >/dev/null 2>&1; then
-        printf '\nDetecting Arch-based system (pacman). Install missing dependencies? [Y/n] '
-        read -r confirm
-        case $confirm in
-            [nN]*) 
-                if [ ${#missing_req[@]} -gt 0 ]; then
-                    printf 'Required dependencies missing. Exit.\n'
-                    exit 1
-                fi
+    if [ -n "$PKG_MANAGER" ] && [ ${#install_pkgs[@]} -gt 0 ]; then
+        uniq_pkgs=($(printf '%s\n' "${install_pkgs[@]}" | sort -u))
+        printf '\nInstalling detected required/recommended dependencies...\n'
+        case "$PKG_MANAGER" in
+            pacman)
+                sudo pacman -S --needed --noconfirm "${uniq_pkgs[@]}"
                 ;;
-            *)
-                printf 'Installing dependencies...\n'
-                sudo pacman -S --needed --noconfirm "${missing_req[@]}" "${missing_opt[@]}"
+            apt)
+                sudo apt-get update
+                sudo apt-get install -y "${uniq_pkgs[@]}"
+                ;;
+            dnf)
+                sudo dnf install -y "${uniq_pkgs[@]}"
                 ;;
         esac
+    elif [ ${#missing_req[@]} -gt 0 ] || [ ${#missing_req_labels[@]} -gt 0 ]; then
+        printf '\n\033[1;31mRequired dependencies are still missing. Install them manually and rerun installer.\033[0m\n'
+        exit 1
     else
-        printf '\n\033[1;33mPlease install missing dependencies manually.\033[0m\n'
-        if [ ${#missing_req[@]} -gt 0 ]; then
-            printf 'Continue anyway? [y/N] '
-            read -r confirm
-            case $confirm in
-                [yY]*) ;;
-                *) exit 1 ;;
-            esac
-        fi
+        printf '\n\033[1;33mNo supported package manager detected. Install recommended packages manually if needed.\033[0m\n'
     fi
 }
 
