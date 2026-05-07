@@ -308,53 +308,10 @@ setup_zsh() {
         return
     fi
 
-    printf '\n\033[1;36m=== Zsh Theme Selection ===\033[0m\n'
-    printf 'Select a theme for your terminal:\n\n'
+    printf '\n\033[1;36m=== Zsh Setup ===\033[0m\n'
+    printf 'Configuring terminal with default theme: Powerlevel10k\n'
+    SELECTED_THEME="powerlevel10k"
 
-    themes=(
-        "powerlevel10k:Powerlevel10k (Popular, feature-rich, icons)"
-        "robbyrussell:Robbyrussell (Default, clean)"
-        "agnoster:Agnoster (Segments, needs powerline fonts)"
-        "YS:YS (Minimal, good colors)"
-        "lambda:Lambda (Minimal, git info)"
-        "minimal:Minimal (Ultra clean)"
-        "pi:Pi (Japanese style)"
-        "avit:Avit (Compact, shows time)"
-        "kennethreitz:Kenneth Reitz (Python dev)"
-        "fishy:Fishy (Fish shell style)"
-        "steeef:steeef (Green, git-aware)"
-        "candy:Candy (Colorful)"
-        "wedisagree:We disagree (Dark theme)"
-        "sunaku:Sunaku (Clean, patched)"
-        "smt:SMT (Simple)"
-        "frisk:Frisk (Pastel)"
-        "sorin:Sorin (Clean)"
-        "emotty:Emotty (Emoji-based)"
-        "gallois:Gallois (French)"
-    )
-
-    for i in "${!themes[@]}"; do
-        idx=$((i + 1))
-        desc="${themes[$i]#*:}"
-        printf '  \033[1;33m%2d\033[0m. %s\n' "$idx" "$desc"
-    done
-
-    printf '\n  \033[1;33m20\033[0m. Skip zsh setup\n'
-    printf '\nEnter selection [1-20] (default: 1): '
-    read -r choice
-
-    choice=${choice:-1}
-
-    case $choice in
-        20|[Nn]*) printf 'Skipping zsh setup.\n'; return ;;
-        *)
-            if ! printf '%s\n' "$choice" | grep -qE '^[0-9]+$' || [ "$choice" -lt 1 ] || [ "$choice" -gt 19 ]; then
-                printf 'Invalid selection. Using default (Powerlevel10k).\n'
-                choice=1
-            fi
-            SELECTED_THEME="${themes[$((choice - 1))]%%:*}"
-            ;;
-    esac
 
     mkdir -p "$ZSH_DIR/custom/themes"
     mkdir -p "$ZSH_DIR/plugins"
