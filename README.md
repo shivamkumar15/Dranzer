@@ -66,6 +66,12 @@ chmod +x install.sh
 
 This installs the configuration files and applies the selected theme immediately.
 
+If you prefer to skip dependency checks and package installation:
+
+```bash
+./install.sh --no-deps
+```
+
 ### Install a specific theme only
 
 ```bash

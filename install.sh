@@ -16,6 +16,7 @@ BACKUP_ROOT="$STATE_HOME/bitbeast-installer/backups/$(date +%Y%m%d-%H%M%S)"
 BACKUPS_CREATED=0
 APPLY_RUNTIME=0
 FORCE=0
+SKIP_DEPS=0
 DEFAULT_THEME=$(sed -n '1p' "$REPO_DIR/.config/bitbeast/current.theme")
 THEME_NAME=${DEFAULT_THEME:-dranzer}
 WALLPAPER_SRC_FILES="
@@ -184,12 +185,13 @@ check_dependencies() {
 
 usage() {
     cat <<EOF
-Usage: ./install.sh [--theme <name>] [--apply] [--force]
+Usage: ./install.sh [--theme <name>] [--apply] [--force] [--no-deps]
 
 Options:
   --theme <name>  Install and activate a specific BitBeast theme.
   --apply         Reload live desktop components after install.
   --force         Overwrite existing files without creating backups.
+  --no-deps       Skip dependency checks and auto-install.
   -h, --help      Show this help message.
 EOF
 }
@@ -275,6 +277,10 @@ while [ $# -gt 0 ]; do
             FORCE=1
             shift
             ;;
+        --no-deps)
+            SKIP_DEPS=1
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -287,7 +293,11 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-check_dependencies
+if [ "$SKIP_DEPS" -eq 1 ]; then
+    printf '\n\033[1;33mSkipping dependency checks (--no-deps).\033[0m\n'
+else
+    check_dependencies
+fi
 
 setup_zsh() {
     ZSH_DIR="$HOME/.oh-my-zsh"
