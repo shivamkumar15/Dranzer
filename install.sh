@@ -423,6 +423,7 @@ install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config
 install_file "$REPO_DIR/.config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
 install_file "$REPO_DIR/.config/rofi/config.rasi" "$CONFIG_HOME/rofi/config.rasi"
 install_dir "$REPO_DIR/.config/swaync" "$CONFIG_HOME/swaync"
+install_dir "$REPO_DIR/.config/fastfetch" "$CONFIG_HOME/fastfetch"
 install_dir "$REPO_DIR/web-wallpaper-selector" "$DATA_HOME/bitbeast/web-wallpaper-selector"
 install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
 install_file "$REPO_DIR/.local/bin/bitbeast-battery" "$BIN_DIR/bitbeast-battery"
