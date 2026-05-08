@@ -151,6 +151,52 @@ List installed themes:
 bitbeast list
 ```
 
+## Cybr Waybar profile (optional)
+
+This repo can also run a separate Cybr Waybar profile from:
+
+- `~/.config/waybar-cybr/`
+
+It is isolated from your default Waybar config in `~/.config/waybar/`.
+
+### Launch Cybr Waybar manually
+
+```bash
+killall waybar; waybar -c ~/.config/waybar-cybr/config.jsonc -s ~/.config/waybar-cybr/style.css
+```
+
+### Toggle between default and Cybr bars
+
+Use:
+
+```bash
+~/.local/bin/waybar-toggle-cybr.sh
+```
+
+The toggle state is stored in:
+
+- `~/.cache/waybar-profile`
+
+### Sync Cybr colors to current wallpaper/theme
+
+Use:
+
+```bash
+~/.local/bin/waybar-cybr-sync-theme.sh
+```
+
+This script reads `~/.config/bitbeast/current.conf`, updates Cybr Waybar colors in:
+
+- `~/.config/waybar-cybr/style.css`
+- `~/.config/waybar-cybr/svg/*.svg`
+
+and then reloads Waybar.
+
+### Hyprland keybinds
+
+- `SUPER + CTRL + B`: toggle default/Cybr Waybar
+- `SUPER + CTRL + T`: re-sync Cybr colors to current theme
+
 ## Included themes
 
 - `dranzer`
