@@ -1,242 +1,137 @@
-# BitBeast Hyprland Dotfiles
+# 🐲 BitBeast Hyprland Dotfiles
 
-A modular Hyprland theme system inspired by Beyblade BitBeasts. Each theme installs into `~/.config/bitbeasts/<theme>/` and the `bitbeast` CLI switches your Hyprland, Waybar, Kitty, Rofi, Cava, and wallpaper configurations.
+A modular, premium Hyprland theme system inspired by Beyblade BitBeasts. 🚀
 
-## Prerequisites
+> [!NOTE]
+> Each theme installs into `~/.config/bitbeasts/<theme>/`. The `bitbeast` CLI dynamically switches your Hyprland, Waybar, Kitty, Rofi, Cava, Fastfetch, and wallpaper configurations with a single command.
 
-### Required packages
-The installer now auto-installs missing dependencies when a supported package manager is found (`pacman`, `apt`, `dnf`). You can still install these manually before running it:
+---
 
-- `waybar`
-- `rofi`
-- `kitty`
-- `hyprlock`
-- `swaync`
-- `playerctl`
-- `cava`
-- `awww` or `swww` or `swaybg` (at least one wallpaper backend, `awww` recommended)
-- `pipewire`
-- `wireplumber`
-- `xdg-desktop-portal-hyprland` (required for screen sharing)
-- `git`
-- `bash` or another POSIX shell
-- A Wayland compositor such as `Hyprland`
+## 🛠️ Prerequisites
 
-### Recommended packages
+The installer automatically detects and installs missing dependencies for `pacman`, `apt`, and `dnf`. However, you can ensure they are present beforehand:
 
-These packages are recommended and the installer will also try to install them:
+### Required Core
+- **Compositor**: `Hyprland`
+- **Bar**: `waybar`
+- **App Launcher**: `rofi`
+- **Terminal**: `kitty`
+- **Lockscreen**: `hyprlock`
+- **Notifications**: `swaync`
+- **Wallpapers**: `swww` (Recommended), `awww`, or `swaybg`
+- **System Info**: `fastfetch`
+- **Other**: `git`, `bash`, `playerctl`, `cava`, `pipewire`, `wireplumber`
 
-- `brightnessctl` or `light`
-- `wpctl`
-- `grim`
-- `slurp`
-- `wl-copy`
-- `pavucontrol`
-- `network-manager-applet`
-- `blueman`
+### Recommended Extras
+- `brightnessctl` (Backlight control)
+- `grim` & `slurp` (Screenshots)
+- `pavucontrol` (Audio control)
+- `network-manager-applet` & `blueman` (System tray)
 
-### Fonts
+### 🔡 Fonts
+You **must** install a Nerd Font for icons to render correctly.
+- **JetBrainsMono Nerd Font** (`ttf-jetbrains-mono-nerd`)
 
-Install a Nerd Font so Waybar and Rofi display icons correctly:
+---
 
-- JetBrainsMono Nerd Font (`ttf-jetbrains-mono-nerd` or similar)
+## 🚀 Installation Guide
 
-If you see rectangles like `[]`, the Nerd Font is missing.
+Follow these steps to get BitBeast running on your system:
 
-## Installation
-
-1. Clone the repository:
-
+### 1️⃣ Clone the Repository
+Open your terminal and clone the repository:
 ```bash
 git clone https://github.com/shivamkumar15/Dranzer.git
 cd Dranzer
 ```
 
-2. Make the installer executable:
-
+### 2️⃣ Make the Installer Executable
+Grant execute permissions to the setup script:
 ```bash
 chmod +x install.sh
 ```
 
-3. Run the installer:
-
+### 3️⃣ Run the Setup
+Run the installer. We recommend using the `--apply` flag to set everything up immediately:
 ```bash
 ./install.sh --apply
 ```
 
-This installs the configuration files and applies the selected theme immediately.
+> [!TIP]
+> **Advanced Options:**
+> - `--no-deps`: Skip dependency checks if you prefer manual management.
+> - `--force`: Overwrite existing configs (backups will still be created).
+> - `--theme <name>`: Install and activate a specific theme (e.g., `dragoon`).
 
-If you prefer to skip dependency checks and package installation:
+---
 
-```bash
-./install.sh --no-deps
-```
+## 🏁 Post-Installation
 
-### Install a specific theme only
+### 📍 Add Binaries to PATH
+The `bitbeast` CLI is installed to `~/.local/bin`. Ensure this directory is in your `$PATH`.
 
-```bash
-./install.sh --theme dragoon
-```
-
-### Force overwrite existing files
-
-```bash
-./install.sh --force --apply
-```
-
-## What the installer does
-
-- Copies theme folders from `.config/bitbeasts/` into `~/.config/bitbeasts/`
-- Copies wallpapers into `~/.local/share/bitbeast/wallpapers/`
-- Copies Hyprland and Hyprlock configuration into `~/.config/hypr/`
-- Copies Waybar config into `~/.config/waybar/`
-- Copies Kitty config into `~/.config/kitty/`
-- Copies Rofi config into `~/.config/rofi/`
-- Copies Swaync config into `~/.config/swaync/`
-- Installs CLI scripts into `~/.local/bin/`
-- Writes current theme/style state into `~/.config/bitbeast/`
-
-## Required environment setup
-
-### Add `~/.local/bin` to your PATH
-
-If `bitbeast` is not found after install, add this to your shell config:
-
+Add this line to your `.bashrc` or `.zshrc`:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
-
-Then reload your shell:
-
+Then, refresh your shell:
 ```bash
-source ~/.bashrc
-# or
-source ~/.zshrc
+source ~/.bashrc # or source ~/.zshrc
 ```
 
-### Verify installation
-
-```bash
-command -v bitbeast
-bitbeast list
-```
-
-### Restart your Wayland session
-
-After installation, log out and log back in or restart your Hyprland session to ensure all config files load correctly.
-
-## Usage
-
-Apply a theme:
-
-```bash
-bitbeast dragoon
-```
-
-Pick a theme interactively:
-
-```bash
-bitbeast pick
-```
-
-Switch Waybar style:
-
-```bash
-bitbeast style <style-name>
-```
-
-List installed themes:
-
+### 🔄 First Run
+Verify the installation by listing themes:
 ```bash
 bitbeast list
 ```
 
-## Cybr Waybar profile (optional)
+---
 
-This repo can also run a separate Cybr Waybar profile from:
+## 🎮 Usage & Commands
 
-- `~/.config/waybar-cybr/`
+The `bitbeast` command is your main tool for managing themes.
 
-It is isolated from your default Waybar config in `~/.config/waybar/`.
+| Command | Description |
+| :--- | :--- |
+| `bitbeast <theme>` | Apply a specific theme (e.g., `bitbeast dranzer`) |
+| `bitbeast pick` | Open an interactive Rofi menu to pick a theme |
+| `bitbeast style <name>` | Switch Waybar style (e.g., `bitbeast style glassy`) |
+| `bitbeast list` | List all installed themes |
 
-### Launch Cybr Waybar manually
-
+### ✨ Fastfetch
+The configuration includes a custom Fastfetch layout with BitBeast logos. Run it simply with:
 ```bash
-killall waybar; waybar -c ~/.config/waybar-cybr/config.jsonc -s ~/.config/waybar-cybr/style.css
+fastfetch
 ```
 
-### Toggle between default and Cybr bars
+---
 
-Use:
+## 🎨 Included Themes
 
-```bash
-~/.local/bin/waybar-toggle-cybr.sh
-```
+| Theme | Vibe |
+| :--- | :--- |
+| **Dranzer** | 🔥 Phoenix Red |
+| **Dragoon** | 🌀 Storm Blue |
+| **Driger** | ⚡ White Tiger |
+| **Draciel** | 🛡️ Shield Green |
+| **Galeon** | 🌑 Dark Purple |
+| **BurningCerbrus** | 🌋 Molten Orange |
 
-The toggle state is stored in:
+---
 
-- `~/.cache/waybar-profile`
+## 📂 Backups
+Don't worry about your current configs! The installer automatically creates backups here:
+`~/.local/state/bitbeast-installer/backups/<timestamp>/`
 
-### Sync Cybr colors to current wallpaper/theme
+---
 
-Use:
+## 🔧 Troubleshooting
 
-```bash
-~/.local/bin/waybar-cybr-sync-theme.sh
-```
+- **Icons are squares**: You forgot to install a Nerd Font!
+- **`bitbeast` command not found**: Check your `$PATH` (see Post-Installation).
+- **Wallpaper not changing**: Ensure `swww` or `awww` is installed and running.
+- **Audio visualizer (Cava) empty**: Check your `~/.config/cava/config` for the correct audio source.
 
-This script reads `~/.config/bitbeast/current.conf`, updates Cybr Waybar colors in:
+---
 
-- `~/.config/waybar-cybr/style.css`
-- `~/.config/waybar-cybr/svg/*.svg`
-
-and then reloads Waybar.
-
-### Hyprland keybinds
-
-- `SUPER + CTRL + B`: toggle default/Cybr Waybar
-- `SUPER + CTRL + T`: re-sync Cybr colors to current theme
-
-## Included themes
-
-- `dranzer`
-- `dragoon`
-- `driger`
-- `draciel`
-- `galeon`
-- `burningcerbrus`
-
-## Backups
-
-If existing files are overwritten, backups are stored under:
-
-- `~/.local/state/bitbeast-installer/backups/<timestamp>/`
-
-## Troubleshooting
-
-- If `bitbeast` is not found: ensure `~/.local/bin` is in your `$PATH`
-- If a theme fails: verify that required tools are installed and the wallpaper backend (`awww`, `swww` or `swaybg`) exists
-- If icons are missing: install a Nerd Font
-- If audio isn't detected: check that your audio source is set correctly in Cava config
-
-## Adding a new BitBeast
-
-1. Copy an existing theme folder from `~/.config/bitbeasts/`
-2. Rename it to the new theme name
-3. Update config files:
-   - `colors.conf`
-   - `hyprland.conf`
-   - `waybar.css`
-   - `kitty.conf`
-   - `rofi.rasi`
-   - `cava.conf`
-   - `wallpaper.conf`
-4. Add the wallpaper image to the repo root
-5. Set `wallpaper.conf` to `@wallpapers/<image-name>`
-6. Run:
-
-```bash
-bitbeast <new-theme>
-```
-
-No script changes are required as long as the folder structure remains consistent.
+Built with ❤️ by [shivamkumar15](https://github.com/shivamkumar15)
