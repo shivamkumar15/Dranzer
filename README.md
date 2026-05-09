@@ -1,13 +1,13 @@
-# 🐲 BitBeast Hyprland Dotfiles
+# BitBeast Hyprland Dotfiles
 
-A modular, premium Hyprland theme system inspired by Beyblade BitBeasts. 🚀
+A modular, premium Hyprland theme system inspired by Beyblade BitBeasts.
 
 > [!NOTE]
 > Each theme installs into `~/.config/bitbeasts/<theme>/`. The `bitbeast` CLI dynamically switches your Hyprland, Waybar, Kitty, Rofi, Cava, Fastfetch, and wallpaper configurations with a single command.
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 The installer automatically detects and installs missing dependencies for `pacman`, `apt`, and `dnf`. However, you can ensure they are present beforehand:
 
@@ -28,30 +28,30 @@ The installer automatically detects and installs missing dependencies for `pacma
 - `pavucontrol` (Audio control)
 - `network-manager-applet` & `blueman` (System tray)
 
-### 🔡 Fonts
+### Fonts
 You **must** install a Nerd Font for icons to render correctly.
 - **JetBrainsMono Nerd Font** (`ttf-jetbrains-mono-nerd`)
 
 ---
 
-## 🚀 Installation Guide
+## Installation Guide
 
 Follow these steps to get BitBeast running on your system:
 
-### 1️⃣ Clone the Repository
+### 1. Clone the Repository
 Open your terminal and clone the repository:
 ```bash
 git clone https://github.com/shivamkumar15/Dranzer.git
 cd Dranzer
 ```
 
-### 2️⃣ Make the Installer Executable
+### 2. Make the Installer Executable
 Grant execute permissions to the setup script:
 ```bash
 chmod +x install.sh
 ```
 
-### 3️⃣ Run the Setup
+### 3. Run the Setup
 Run the installer. We recommend using the `--apply` flag to set everything up immediately:
 ```bash
 ./install.sh --apply
@@ -65,9 +65,9 @@ Run the installer. We recommend using the `--apply` flag to set everything up im
 
 ---
 
-## 🏁 Post-Installation
+## Post-Installation
 
-### 📍 Add Binaries to PATH
+### Add Binaries to PATH
 The `bitbeast` CLI is installed to `~/.local/bin`. Ensure this directory is in your `$PATH`.
 
 Add this line to your `.bashrc` or `.zshrc`:
@@ -79,7 +79,7 @@ Then, refresh your shell:
 source ~/.bashrc # or source ~/.zshrc
 ```
 
-### 🔄 First Run
+### First Run
 Verify the installation by listing themes:
 ```bash
 bitbeast list
@@ -87,7 +87,7 @@ bitbeast list
 
 ---
 
-## 🎮 Usage & Commands
+## Usage & Commands
 
 The `bitbeast` command is your main tool for managing themes.
 
@@ -98,7 +98,7 @@ The `bitbeast` command is your main tool for managing themes.
 | `bitbeast style <name>` | Switch Waybar style (e.g., `bitbeast style glassy`) |
 | `bitbeast list` | List all installed themes |
 
-### ✨ Fastfetch
+### Fastfetch
 The configuration includes a custom Fastfetch layout with BitBeast logos. Run it simply with:
 ```bash
 fastfetch
@@ -106,26 +106,26 @@ fastfetch
 
 ---
 
-## 🎨 Included Themes
+## Included Themes
 
 | Theme | Vibe |
 | :--- | :--- |
-| **Dranzer** | 🔥 Phoenix Red |
-| **Dragoon** | 🌀 Storm Blue |
-| **Driger** | ⚡ White Tiger |
-| **Draciel** | 🛡️ Shield Green |
-| **Galeon** | 🌑 Dark Purple |
-| **BurningCerbrus** | 🌋 Molten Orange |
+| **Dranzer** | Phoenix Red |
+| **Dragoon** | Storm Blue |
+| **Driger** | White Tiger |
+| **Draciel** | Shield Green |
+| **Galeon** | Dark Purple |
+| **BurningCerbrus** | Molten Orange |
 
 ---
 
-## 📂 Backups
+## Backups
 Don't worry about your current configs! The installer automatically creates backups here:
 `~/.local/state/bitbeast-installer/backups/<timestamp>/`
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 - **Icons are squares**: You forgot to install a Nerd Font!
 - **`bitbeast` command not found**: Check your `$PATH` (see Post-Installation).
@@ -134,4 +134,4 @@ Don't worry about your current configs! The installer automatically creates back
 
 ---
 
-Built with ❤️ by [shivamkumar15](https://github.com/shivamkumar15)
+Built by [shivamkumar15](https://github.com/shivamkumar15)
