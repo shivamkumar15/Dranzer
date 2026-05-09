@@ -356,7 +356,7 @@ export ZSH="\$HOME/.oh-my-zsh"
 
 ZSH_THEME="$SELECTED_THEME/$SELECTED_THEME"
 
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting colors emotty emoji)
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting emotty emoji)
 
 # Enable Powerlevel10k instant prompt
 if [[ -r "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh" ]]; then
@@ -366,6 +366,11 @@ fi
 source \$ZSH/oh-my-zsh.sh
 
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# Run fastfetch on terminal startup (once the shell is ready)
+autoload -Uz add-zsh-hook
+# Run fastfetch on terminal startup
+sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
 EOF
 
         cat > "$HOME/.p10k.zsh" << 'EOF'
@@ -391,9 +396,14 @@ export ZSH="\$HOME/.oh-my-zsh"
 
 ZSH_THEME="$SELECTED_THEME"
 
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting colors emotty emoji)
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting emotty emoji)
 
 source \$ZSH/oh-my-zsh.sh
+
+# Run fastfetch on terminal startup (once the shell is ready)
+autoload -Uz add-zsh-hook
+# Run fastfetch on terminal startup
+sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
 EOF
     fi
 
