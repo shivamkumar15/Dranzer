@@ -22,11 +22,7 @@ The installer automatically detects and installs missing dependencies for `pacma
 - **System Info**: `fastfetch`
 - **Other**: `git`, `bash`, `playerctl`, `cava`, `pipewire`, `wireplumber`
 
-### Recommended Extras
-- `brightnessctl` (Backlight control)
-- `grim` & `slurp` (Screenshots)
-- `pavucontrol` (Audio control)
-- `network-manager-applet` & `blueman` (System tray)
+
 
 ### Fonts
 You **must** install a Nerd Font for icons to render correctly.
