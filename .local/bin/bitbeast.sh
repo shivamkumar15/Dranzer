@@ -27,6 +27,7 @@ WAYBAR_DIR="$CONFIG_HOME/waybar"
 KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
+FASTFETCH_CONFIG="$CONFIG_HOME/fastfetch/config.jsonc"
 DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-hud}"
 
 usage() {
@@ -344,6 +345,17 @@ fallback_wallpaper_path() {
     wallpaper_path="$WALLPAPER_DIR/$wallpaper_name"
     [ -f "$wallpaper_path" ] || return 1
     printf '%s\n' "$wallpaper_path"
+}
+
+sync_fastfetch_logo() {
+    wallpaper_path=$1
+
+    [ -n "$wallpaper_path" ] || return 0
+    [ -f "$wallpaper_path" ] || return 0
+    [ -f "$FASTFETCH_CONFIG" ] || return 0
+
+    escaped_wallpaper_path=$(printf '%s\n' "$wallpaper_path" | sed 's/[\\/&]/\\\\&/g')
+    sed -i "0,/\"source\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/s//\"source\": \"$escaped_wallpaper_path\"/" "$FASTFETCH_CONFIG"
 }
 
 ensure_swww_daemon() {
@@ -855,6 +867,7 @@ activate_theme() {
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
 
     printf 'wallpaper="%s"\n' "$wallpaper_path" > "$STATE_DIR/wallpaper.conf"
+    sync_fastfetch_logo "$wallpaper_path"
     ensure_waybar_style || warn 'failed to sync Waybar style.'
 
     if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
@@ -985,6 +998,8 @@ session_init() {
 
     ensure_waybar_style || true
     restore_wallpaper || true
+    wallpaper_path=$(saved_wallpaper_path || fallback_wallpaper_path || echo "")
+    sync_fastfetch_logo "$wallpaper_path"
     restart_waybar || true
     start_clipboard_watchers || true
 
