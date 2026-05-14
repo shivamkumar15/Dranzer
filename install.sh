@@ -302,6 +302,7 @@ fi
 setup_zsh() {
     ZSH_DIR="$HOME/.oh-my-zsh"
     ZSHRC="$HOME/.zshrc"
+    ZSH_HISTORY_FILE="$HOME/.zsh_history"
 
     if [ ! -d "$ZSH_DIR" ]; then
         printf '\033[1;33m⚠ Oh My Zsh not found. Skipping zsh setup.\033[0m\n'
@@ -311,6 +312,18 @@ setup_zsh() {
     printf '\n\033[1;36m=== Zsh Setup ===\033[0m\n'
     printf 'Configuring terminal with default theme: Powerlevel10k\n'
     SELECTED_THEME="powerlevel10k"
+
+    if [ -f "$ZSH_HISTORY_FILE" ] && LC_ALL=C grep -q $'\000' "$ZSH_HISTORY_FILE"; then
+        printf 'Detected corrupted zsh history. Recovering printable entries...\n'
+        cp "$ZSH_HISTORY_FILE" "$ZSH_HISTORY_FILE.corrupt.$(date +%Y%m%d-%H%M%S)"
+        strings "$ZSH_HISTORY_FILE" > "$ZSH_HISTORY_FILE.recovered"
+        mv "$ZSH_HISTORY_FILE.recovered" "$ZSH_HISTORY_FILE"
+    fi
+
+    if [ ! -e "$ZSH_HISTORY_FILE" ]; then
+        touch "$ZSH_HISTORY_FILE"
+    fi
+    chmod 600 "$ZSH_HISTORY_FILE" 2>/dev/null || true
 
 
     mkdir -p "$ZSH_DIR/custom/themes"
@@ -367,6 +380,22 @@ source \$ZSH/oh-my-zsh.sh
 
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
+HISTFILE=~/.zsh_history
+HISTSIZE=100000
+SAVEHIST=100000
+
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+setopt HIST_FCNTL_LOCK
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_REDUCE_BLANKS
+unsetopt SHARE_HISTORY
+
+[[ -f "\$HISTFILE" ]] || touch "\$HISTFILE"
+chmod 600 "\$HISTFILE" 2>/dev/null || true
+
 # Run fastfetch on terminal startup (once the shell is ready)
 autoload -Uz add-zsh-hook
 # Run fastfetch on terminal startup
@@ -399,6 +428,22 @@ ZSH_THEME="$SELECTED_THEME"
 plugins=(git zsh-autosuggestions zsh-syntax-highlighting emotty emoji)
 
 source \$ZSH/oh-my-zsh.sh
+
+HISTFILE=~/.zsh_history
+HISTSIZE=100000
+SAVEHIST=100000
+
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+setopt HIST_FCNTL_LOCK
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_REDUCE_BLANKS
+unsetopt SHARE_HISTORY
+
+[[ -f "\$HISTFILE" ]] || touch "\$HISTFILE"
+chmod 600 "\$HISTFILE" 2>/dev/null || true
 
 # Run fastfetch on terminal startup (once the shell is ready)
 autoload -Uz add-zsh-hook

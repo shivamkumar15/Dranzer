@@ -354,8 +354,8 @@ sync_fastfetch_logo() {
     [ -f "$wallpaper_path" ] || return 0
     [ -f "$FASTFETCH_CONFIG" ] || return 0
 
-    escaped_wallpaper_path=$(printf '%s\n' "$wallpaper_path" | sed 's/[\\/&]/\\\\&/g')
-    sed -i "0,/\"source\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/s//\"source\": \"$escaped_wallpaper_path\"/" "$FASTFETCH_CONFIG"
+    escaped_wallpaper_path=$(printf '%s\n' "$wallpaper_path" | sed 's/[&|]/\\&/g')
+    sed -i "0,/\"source\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/s||\"source\": \"$escaped_wallpaper_path\"|" "$FASTFETCH_CONFIG"
 }
 
 ensure_swww_daemon() {

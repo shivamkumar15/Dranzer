@@ -127,6 +127,7 @@ Don't worry about your current configs! The installer automatically creates back
 - **`bitbeast` command not found**: Check your `$PATH` (see Post-Installation).
 - **Wallpaper not changing**: Ensure `swww` or `awww` is installed and running.
 - **Audio visualizer (Cava) empty**: Check your `~/.config/cava/config` for the correct audio source.
+- **`zsh: corrupt history file`**: Re-run `./install.sh`; it now auto-recovers printable history entries and enables safer history locking.
 
 ---
 
