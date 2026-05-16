@@ -1,0 +1,85 @@
+* {
+    bg: #100d16cc;
+    bg-alt: #2d2d3fcc;
+    primary: #af91ea;
+    accent: #f0b43c;
+    text: #f7eeff;
+    muted: #f7eeff99;
+    border: 2px;
+    font: "JetBrainsMono Nerd Font 11";
+    background-color: transparent;
+}
+
+window {
+    fullscreen: true;
+    padding: 100px;
+    background-color: @bg;
+}
+
+mainbox {
+    children: [ inputbar, listview ];
+    spacing: 30px;
+}
+
+inputbar {
+    children: [ prompt, entry ];
+    spacing: 12px;
+    padding: 14px 18px;
+    border-radius: 999px;
+    background-color: @bg-alt;
+    text-color: @text;
+    margin: 0px 30%;
+    border: @border;
+    border-color: #ffb4e6; /* Pink border like in the screenshot */
+}
+
+prompt {
+    enabled: false;
+}
+
+entry {
+    placeholder: "Type to search";
+    placeholder-color: @muted;
+    text-color: @text;
+    horizontal-align: 0.5; /* center the text */
+}
+
+listview {
+    columns: 5;
+    lines: 2;
+    spacing: 20px;
+    layout: vertical;
+    flow: horizontal;
+    fixed-columns: true;
+    border: 0px;
+    scrollbar: false;
+}
+
+element {
+    orientation: vertical;
+    padding: 10px;
+    border-radius: 16px;
+    background-color: @bg-alt;
+    border: 1px;
+    border-color: @muted;
+}
+
+element selected {
+    border-color: #ffb4e6; /* Pink border on selected */
+    background-color: #2d2d3fff;
+}
+
+element-icon {
+    size: 250px;
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    background-color: transparent;
+}
+
+element-text {
+    text-color: @text;
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    background-color: transparent;
+    padding: 10px 0px 0px 0px;
+}
