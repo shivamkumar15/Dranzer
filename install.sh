@@ -490,8 +490,9 @@ install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
 install_file "$REPO_DIR/.local/bin/bitbeast-sysinfo" "$BIN_DIR/bitbeast-sysinfo"
 install_file "$REPO_DIR/.local/bin/bitbeast-wallpaper-selector" "$BIN_DIR/bitbeast-wallpaper-selector"
 install_file "$REPO_DIR/.local/bin/bitbeast-workspaces" "$BIN_DIR/bitbeast-workspaces"
+install_file "$REPO_DIR/.local/bin/bongocat" "$BIN_DIR/bongocat"
 install_file "$REPO_DIR/.local/bin/circular_cava.py" "$BIN_DIR/circular_cava.py"
-chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py"
+chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/bongocat"
 
 if [ "$APPLY_RUNTIME" -eq 1 ]; then
     "$BIN_DIR/bitbeast" "$THEME_NAME"
