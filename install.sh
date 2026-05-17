@@ -396,6 +396,10 @@ unsetopt SHARE_HISTORY
 [[ -f "\$HISTFILE" ]] || touch "\$HISTFILE"
 chmod 600 "\$HISTFILE" 2>/dev/null || true
 
+# Run fastfetch on terminal startup (once the shell is ready)
+autoload -Uz add-zsh-hook
+# Run fastfetch on terminal startup
+sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
 EOF
 
         cat > "$HOME/.p10k.zsh" << 'EOF'
@@ -441,6 +445,10 @@ unsetopt SHARE_HISTORY
 [[ -f "\$HISTFILE" ]] || touch "\$HISTFILE"
 chmod 600 "\$HISTFILE" 2>/dev/null || true
 
+# Run fastfetch on terminal startup (once the shell is ready)
+autoload -Uz add-zsh-hook
+# Run fastfetch on terminal startup
+sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
 EOF
     fi
 
