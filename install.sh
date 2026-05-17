@@ -496,9 +496,21 @@ chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py"
 if [ -f "$REPO_DIR/.local/bin/bongocat" ]; then
     printf "Extracting BongoCat AppImage...\n"
     mkdir -p "$DATA_HOME/bongocat"
+    rm -rf "$DATA_HOME/bongocat/squashfs-root"
     cd "$DATA_HOME/bongocat"
     "$REPO_DIR/.local/bin/bongocat" --appimage-extract >/dev/null 2>&1
-    ln -sf "$DATA_HOME/bongocat/squashfs-root/AppRun" "$BIN_DIR/bongocat"
+    rm -f "$BIN_DIR/bongocat"
+    cat > "$BIN_DIR/bongocat" << EOF
+#!/usr/bin/env bash
+set -e
+
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+export GDK_BACKEND=x11
+export LIBGL_ALWAYS_SOFTWARE=1
+exec "$DATA_HOME/bongocat/squashfs-root/AppRun" "\$@"
+EOF
+    chmod +x "$BIN_DIR/bongocat"
     cd - >/dev/null
 fi
 
