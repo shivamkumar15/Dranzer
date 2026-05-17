@@ -399,7 +399,7 @@ chmod 600 "\$HISTFILE" 2>/dev/null || true
 # Run fastfetch on terminal startup (once the shell is ready)
 autoload -Uz add-zsh-hook
 # Run fastfetch on terminal startup
-sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
+# sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
 EOF
 
         cat > "$HOME/.p10k.zsh" << 'EOF'
@@ -448,7 +448,7 @@ chmod 600 "\$HISTFILE" 2>/dev/null || true
 # Run fastfetch on terminal startup (once the shell is ready)
 autoload -Uz add-zsh-hook
 # Run fastfetch on terminal startup
-sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
+# sleep 0.8 && fastfetch --config ~/.config/fastfetch/config.jsonc
 EOF
     fi
 
@@ -490,9 +490,17 @@ install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
 install_file "$REPO_DIR/.local/bin/bitbeast-sysinfo" "$BIN_DIR/bitbeast-sysinfo"
 install_file "$REPO_DIR/.local/bin/bitbeast-wallpaper-selector" "$BIN_DIR/bitbeast-wallpaper-selector"
 install_file "$REPO_DIR/.local/bin/bitbeast-workspaces" "$BIN_DIR/bitbeast-workspaces"
-install_file "$REPO_DIR/.local/bin/bongocat" "$BIN_DIR/bongocat"
 install_file "$REPO_DIR/.local/bin/circular_cava.py" "$BIN_DIR/circular_cava.py"
-chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/bongocat"
+chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py"
+
+if [ -f "$REPO_DIR/.local/bin/bongocat" ]; then
+    printf "Extracting BongoCat AppImage...\n"
+    mkdir -p "$DATA_HOME/bongocat"
+    cd "$DATA_HOME/bongocat"
+    "$REPO_DIR/.local/bin/bongocat" --appimage-extract >/dev/null 2>&1
+    ln -sf "$DATA_HOME/bongocat/squashfs-root/AppRun" "$BIN_DIR/bongocat"
+    cd - >/dev/null
+fi
 
 if [ "$APPLY_RUNTIME" -eq 1 ]; then
     "$BIN_DIR/bitbeast" "$THEME_NAME"
