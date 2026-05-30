@@ -49,6 +49,7 @@ Usage:
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
+  bitbeast touchpad [get|set <value>|pick]
   bitbeast visualizer
 
 Available themes:
@@ -1060,6 +1061,100 @@ set_avatar() {
     printf 'Avatar updated successfully to %s\n' "$avatar_src"
 }
 
+touchpad_control() {
+    action=$1
+    value=${2:-}
+
+    touchpad_name=""
+    if command -v hyprctl >/dev/null 2>&1; then
+        touchpad_name=$(hyprctl devices -j | jq -r '.mice[] | select(.name | contains("touchpad")) | .name' 2>/dev/null | head -n 1)
+        if [ -z "$touchpad_name" ]; then
+            touchpad_name=$(hyprctl devices | awk '/touchpad/ {print $NF; exit}' | tr -d '\t ')
+        fi
+    fi
+    [ -n "$touchpad_name" ] || touchpad_name="elan0001:00-04f3:31ad-touchpad"
+
+    touchpad_conf="$HYPR_DIR/touchpad.conf"
+
+    mkdir -p "$HYPR_DIR"
+    if [ ! -f "$touchpad_conf" ]; then
+        cat > "$touchpad_conf" <<EOF
+device {
+    name = $touchpad_name
+    sensitivity = 0.5
+}
+EOF
+    fi
+
+    current_val=$(awk -F'=' '/sensitivity/ {gsub(/[ \t]/, "", $2); print $2}' "$touchpad_conf" 2>/dev/null)
+    [ -n "$current_val" ] || current_val="0.5"
+
+    case "$action" in
+        get)
+            printf '%s\n' "$current_val"
+            ;;
+        set)
+            if [ -z "$value" ]; then
+                printf 'Usage: bitbeast touchpad set <value>\n' >&2
+                exit 1
+            fi
+            cat > "$touchpad_conf" <<EOF
+device {
+    name = $touchpad_name
+    sensitivity = $value
+}
+EOF
+            if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+                hyprctl keyword "device:$touchpad_name:sensitivity" "$value" >/dev/null 2>&1 || true
+            fi
+            printf 'Touchpad sensitivity set to %s\n' "$value"
+            ;;
+        pick)
+            if ! command -v rofi >/dev/null 2>&1; then
+                printf 'rofi is required for touchpad sensitivity menu\n' >&2
+                exit 1
+            fi
+
+            # Generate sensitivity values list
+            selection=""
+            for v in -1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.5 0.6 0.8 1.0; do
+                if [ "$v" = "$current_val" ] || { [ "$v" = "0.0" ] && { [ "$current_val" = "0" ] || [ "$current_val" = "0.00" ]; }; } || { [ "$v" = "0.5" ] && [ "$current_val" = "0.50" ]; }; then
+                    selection="${selection}${v}\t(Current)\n"
+                elif [ "$v" = "0.0" ]; then
+                    selection="${selection}${v}\t(Default)\n"
+                elif [ "$v" = "-1.0" ]; then
+                    selection="${selection}${v}\t(Slowest)\n"
+                elif [ "$v" = "1.0" ]; then
+                    selection="${selection}${v}\t(Fastest)\n"
+                else
+                    selection="${selection}${v}\n"
+                fi
+            done
+
+            choice=$(printf "$selection" | rofi -dmenu -i -p "Touchpad Sensitivity")
+            [ -n "$choice" ] || exit 0
+
+            chosen_val=$(printf '%s' "$choice" | cut -f1)
+            [ -n "$chosen_val" ] || exit 0
+
+            cat > "$touchpad_conf" <<EOF
+device {
+    name = $touchpad_name
+    sensitivity = $chosen_val
+}
+EOF
+            if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+                hyprctl keyword "device:$touchpad_name:sensitivity" "$chosen_val" >/dev/null 2>&1 || true
+                notify-send -t 1500 -a "BitBeast" "Touchpad" "Sensitivity set to $chosen_val" || true
+            fi
+            ;;
+        *)
+            printf 'Unknown action: %s. Available: get, set, pick\n' "$action" >&2
+            exit 1
+            ;;
+    esac
+}
+
 command_name=${1:-}
 
 if [ $# -eq 0 ]; then
@@ -1191,6 +1286,14 @@ EOF_COLORS
     brightness)
         [ $# -eq 2 ] || { usage; exit 1; }
         brightness_control "$2"
+        ;;
+    touchpad)
+        action=${2:-pick}
+        if [ "$action" = "set" ] && [ $# -lt 3 ]; then
+            printf 'Usage: bitbeast touchpad set <value>\n' >&2
+            exit 1
+        fi
+        touchpad_control "$action" "${3:-}"
         ;;
     visualizer)
         theme_name=$(current_theme_name || echo "dranzer")

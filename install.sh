@@ -469,6 +469,9 @@ done
 install_file "$REPO_DIR/.config/bitbeast/current.style" "$STATE_DIR/current.style"
 install_file "$REPO_DIR/.config/hypr/hyprland.conf" "$CONFIG_HOME/hypr/hyprland.conf"
 install_file "$REPO_DIR/.config/hypr/hyprlock.conf" "$CONFIG_HOME/hypr/hyprlock.conf"
+if [ ! -f "$CONFIG_HOME/hypr/touchpad.conf" ]; then
+    cp "$REPO_DIR/.config/hypr/touchpad.conf" "$CONFIG_HOME/hypr/touchpad.conf"
+fi
 install_dir "$REPO_DIR/.config/waybar/modules" "$CONFIG_HOME/waybar/modules"
 install_dir "$REPO_DIR/.config/waybar/includes" "$CONFIG_HOME/waybar/includes"
 install_file "$REPO_DIR/.config/waybar/theme.css" "$CONFIG_HOME/waybar/theme.css"
