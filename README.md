@@ -11,6 +11,7 @@ A modular, premium Hyprland theme system inspired by Beyblade BitBeasts.
 <img width="1917" height="1079" alt="2026-06-01-122830" src="https://github.com/user-attachments/assets/511198ba-2fed-492c-bfc6-729147904264" />
 <img width="1920" height="1080" alt="2026-06-01-122823" src="https://github.com/user-attachments/assets/d56d1ced-ef52-426e-bf8c-338c269c7dd7" />
 <img width="1920" height="1080" alt="2026-06-01-122814" src="https://github.com/user-attachments/assets/587a2946-fdd5-4d86-ac76-3fdb4cde9507" />
+Different bitbeast have different color theme
 
 ## Prerequisites
 
