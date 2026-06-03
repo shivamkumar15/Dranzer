@@ -27,8 +27,8 @@ WAYBAR_DIR="$CONFIG_HOME/waybar"
 KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
-FASTFETCH_CONFIG="$CONFIG_HOME/fastfetch/config.jsonc"
 DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-hud}"
+HANCORE_DIR="$WAYBAR_DIR/hancore-themes"
 
 usage() {
     cat >&2 <<EOF_USAGE
@@ -43,14 +43,23 @@ Usage:
   bitbeast current-theme
   bitbeast current-style
   bitbeast restore-wallpaper
-  bitbeast session-init
   bitbeast clipboard
   bitbeast keybindings
+  bitbeast session-init
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
-  bitbeast touchpad [get|set <value>|pick]
-  bitbeast visualizer
+  bitbeast zsh <theme-name>
+  bitbeast zsh list
+  bitbeast zsh cycle
+  bitbeast zsh pick
+  bitbeast auto-theme
+  bitbeast gradient
+  bitbeast hancore <version>
+  bitbeast hancore list
+  bitbeast hancore cycle
+  bitbeast hancore pick
+  bitbeast hancore restore
 
 Available themes:
 EOF_USAGE
@@ -60,6 +69,11 @@ EOF_USAGE
 Available Waybar styles:
 EOF_STYLES
     list_styles >&2
+    cat >&2 <<EOF_HANCORE
+
+Available HANCORE Waybar themes:
+EOF_HANCORE
+    list_hancore >&2
 }
 
 warn() {
@@ -80,6 +94,220 @@ list_styles() {
     done | LC_ALL=C sort
 }
 
+
+list_hancore() {
+    [ -d "$HANCORE_DIR" ] || return 0
+    for dir in "$HANCORE_DIR"/*; do
+        [ -d "$dir" ] || continue
+        [ -f "$dir/config.jsonc" ] && [ -f "$dir/style.css" ] || continue
+        basename "$dir"
+    done | LC_ALL=C sort -V
+}
+
+current_hancore_name() {
+    if [ -f "$STATE_DIR/current.hancore" ]; then
+        sed -n '1p' "$STATE_DIR/current.hancore"
+    fi
+}
+
+is_hancore_active() {
+    [ -f "$STATE_DIR/current.hancore" ] && [ -n "$(current_hancore_name)" ]
+}
+
+# Ensure the omarchy color-variable shim exists so hancore CSS @import works
+ensure_omarchy_shim() {
+    shim_dir="$WAYBAR_DIR/omarchy/current/theme"
+    shim_file="$shim_dir/waybar.css"
+
+    mkdir -p "$shim_dir"
+
+    # Read current BitBeast colors and map them to the @background / @foreground
+    # variables that hancore themes expect from the omarchy import.
+    colors_conf="$STATE_DIR/current.conf"
+    [ -f "$colors_conf" ] || colors_conf="$THEMES_DIR/dranzer/colors.conf"
+
+    bg_hex=$(theme_color_hex "$colors_conf" bg '#150608')
+    primary_hex=$(theme_color_hex "$colors_conf" primary '#e8450c')
+    accent_hex=$(theme_color_hex "$colors_conf" accent '#ffd166')
+    text_hex=$(theme_color_hex "$colors_conf" text '#fff1dd')
+    secondary_hex=$(theme_color_hex "$colors_conf" secondary '#7b120f')
+
+    cat > "$shim_file" <<EOF_SHIM
+/* Auto-generated omarchy shim -- maps BitBeast colors for HANCORE themes */
+@define-color background ${bg_hex};
+@define-color foreground ${text_hex};
+@define-color base ${bg_hex};
+@define-color text ${text_hex};
+@define-color bg ${bg_hex};
+@define-color fg ${text_hex};
+@define-color transparent rgba(0,0,0,0);
+@define-color muted ${secondary_hex};
+@define-color subtle ${secondary_hex};
+@define-color iris ${accent_hex};
+@define-color foam ${accent_hex};
+@define-color rose ${primary_hex};
+@define-color love ${primary_hex};
+@define-color gold ${accent_hex};
+@define-color red ${primary_hex};
+@define-color grey ${secondary_hex};
+@define-color hover_bg ${secondary_hex};
+@define-color hover_fg ${text_hex};
+@define-color border ${accent_hex};
+@define-color border-active ${accent_hex};
+@define-color border-inactive ${secondary_hex};
+@define-color border-active_ws ${accent_hex};
+@define-color border-inactive_ws ${secondary_hex};
+@define-color ia ${secondary_hex};
+@define-color rd ${primary_hex};
+@define-color cp-black ${bg_hex};
+@define-color cp-dark ${bg_hex};
+@define-color cp-cream ${text_hex};
+@define-color cp-gray ${secondary_hex};
+@define-color cp-green ${accent_hex};
+@define-color cp-orange ${primary_hex};
+@define-color cp-red ${primary_hex};
+EOF_SHIM
+}
+
+activate_hancore() {
+    version=$1
+    hancore_theme_dir="$HANCORE_DIR/$version"
+
+    if [ ! -d "$hancore_theme_dir" ]; then
+        printf 'Unknown HANCORE version: %s\n' "$version" >&2
+        printf 'Available versions:\n' >&2
+        list_hancore >&2
+        exit 1
+    fi
+
+    require_file "$hancore_theme_dir/config.jsonc"
+    require_file "$hancore_theme_dir/style.css"
+
+    mkdir -p "$STATE_DIR" "$WAYBAR_DIR"
+
+    # Generate the omarchy CSS shim so @import resolves correctly
+    ensure_omarchy_shim
+
+    # Copy helper scripts (window_pill.py, scrolling-mpris.py) if present
+    for helper in window_pill.py scrolling-mpris.py; do
+        if [ -f "$hancore_theme_dir/$helper" ]; then
+            cp "$hancore_theme_dir/$helper" "$WAYBAR_DIR/$helper"
+            chmod +x "$WAYBAR_DIR/$helper"
+        fi
+    done
+
+    # Copy supplementary assets (rose-pine.css, SVGs, shell scripts)
+    for asset in "$hancore_theme_dir"/*; do
+        [ -f "$asset" ] || continue
+        asset_name=$(basename "$asset")
+        case "$asset_name" in
+            config.jsonc|style.css|*.png) continue ;;
+            *) cp "$asset" "$WAYBAR_DIR/$asset_name" ;;
+        esac
+    done
+
+    # Record active hancore version
+    printf '%s\n' "$version" > "$STATE_DIR/current.hancore"
+
+    if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
+        printf 'HANCORE Waybar theme activated: %s\n' "$version"
+        return 0
+    fi
+
+    # Kill existing waybar, relaunch with hancore config + style
+    pkill -x waybar >/dev/null 2>&1 || true
+    sleep 0.3
+    waybar -c "$hancore_theme_dir/config.jsonc" \
+           -s "$hancore_theme_dir/style.css" \
+           >/dev/null 2>&1 &
+
+    printf 'HANCORE Waybar theme activated: %s\n' "$version"
+}
+
+restore_bitbeast_waybar() {
+    # Clear hancore state and return to normal BitBeast waybar
+    rm -f "$STATE_DIR/current.hancore"
+
+    # Clean up copied helper scripts
+    for helper in window_pill.py scrolling-mpris.py; do
+        rm -f "$WAYBAR_DIR/$helper"
+    done
+
+    ensure_waybar_style || true
+
+    if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
+        printf 'Restored BitBeast Waybar\n'
+        return 0
+    fi
+
+    pkill -x waybar >/dev/null 2>&1 || true
+    sleep 0.3
+    waybar >/dev/null 2>&1 &
+
+    printf 'Restored BitBeast Waybar\n'
+}
+
+cycle_hancore() {
+    versions=$(list_hancore)
+    [ -n "$versions" ] || {
+        printf 'No HANCORE themes available in %s\n' "$HANCORE_DIR" >&2
+        exit 1
+    }
+
+    current_version=$(current_hancore_name)
+    next_version=
+    first_version=
+    found_current=0
+
+    for v in $versions; do
+        [ -n "$first_version" ] || first_version=$v
+
+        if [ "$found_current" -eq 1 ]; then
+            next_version=$v
+            break
+        fi
+
+        if [ "$v" = "$current_version" ]; then
+            found_current=1
+        fi
+    done
+
+    [ -n "$next_version" ] || next_version=$first_version
+    activate_hancore "$next_version"
+}
+
+pick_hancore() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast hancore pick\n' >&2
+        exit 1
+    fi
+
+    current_version=$(current_hancore_name)
+    selection=$(
+        while IFS= read -r version; do
+            [ -n "$version" ] || continue
+            if [ "$version" = "$current_version" ]; then
+                printf '%s\tactive\n' "$version"
+            else
+                printf '%s\n' "$version"
+            fi
+        done <<EOF_HANCORE_LIST
+$(list_hancore)
+EOF_HANCORE_LIST
+    )
+
+    [ -n "$selection" ] || {
+        printf 'No HANCORE themes available in %s\n' "$HANCORE_DIR" >&2
+        exit 1
+    }
+
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "HANCORE Waybar")
+    chosen_version=$(printf '%s' "$choice" | cut -f1)
+
+    [ -n "$chosen_version" ] || exit 0
+    activate_hancore "$chosen_version"
+}
+
 require_file() {
     file_path=$1
     if [ ! -f "$file_path" ]; then
@@ -93,16 +321,11 @@ theme_color_hex() {
     color_name=$2
     fallback=$3
 
-    color_value=$(sed -n 's/^\$'"$color_name"'[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_file" | tail -n 1 | tr -d ' ')
+    color_value=$(sed -n 's/^\$'"$color_name"'[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_file" | tail -n 1)
     if [ -n "$color_value" ]; then
-        # Convert hex to rrggbb format if it has commas
-        if echo "$color_value" | grep -q ","; then
-             printf '#%02x%02x%02x\n' $(echo $color_value | tr ',' ' ')
-        else
-             printf '#%s\n' "$color_value"
-        fi
+        printf '#%s\n' "$color_value"
     else
-        printf '#%s\n' "${fallback#\#}"
+        printf '%s\n' "$fallback"
     fi
 }
 
@@ -112,38 +335,32 @@ build_rofi_theme() {
     colors_file=$3
     require_file "$colors_file"
 
-    bg=$(theme_color_hex "$colors_file" bg '0a0b10')
-    primary=$(theme_color_hex "$colors_file" primary '00f2ff')
-    secondary=$(theme_color_hex "$colors_file" secondary '161925')
-    accent=$(theme_color_hex "$colors_file" accent '00f2ff')
-    text=$(theme_color_hex "$colors_file" text 'e0e6ed')
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#e8450c')
+    secondary=$(theme_color_hex "$colors_file" secondary '#7b120f')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
     muted="${text}99"
+    prompt_text="$(basename "$theme_dir")"
 
     mkdir -p "$(dirname "$target_path")"
     cat > "$target_path" <<EOF_ROFI
 * {
-    bg: ${bg}f2;
-    bg-alt: ${secondary}cc;
+    bg: ${bg};
+    bg-alt: ${secondary};
     primary: ${primary};
     accent: ${accent};
     text: ${text};
     muted: ${muted};
-    urgent: #ff0055;
+    urgent: #ff5555;
     border: 2px;
     spacing: 14px;
-    font: "JetBrainsMono Nerd Font 11";
-    background-color: transparent;
-}
-
-configuration {
-    modi: "drun,run,window";
-    show-icons: true;
-    drun-display-format: "{name}";
 }
 
 window {
     location: center;
     anchor: center;
+    fullscreen: false;
     width: 720px;
     border: @border;
     border-radius: 22px;
@@ -155,6 +372,7 @@ mainbox {
     children: [ inputbar, listview, mode-switcher ];
     spacing: 18px;
     padding: 22px;
+    background-color: transparent;
 }
 
 inputbar {
@@ -168,6 +386,7 @@ inputbar {
 
 prompt {
     text-color: @accent;
+    str: "${prompt_text}";
 }
 
 entry {
@@ -181,25 +400,29 @@ listview {
     columns: 1;
     fixed-height: false;
     border: 0px;
+    background-color: transparent;
     scrollbar: false;
 }
 
 element {
-    padding: 12px 16px;
+    padding: 14px 16px;
     border-radius: 16px;
+    background-color: @bg-alt;
     text-color: @text;
 }
 
-element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @primary; text-color: @bg; }
-element selected.active { background-color: @secondary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: @bg; }
-element alternate.normal { background-color: transparent; text-color: @text; }
+element normal.normal { background-color: @bg-alt; text-color: @text; }
+element selected.normal { background-color: @accent; text-color: #1a0a00; }
+element selected.active { background-color: @primary; text-color: @text; }
+element selected.urgent { background-color: @urgent; text-color: #1a0a00; }
+element alternate.normal { background-color: @bg-alt; text-color: @text; }
+element alternate.active { background-color: @bg-alt; text-color: @accent; }
+element alternate.urgent { background-color: @bg-alt; text-color: @urgent; }
 
-element-icon { size: 28px; vertical-align: 0.5; background-color: transparent; }
-element-text { text-color: inherit; vertical-align: 0.5; background-color: transparent; }
+element-icon { size: 28px; vertical-align: 0.5; }
+element-text { text-color: inherit; vertical-align: 0.5; }
 
-mode-switcher { spacing: 10px; }
+mode-switcher { spacing: 10px; background-color: transparent; }
 
 button {
     padding: 10px 14px;
@@ -208,7 +431,7 @@ button {
     text-color: @muted;
 }
 
-button selected { background-color: @primary; text-color: @bg; }
+button selected { background-color: @primary; text-color: @text; }
 EOF_ROFI
 }
 
@@ -274,7 +497,16 @@ build_kitty_theme() {
     mkdir -p "$(dirname "$target_path")"
     cp "$theme_dir/kitty.conf" "$target_path"
 
-    # Do not set background image in terminal per user preference
+    if [ -f "$wallpaper_path" ]; then
+        wallpaper_escaped=$(printf '%s' "$wallpaper_path" | sed 's/\\/\\\\/g; s/ /\\ /g')
+        cat >> "$target_path" <<EOF_KITTY
+
+# BitBeast wallpaper overlay
+background_image $wallpaper_escaped
+background_image_layout scaled
+background_tint 0.45
+EOF_KITTY
+    fi
 }
 
 current_theme_name() {
@@ -348,17 +580,6 @@ fallback_wallpaper_path() {
     printf '%s\n' "$wallpaper_path"
 }
 
-sync_fastfetch_logo() {
-    wallpaper_path=$1
-
-    [ -n "$wallpaper_path" ] || return 0
-    [ -f "$wallpaper_path" ] || return 0
-    [ -f "$FASTFETCH_CONFIG" ] || return 0
-
-    escaped_wallpaper_path=$(printf '%s\n' "$wallpaper_path" | sed 's/[&|]/\\&/g')
-    sed -i "0,/\"source\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/s||\"source\": \"$escaped_wallpaper_path\"|" "$FASTFETCH_CONFIG"
-}
-
 ensure_swww_daemon() {
     if ! command -v swww >/dev/null 2>&1; then
         return 1
@@ -376,27 +597,6 @@ ensure_swww_daemon() {
             _swww_tries=$((_swww_tries + 1))
         done
         warn "swww-daemon started but may not be fully ready"
-    fi
-
-    return 0
-}
-
-ensure_awww_daemon() {
-    if ! command -v awww >/dev/null 2>&1; then
-        return 1
-    fi
-
-    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
-        awww-daemon >/dev/null 2>&1 &
-        _awww_tries=0
-        while [ "$_awww_tries" -lt 10 ]; do
-            sleep 0.5
-            if awww query >/dev/null 2>&1; then
-                return 0
-            fi
-            _awww_tries=$((_awww_tries + 1))
-        done
-        warn "awww-daemon started but may not be fully ready"
     fi
 
     return 0
@@ -461,57 +661,6 @@ apply_wallpaper_swww() {
     return 1
 }
 
-apply_wallpaper_awww() {
-    wallpaper_path=$1
-
-    ensure_awww_daemon || return 1
-
-    wallpaper_name=$(basename "$wallpaper_path")
-
-    case "$wallpaper_name" in
-        BurningCerbrus.png)
-            tr_type="wave";   tr_angle=45;  tr_step=90;  tr_duration=1;  tr_bezier=".25,.1,.25,1"
-            ;;
-        Dracel.png)
-            tr_type="grow";   tr_angle=0;   tr_step=90;  tr_duration=1;  tr_bezier=".33,0,.67,1"
-            ;;
-        Dragoon.png)
-            tr_type="wipe";   tr_angle=30;  tr_step=90;  tr_duration=1;  tr_bezier=".42,0,.58,1"
-            ;;
-        Dranzer.png)
-            tr_type="outer";  tr_angle=0;   tr_step=90;  tr_duration=1.2;  tr_bezier=".16,1,.3,1"
-            ;;
-        Drigger.png)
-            tr_type="simple"; tr_angle=0;   tr_step=5;   tr_duration=1;  tr_bezier=".22,.61,.36,1"
-            ;;
-        Galeon.png)
-            tr_type="center"; tr_angle=0;   tr_step=90;  tr_duration=0.8;  tr_bezier=".65,0,.35,1"
-            ;;
-        *)
-            tr_type="random"; tr_angle=0;   tr_step=90;  tr_duration=1;  tr_bezier=".42,0,.58,1"
-            ;;
-    esac
-
-    attempt=1
-    while [ "$attempt" -le 5 ]; do
-        if awww img "$wallpaper_path" \
-            --transition-type "$tr_type" \
-            --transition-duration "$tr_duration" \
-            --transition-fps 144 \
-            --transition-angle "$tr_angle" \
-            --transition-step "$tr_step" \
-            --transition-bezier "$tr_bezier" \
-            >/dev/null 2>&1; then
-            return 0
-        fi
-
-        sleep 1
-        attempt=$((attempt + 1))
-    done
-
-    return 1
-}
-
 apply_wallpaper_swaybg() {
     wallpaper_path=$1
 
@@ -535,13 +684,6 @@ apply_wallpaper() {
         return 1
     fi
 
-    if command -v awww >/dev/null 2>&1; then
-        pkill -x swaybg >/dev/null 2>&1 || true
-        if apply_wallpaper_awww "$wallpaper_path"; then
-            return 0
-        fi
-    fi
-
     # Prefer swww for its smooth animated transitions (wave, grow, wipe, etc.)
     if command -v swww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
@@ -558,7 +700,7 @@ apply_wallpaper() {
         fi
     fi
 
-    warn 'No wallpaper backend available. Install awww (recommended), swww, or swaybg.'
+    warn 'No wallpaper backend available. Install swww (recommended) or swaybg.'
     return 1
 }
 
@@ -578,16 +720,13 @@ restore_wallpaper() {
 
     [ -n "$wallpaper_path" ] || return 1
     apply_wallpaper "$wallpaper_path"
+    generate_zsh_prompt_colors
 }
 
 reload_cava() {
     # Send SIGUSR1 to reload config live, or restart if not running
     if pgrep -x cava >/dev/null 2>&1; then
         pkill -SIGUSR1 -x cava >/dev/null 2>&1 || true
-    fi
-    # Also signal circular_cava.py if it's running
-    if pgrep -f "circular_cava.py" >/dev/null 2>&1; then
-        pkill -SIGUSR1 -f "circular_cava.py" >/dev/null 2>&1 || true
     fi
 }
 
@@ -609,24 +748,6 @@ reload_hyprland() {
     fi
 
     hyprctl reload >/dev/null 2>&1 || warn 'failed to reload Hyprland.'
-}
-
-reload_cursor() {
-    colors_file=$1
-    cursor_theme=$(sed -n 's/^\$cursor_theme[[:space:]]*=[[:space:]]*\(.*\)/\1/p' "$colors_file" | tail -n 1)
-    cursor_size=24
-
-    if [ -n "$cursor_theme" ]; then
-        echo "Applying cursor theme: $cursor_theme" >&2
-        # Apply cursor via hyprctl (live)
-        hyprctl setcursor "$cursor_theme" "$cursor_size" >/dev/null 2>&1 || true
-        # Set environment variables for new windows
-        hyprctl keyword env XCURSOR_THEME,"$cursor_theme" >/dev/null 2>&1 || true
-        hyprctl keyword env XCURSOR_SIZE,"$cursor_size" >/dev/null 2>&1 || true
-        # Persist via gsettings for GTK apps
-        gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme" 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface cursor-size "$cursor_size" 2>/dev/null || true
-    fi
 }
 
 restart_waybar() {
@@ -826,6 +947,13 @@ show_keybindings() {
 activate_style() {
     style_name=$1
 
+    # Switching to a BitBeast style exits hancore mode
+    if is_hancore_active; then
+        rm -f "$STATE_DIR/current.hancore"
+        pkill -x waybar >/dev/null 2>&1 || true
+        sleep 0.3
+    fi
+
     write_active_style "$style_name"
 
     if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
@@ -848,6 +976,13 @@ activate_theme() {
         exit 1
     fi
 
+    # Switching BitBeast theme exits hancore mode
+    if is_hancore_active; then
+        rm -f "$STATE_DIR/current.hancore"
+        pkill -x waybar >/dev/null 2>&1 || true
+        sleep 0.3
+    fi
+
     require_file "$theme_dir/colors.conf"
     require_file "$theme_dir/hyprland.conf"
     require_file "$theme_dir/waybar.css"
@@ -868,7 +1003,6 @@ activate_theme() {
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
 
     printf 'wallpaper="%s"\n' "$wallpaper_path" > "$STATE_DIR/wallpaper.conf"
-    sync_fastfetch_logo "$wallpaper_path"
     ensure_waybar_style || warn 'failed to sync Waybar style.'
 
     if [ "${BITBEAST_SKIP_RUNTIME:-0}" = "1" ]; then
@@ -876,8 +1010,8 @@ activate_theme() {
         return 0
     fi
 
-    # Restart Waybar first so the CSS swap is visible immediately.
-    # Apply wallpaper synchronously, then reload other components.
+    # Restart Waybar first so the CSS swap is visible immediately,
+    # then apply wallpaper and reload Hyprland in parallel.
     restart_waybar || true
     apply_wallpaper "$wallpaper_path" || true
     reload_kitty
@@ -885,41 +1019,57 @@ activate_theme() {
     reload_hyprland
     reload_cursor "$theme_dir/colors.conf"
 
+    update_zsh_theme "$theme_name" || true
+    generate_zsh_prompt_colors
+
+    restore_gradient_state || true
+
     printf 'BitBeast theme activated: %s\n' "$theme_name"
 }
 
 pick_theme() {
-    valid_themes=$(
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast pick\n' >&2
+        exit 1
+    fi
+
+    selection=$(
         while IFS= read -r theme_name; do
             [ -n "$theme_name" ] || continue
             wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name" 2>/dev/null) || continue
             [ -n "$wallpaper_path" ] || continue
-            [ -f "$wallpaper_path" ] || continue
-            printf '%s\n' "$theme_name"
+            printf '%s\n' "$(basename "$wallpaper_path")"
         done <<EOF_LIST
 $(list_themes)
 EOF_LIST
     )
 
-    [ -n "$valid_themes" ] || {
+    [ -n "$selection" ] || {
         printf 'No themes with valid wallpapers found.\n' >&2
         exit 1
     }
 
-    chosen_file=$("$SCRIPT_DIR/bitbeast-wallpaper-selector" 2>/dev/null)
-    [ -n "$chosen_file" ] || exit 0
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
+    chosen_wallpaper=$(printf '%s' "$choice")
 
+    [ -n "$chosen_wallpaper" ] || exit 0
+
+    # Map the selected wallpaper back to the corresponding theme automatically
     chosen_theme=""
-    for t in $valid_themes; do
-        w=$(theme_wallpaper_filename "$t" || true)
-        if [ "$w" = "$chosen_file" ]; then
-            chosen_theme=$t
+    while IFS= read -r theme_name; do
+        [ -n "$theme_name" ] || continue
+        wallpaper_path=$(theme_wallpaper_path "$THEMES_DIR/$theme_name" 2>/dev/null) || continue
+        if [ "$(basename "$wallpaper_path")" = "$chosen_wallpaper" ]; then
+            chosen_theme="$theme_name"
             break
         fi
-    done
+    done <<EOF_LIST
+$(list_themes)
+EOF_LIST
 
-    [ -n "$chosen_theme" ] || exit 0
-    activate_theme "$chosen_theme"
+    if [ -n "$chosen_theme" ]; then
+        activate_theme "$chosen_theme"
+    fi
 }
 
 cycle_style() {
@@ -984,10 +1134,8 @@ EOF_STYLE_LIST
 }
 
 session_init() {
-    # Small delay to let Hyprland finish initializing
     sleep 1
 
-    # First time launch safety net (if waybar theme is missing completely)
     if [ ! -f "$WAYBAR_DIR/bitbeast.css" ]; then
         theme_name=$(current_theme_name || echo "root")
         if [ "$theme_name" != "root" ]; then
@@ -999,17 +1147,10 @@ session_init() {
 
     ensure_waybar_style || true
     restore_wallpaper || true
-    wallpaper_path=$(saved_wallpaper_path || fallback_wallpaper_path || echo "")
-    sync_fastfetch_logo "$wallpaper_path"
     restart_waybar || true
+    generate_zsh_prompt_colors
     start_clipboard_watchers || true
-
-    # Apply the cursor theme from the current BitBeast theme
-    theme_name=$(current_theme_name || echo "dranzer")
-    theme_dir="$THEMES_DIR/$theme_name"
-    if [ -f "$theme_dir/colors.conf" ]; then
-        reload_cursor "$theme_dir/colors.conf"
-    fi
+    restore_gradient_state || true
 }
 
 brightness_control() {
@@ -1061,98 +1202,231 @@ set_avatar() {
     printf 'Avatar updated successfully to %s\n' "$avatar_src"
 }
 
-touchpad_control() {
-    action=$1
-    value=${2:-}
+zsh_theme_file() {
+    printf '%s\n' "$HOME/.zshrc"
+}
 
-    touchpad_name=""
-    if command -v hyprctl >/dev/null 2>&1; then
-        touchpad_name=$(hyprctl devices -j | jq -r '.mice[] | select(.name | contains("touchpad")) | .name' 2>/dev/null | head -n 1)
-        if [ -z "$touchpad_name" ]; then
-            touchpad_name=$(hyprctl devices | awk '/touchpad/ {print $NF; exit}' | tr -d '\t ')
+update_zsh_theme() {
+    zsh_theme=$1
+    zshrc=$(zsh_theme_file)
+
+    if [ ! -f "$zshrc" ]; then
+        printf 'Error: .zshrc not found\n' >&2
+        return 1
+    fi
+
+    if grep -q '^ZSH_THEME=' "$zshrc"; then
+        sed -i "s|^ZSH_THEME=.*|ZSH_THEME=\"$zsh_theme\"|" "$zshrc"
+    else
+        printf 'ZSH_THEME="%s"\n' "$zsh_theme" >> "$zshrc"
+    fi
+
+    if command -v chpwd >/dev/null 2>&1; then
+        chpwd >/dev/null 2>&1 || true
+    fi
+
+    printf 'Zsh theme updated to: %s\n' "$zsh_theme"
+}
+
+generate_zsh_prompt_colors() {
+    colors_conf="$STATE_DIR/current.conf"
+
+    if [ ! -f "$colors_conf" ]; then
+        colors_conf="$THEMES_DIR/dranzer/colors.conf"
+    fi
+
+    bg=$(sed -n 's/^\$bg[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    primary=$(sed -n 's/^\$primary[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    secondary=$(sed -n 's/^\$secondary[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    accent=$(sed -n 's/^\$accent[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+    text=$(sed -n 's/^\$text[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$colors_conf" | tail -1)
+
+    [ -n "$bg" ] || bg="0d0405"
+    [ -n "$primary" ] || primary="e8450c"
+    [ -n "$secondary" ] || secondary="7b120f"
+    [ -n "$accent" ] || accent="ffd166"
+    [ -n "$text" ] || text="fff1dd"
+
+    primary_hex="#$primary"
+    accent_hex="#$accent"
+    text_hex="#$text"
+    bg_hex="#$bg"
+
+    mkdir -p "$HOME/.zsh"
+    cat > "$HOME/.zsh/bitbeast-prompt.zsh" <<EOF_ZSH
+#!/bin/zsh
+
+BITBEAST_BG="$bg_hex"
+BITBEAST_PRIMARY="$primary_hex"
+BITBEAST_ACCENT="$accent_hex"
+BITBEAST_TEXT="$text_hex"
+
+PS1="%F{$primary}%n%f%F{$text}@%f%F{$accent}%m%f %F{$text}%~%f "
+RPROMPT="%F{$secondary}%(3L|+)…%f"
+EOF_ZSH
+    chmod +x "$HOME/.zsh/bitbeast-prompt.zsh"
+
+    if [ -f "$HOME/.zshrc" ]; then
+        if ! grep -q 'bitbeast-prompt.zsh' "$HOME/.zshrc"; then
+            printf '\nsource "$HOME/.zsh/bitbeast-prompt.zsh"\n' >> "$HOME/.zshrc"
         fi
     fi
-    [ -n "$touchpad_name" ] || touchpad_name="elan0001:00-04f3:31ad-touchpad"
 
-    touchpad_conf="$HYPR_DIR/touchpad.conf"
-
-    mkdir -p "$HYPR_DIR"
-    if [ ! -f "$touchpad_conf" ]; then
-        cat > "$touchpad_conf" <<EOF
-device {
-    name = $touchpad_name
-    sensitivity = 0.5
-}
-EOF
+    if grep -q '^ZSH_THEME=' "$HOME/.zshrc"; then
+        sed -i 's|^ZSH_THEME=.*|ZSH_THEME="bitbeast"|' "$HOME/.zshrc"
+    else
+        printf '\nZSH_THEME="bitbeast"\n' >> "$HOME/.zshrc"
     fi
 
-    current_val=$(awk -F'=' '/sensitivity/ {gsub(/[ \t]/, "", $2); print $2}' "$touchpad_conf" 2>/dev/null)
-    [ -n "$current_val" ] || current_val="0.5"
-
-    case "$action" in
-        get)
-            printf '%s\n' "$current_val"
-            ;;
-        set)
-            if [ -z "$value" ]; then
-                printf 'Usage: bitbeast touchpad set <value>\n' >&2
-                exit 1
-            fi
-            cat > "$touchpad_conf" <<EOF
-device {
-    name = $touchpad_name
-    sensitivity = $value
+    printf 'Zsh prompt colors updated from BitBeast theme\n'
 }
-EOF
-            if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-                hyprctl keyword "device:$touchpad_name:sensitivity" "$value" >/dev/null 2>&1 || true
-            fi
-            printf 'Touchpad sensitivity set to %s\n' "$value"
-            ;;
-        pick)
-            if ! command -v rofi >/dev/null 2>&1; then
-                printf 'rofi is required for touchpad sensitivity menu\n' >&2
-                exit 1
-            fi
 
-            # Generate sensitivity values list
-            selection=""
-            for v in -1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.5 0.6 0.8 1.0; do
-                if [ "$v" = "$current_val" ] || { [ "$v" = "0.0" ] && { [ "$current_val" = "0" ] || [ "$current_val" = "0.00" ]; }; } || { [ "$v" = "0.5" ] && [ "$current_val" = "0.50" ]; }; then
-                    selection="${selection}${v}\t(Current)\n"
-                elif [ "$v" = "0.0" ]; then
-                    selection="${selection}${v}\t(Default)\n"
-                elif [ "$v" = "-1.0" ]; then
-                    selection="${selection}${v}\t(Slowest)\n"
-                elif [ "$v" = "1.0" ]; then
-                    selection="${selection}${v}\t(Fastest)\n"
-                else
-                    selection="${selection}${v}\n"
-                fi
-            done
-
-            choice=$(printf "$selection" | rofi -dmenu -i -p "Touchpad Sensitivity")
-            [ -n "$choice" ] || exit 0
-
-            chosen_val=$(printf '%s' "$choice" | cut -f1)
-            [ -n "$chosen_val" ] || exit 0
-
-            cat > "$touchpad_conf" <<EOF
-device {
-    name = $touchpad_name
-    sensitivity = $chosen_val
+list_zsh_themes() {
+    if [ -d "$HOME/.oh-my-zsh/themes" ]; then
+        ls "$HOME/.oh-my-zsh/themes"/*.zsh-theme 2>/dev/null | xargs -n1 basename | sed 's/\.zsh-theme$//' | sort
+    fi
 }
-EOF
-            if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-                hyprctl keyword "device:$touchpad_name:sensitivity" "$chosen_val" >/dev/null 2>&1 || true
-                notify-send -t 1500 -a "BitBeast" "Touchpad" "Sensitivity set to $chosen_val" || true
+
+cycle_zsh_theme() {
+    themes=$(list_zsh_themes)
+    current_theme=$(grep '^ZSH_THEME=' "$HOME/.zshrc" 2>/dev/null | sed 's/.*="\?\([^"]*\)"\?/\1/' | head -1)
+
+    [ -n "$current_theme" ] || current_theme="robbyrussell"
+
+    next_theme=""
+    found_current=0
+
+    for theme in $themes; do
+        if [ "$found_current" -eq 1 ]; then
+            next_theme=$theme
+            break
+        fi
+
+        if [ "$theme" = "$current_theme" ]; then
+            found_current=1
+        fi
+    done
+
+    [ -n "$next_theme" ] || next_theme=$(printf '%s\n' "$themes" | head -1)
+
+    [ -n "$next_theme" ] && update_zsh_theme "$next_theme"
+}
+
+pick_zsh_theme() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for pick-zsh-theme\n' >&2
+        exit 1
+    fi
+
+    current_theme=$(grep '^ZSH_THEME=' "$HOME/.zshrc" 2>/dev/null | sed 's/.*="\?\([^"]*\)"\?/\1/' | head -1)
+    [ -n "$current_theme" ] || current_theme="robbyrussell"
+
+    selection=$(
+        list_zsh_themes | while IFS= read -r theme_name; do
+            [ -n "$theme_name" ] || continue
+            if [ "$theme_name" = "$current_theme" ]; then
+                printf '%s\tactive\n' "$theme_name"
+            else
+                printf '%s\ttheme\n' "$theme_name"
             fi
-            ;;
-        *)
-            printf 'Unknown action: %s. Available: get, set, pick\n' "$action" >&2
-            exit 1
-            ;;
-    esac
+        done
+    )
+
+    [ -n "$selection" ] || {
+        printf 'No zsh themes available\n' >&2
+        exit 1
+    }
+
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Zsh Theme")
+    chosen_theme=$(printf '%s' "$choice" | cut -f1)
+
+    [ -n "$chosen_theme" ] || exit 0
+
+    update_zsh_theme "$chosen_theme"
+}
+
+detect_theme_from_wallpaper() {
+    wallpaper_path=${1:-}
+
+    if [ -z "$wallpaper_path" ]; then
+        wallpaper_path=$(saved_wallpaper_path || fallback_wallpaper_path || true)
+    fi
+
+    if [ -z "$wallpaper_path" ] || [ ! -f "$wallpaper_path" ]; then
+        printf 'No wallpaper to analyze\n' >&2
+        return 1
+    fi
+
+    if command -v magick >/dev/null 2>&1; then
+        dominant_color=$(magick "$wallpaper_path" -resize 1x1 -format '%[hex:u]' info:)
+    elif command -v convert >/dev/null 2>&1; then
+        dominant_color=$(convert "$wallpaper_path" -resize 1x1 -format '%[hex:u]' info:)
+    elif command -v chafa >/dev/null 2>&1; then
+        dominant_color=""
+    else
+        printf 'ImageMagick is required for wallpaper theme detection\n' >&2
+        return 1
+    fi
+
+    if [ -n "$dominant_color" ]; then
+        brightness=$((16#${dominant_color:1:2} + 16#${dominant_color:3:2} + 16#${dominant_color:5:2}))
+        brightness=$((brightness / 3))
+
+        if [ "$brightness" -lt 85 ]; then
+            update_zsh_theme "darkblood"
+            activate_theme "dranzer"
+        elif [ "$brightness" -lt 170 ]; then
+            update_zsh_theme "bira"
+            activate_theme "draciel"
+        else
+            update_zsh_theme "robbyrussell"
+            activate_theme "galeon"
+        fi
+    fi
+}
+
+restore_gradient_state() {
+    if [ -f "$STATE_DIR/gradient_mode" ]; then
+        mode=$(cat "$STATE_DIR/gradient_mode")
+    else
+        mode="disabled"
+    fi
+
+    if [ "$mode" = "enabled" ]; then
+        sed -i 's|col.active_border = .*|col.active_border = rgba(ff0000ee) rgba(ff7f00ee) rgba(ffff00ee) rgba(00ff00ee) rgba(0000ffee) rgba(4b0082ee) rgba(9400d3ee) rgba(ff0000ee) 0deg|' "$HYPR_DIR/bitbeast-theme.conf"
+        sed -i 's|col.inactive_border = .*|col.inactive_border = rgba(ff0000ee) rgba(ff7f00ee) rgba(ffff00ee) rgba(00ff00ee) rgba(0000ffee) rgba(4b0082ee) rgba(9400d3ee) rgba(ff0000ee) 0deg|' "$HYPR_DIR/bitbeast-theme.conf"
+        if command -v hyprctl >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+            hyprctl reload >/dev/null 2>&1 || true
+        fi
+    else
+        theme_name=$(current_theme_name)
+        [ -n "$theme_name" ] || theme_name="dranzer"
+        theme_dir="$THEMES_DIR/$theme_name"
+        if [ -f "$theme_dir/hyprland.conf" ]; then
+            cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
+        fi
+        if command -v hyprctl >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+            hyprctl reload >/dev/null 2>&1 || true
+        fi
+    fi
+}
+
+toggle_gradient() {
+    if [ -f "$STATE_DIR/gradient_mode" ]; then
+        mode=$(cat "$STATE_DIR/gradient_mode")
+    else
+        mode="disabled"
+    fi
+
+    if [ "$mode" = "enabled" ]; then
+        printf 'disabled\n' > "$STATE_DIR/gradient_mode"
+        restore_gradient_state
+        printf 'Rainbow border disabled (set to solid accent)\n'
+    else
+        printf 'enabled\n' > "$STATE_DIR/gradient_mode"
+        restore_gradient_state
+        printf 'Rainbow border enabled (colors running round the borders)\n'
+    fi
 }
 
 command_name=${1:-}
@@ -1163,6 +1437,9 @@ if [ $# -eq 0 ]; then
 fi
 
 case $command_name in
+    gradient)
+        toggle_gradient
+        ;;
     list)
         list_themes
         ;;
@@ -1200,6 +1477,18 @@ case $command_name in
         theme_name_upper=$(printf '%s' "$theme_name" | tr '[:lower:]' '[:upper:]')
         wallpaper_path=$(saved_wallpaper_path || fallback_wallpaper_path || echo "")
         
+        # Setup avatar and username
+        user_display_name="${USER:-BitBeast Master}"
+        if [ -f "$CONFIG_HOME/bitbeast/avatar.png" ]; then
+            avatar_path="$CONFIG_HOME/bitbeast/avatar.png"
+        elif [ -f "$HOME/.face.icon" ]; then
+            avatar_path="$HOME/.face.icon"
+        elif [ -f "$HOME/.face" ]; then
+            avatar_path="$HOME/.face"
+        else
+            avatar_path="$wallpaper_path" # Fallback to wallpaper if no avatar
+        fi
+        
         # Read the current theme colors into lock config
         current_conf="$STATE_DIR/current.conf"
         target_lock_colors="$CONFIG_HOME/hypr/bitbeast-lock-colors.conf"
@@ -1212,11 +1501,11 @@ case $command_name in
         accent_rgb=$(sed -n 's/^\$accent[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
         text_rgb=$(sed -n 's/^\$text[[:space:]]*=[[:space:]]*rgb(\(.*\))/\1/p' "$current_conf" | tail -1)
 
-        [ -n "$bg_rgb" ] || bg_rgb="13, 4, 5"
-        [ -n "$primary_rgb" ] || primary_rgb="244, 67, 54"
-        [ -n "$secondary_rgb" ] || secondary_rgb="141, 11, 11"
-        [ -n "$accent_rgb" ] || accent_rgb="255, 193, 7"
-        [ -n "$text_rgb" ] || text_rgb="255, 245, 245"
+        [ -n "$bg_rgb" ] || bg_rgb="0d0405"
+        [ -n "$primary_rgb" ] || primary_rgb="f44336"
+        [ -n "$secondary_rgb" ] || secondary_rgb="8d0b0b"
+        [ -n "$accent_rgb" ] || accent_rgb="ffc107"
+        [ -n "$text_rgb" ] || text_rgb="fff5f5"
         
         # Get glow color from waybar.css
         glow_hex="#ffd166" # fallback
@@ -1224,17 +1513,6 @@ case $command_name in
         if [ -f "$theme_dir/waybar.css" ]; then
             glow_match=$(grep '@define-color glow' "$theme_dir/waybar.css" | awk '{print $3}' | tr -d ';')
             [ -n "$glow_match" ] && glow_hex="$glow_match"
-        fi
-
-        # Find avatar path (prefer config avatar, then user face, fallback to wallpaper)
-        if [ -f "$STATE_DIR/avatar.png" ]; then
-            avatar_path="$STATE_DIR/avatar.png"
-        elif [ -f "$HOME/.face.icon" ]; then
-            avatar_path="$HOME/.face.icon"
-        elif [ -f "$HOME/.face" ]; then
-            avatar_path="$HOME/.face"
-        else
-            avatar_path="$wallpaper_path"
         fi
         
         mkdir -p "$CONFIG_HOME/hypr"
@@ -1244,10 +1522,19 @@ case $command_name in
 \$secondary = rgb(${secondary_rgb})
 \$accent = rgb(${accent_rgb})
 \$text = rgb(${text_rgb})
+\$bg_hex = #${bg_rgb}
+\$primary_hex = #${primary_rgb}
+\$secondary_hex = #${secondary_rgb}
+\$accent_hex = #${accent_rgb}
+\$text_hex = #${text_rgb}
 \$text_soft = rgba(${text_rgb}dd)
 \$text_dim = rgba(${text_rgb}99)
 \$glow = rgb(${glow_hex#\#})
+\$glow_hex = #${glow_hex#\#}
 \$glow_alpha = ${glow_hex#\#}
+\$primary_soft = rgba(${primary_rgb}44)
+\$secondary_soft = rgba(${secondary_rgb}44)
+\$accent_soft = rgba(${accent_rgb}44)
 \$panel = rgba(${bg_rgb}d8)
 \$panel_soft = rgba(${bg_rgb}96)
 \$surface = rgba(${bg_rgb}ea)
@@ -1256,7 +1543,7 @@ case $command_name in
 \$wallpaper_path = $wallpaper_path
 \$theme_name = $theme_name_upper
 \$avatar_path = $avatar_path
-\$user_display_name = $USER
+\$user_display_name = $user_display_name
 EOF_COLORS
 
         hyprlock --config "$CONFIG_HOME/hypr/hyprlock.conf"
@@ -1287,27 +1574,62 @@ EOF_COLORS
         [ $# -eq 2 ] || { usage; exit 1; }
         brightness_control "$2"
         ;;
-    touchpad)
-        action=${2:-pick}
-        if [ "$action" = "set" ] && [ $# -lt 3 ]; then
-            printf 'Usage: bitbeast touchpad set <value>\n' >&2
+    zsh)
+        if [ $# -lt 2 ]; then
+            usage
             exit 1
         fi
-        touchpad_control "$action" "${3:-}"
+
+        case $2 in
+            list)
+                list_zsh_themes
+                ;;
+            cycle)
+                cycle_zsh_theme
+                ;;
+            pick)
+                pick_zsh_theme
+                ;;
+            *)
+                [ $# -eq 2 ] || {
+                    usage
+                    exit 1
+                }
+                update_zsh_theme "$2"
+                ;;
+        esac
         ;;
-    visualizer)
-        theme_name=$(current_theme_name || echo "dranzer")
-        theme_dir="$THEMES_DIR/$theme_name"
-        colors_file="$theme_dir/colors.conf"
-        [ -f "$colors_file" ] || colors_file="$THEMES_DIR/dranzer/colors.conf"
-        
-        bg=$(theme_color_hex "$colors_file" bg '0a0a0a')
-        primary=$(theme_color_hex "$colors_file" primary 'e8450c')
-        secondary=$(theme_color_hex "$colors_file" secondary '7b120f')
-        accent=$(theme_color_hex "$colors_file" accent 'ffd166')
-        text=$(theme_color_hex "$colors_file" text 'fff1dd')
-        
-        kitty --class bitbeast-visualizer -T "BitBeast Visualizer" -e "$SCRIPT_DIR/circular_cava.py" --mode bars --radius 14 --bars 80 "$bg" "$secondary" "$primary" "$accent" "$text" &
+    auto-theme)
+        detect_theme_from_wallpaper "$2"
+        ;;
+    hancore)
+        if [ $# -lt 2 ]; then
+            printf 'Available HANCORE Waybar themes:\n'
+            list_hancore
+            exit 0
+        fi
+
+        case $2 in
+            list)
+                list_hancore
+                ;;
+            cycle)
+                cycle_hancore
+                ;;
+            pick)
+                pick_hancore
+                ;;
+            restore)
+                restore_bitbeast_waybar
+                ;;
+            *)
+                [ $# -eq 2 ] || {
+                    usage
+                    exit 1
+                }
+                activate_hancore "$2"
+                ;;
+        esac
         ;;
     *)
         if [ $# -ne 1 ]; then

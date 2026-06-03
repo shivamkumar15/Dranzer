@@ -54,6 +54,7 @@ Usage:
   bitbeast zsh cycle
   bitbeast zsh pick
   bitbeast auto-theme
+  bitbeast gradient
   bitbeast hancore <version>
   bitbeast hancore list
   bitbeast hancore cycle
@@ -1021,6 +1022,8 @@ activate_theme() {
     update_zsh_theme "$theme_name" || true
     generate_zsh_prompt_colors
 
+    restore_gradient_state || true
+
     printf 'BitBeast theme activated: %s\n' "$theme_name"
 }
 
@@ -1147,6 +1150,7 @@ session_init() {
     restart_waybar || true
     generate_zsh_prompt_colors
     start_clipboard_watchers || true
+    restore_gradient_state || true
 }
 
 brightness_control() {
@@ -1381,6 +1385,49 @@ detect_theme_from_wallpaper() {
     fi
 }
 
+restore_gradient_state() {
+    if [ -f "$STATE_DIR/gradient_mode" ]; then
+        mode=$(cat "$STATE_DIR/gradient_mode")
+    else
+        mode="disabled"
+    fi
+
+    if [ "$mode" = "enabled" ]; then
+        sed -i 's|col.active_border = .*|col.active_border = rgba(ff0000ee) rgba(ff7f00ee) rgba(ffff00ee) rgba(00ff00ee) rgba(0000ffee) rgba(4b0082ee) rgba(9400d3ee) 45deg|' "$HYPR_DIR/bitbeast-theme.conf"
+        if command -v hyprctl >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+            hyprctl reload >/dev/null 2>&1 || true
+        fi
+    else
+        theme_name=$(current_theme_name)
+        [ -n "$theme_name" ] || theme_name="dranzer"
+        theme_dir="$THEMES_DIR/$theme_name"
+        if [ -f "$theme_dir/hyprland.conf" ]; then
+            cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
+        fi
+        if command -v hyprctl >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+            hyprctl reload >/dev/null 2>&1 || true
+        fi
+    fi
+}
+
+toggle_gradient() {
+    if [ -f "$STATE_DIR/gradient_mode" ]; then
+        mode=$(cat "$STATE_DIR/gradient_mode")
+    else
+        mode="disabled"
+    fi
+
+    if [ "$mode" = "enabled" ]; then
+        printf 'disabled\n' > "$STATE_DIR/gradient_mode"
+        restore_gradient_state
+        printf 'Rainbow border disabled (set to solid accent)\n'
+    else
+        printf 'enabled\n' > "$STATE_DIR/gradient_mode"
+        restore_gradient_state
+        printf 'Rainbow border enabled (colors running round the borders)\n'
+    fi
+}
+
 command_name=${1:-}
 
 if [ $# -eq 0 ]; then
@@ -1389,6 +1436,9 @@ if [ $# -eq 0 ]; then
 fi
 
 case $command_name in
+    gradient)
+        toggle_gradient
+        ;;
     list)
         list_themes
         ;;
