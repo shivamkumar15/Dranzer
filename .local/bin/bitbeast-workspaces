@@ -1,10 +1,14 @@
 #!/bin/bash
 
-# BitBeast Workspace Overview Script
-# Uses Rofi to show active windows with thumbnails in a grid layout
+# BitBeast workspace/window overview.
+# Requires a rofi build with Wayland window thumbnails for previews.
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 ROFI_THEME="$CONFIG_HOME/rofi/overview.rasi"
 
-# Launch Rofi window switcher with thumbnails
-rofi -show window -window-thumbnail -theme "$ROFI_THEME"
+exec rofi \
+    -show window \
+    -window-thumbnail \
+    -theme "$ROFI_THEME" \
+    -kb-cancel "Escape,Super_L" \
+    -selected-row 0

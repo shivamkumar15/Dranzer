@@ -480,6 +480,8 @@ install_file "$REPO_DIR/.config/waybar/bitbeast-style.css" "$CONFIG_HOME/waybar/
 install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config.jsonc"
 install_file "$REPO_DIR/.config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
 install_file "$REPO_DIR/.config/rofi/config.rasi" "$CONFIG_HOME/rofi/config.rasi"
+install_file "$REPO_DIR/.config/rofi/bitbeast.rasi" "$CONFIG_HOME/rofi/bitbeast.rasi"
+install_file "$REPO_DIR/.config/rofi/overview.rasi" "$CONFIG_HOME/rofi/overview.rasi"
 install_dir "$REPO_DIR/.config/swaync" "$CONFIG_HOME/swaync"
 install_dir "$REPO_DIR/.config/fastfetch" "$CONFIG_HOME/fastfetch"
 install_dir "$REPO_DIR/web-wallpaper-selector" "$DATA_HOME/bitbeast/web-wallpaper-selector"
