@@ -13,6 +13,7 @@
 
   "modules-left": [
     "hyprland/workspaces",
+    "custom/hint",
     "custom/cava",
     "hyprland/window"
   ],
@@ -51,6 +52,12 @@
     "format": "{}",
     "tooltip": false,
     "restart-interval": 2
+  },
+
+  "custom/hint": {
+    "format": "󰌌",
+    "tooltip-format": "Keyboard shortcuts (Super+H)",
+    "on-click": "bitbeast keybindings"
   },
 
   "custom/netspeed": {

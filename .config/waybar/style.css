@@ -29,6 +29,7 @@ window#waybar {
 
 /* Individual module spacing */
 #workspaces,
+#custom-hint,
 #custom-cava,
 #custom-media,
 #window,
@@ -87,6 +88,10 @@ window#waybar {
 /* Module Specific Colors */
 #custom-cava {
     color: @cava-color;
+}
+
+#custom-hint {
+    color: #ffd166;
 }
 
 #network {
