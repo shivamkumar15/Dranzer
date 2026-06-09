@@ -1,12 +1,12 @@
 * {
-    bg: #0a0b10f2;
-    bg-alt: #161925cc;
-    primary: #00f2ff;
-    secondary: #7000ff;
-    accent: #00f2ff;
-    text: #e0e6ed;
-    muted: #636e7b;
-    urgent: #ff0055;
+    bg: #150608f2;
+    bg-alt: #2c0d0fcc;
+    primary: #ff2a4b;
+    secondary: #ff2a4b;
+    accent: #ffd166;
+    text: #fff1dd;
+    muted: #cfa77f;
+    urgent: #ff7f32;
     border: 2px;
     spacing: 14px;
     background-color: transparent;
@@ -41,7 +41,6 @@ inputbar {
 
 prompt {
     text-color: @accent;
-    str: "Dranzer";
 }
 
 entry {
@@ -67,9 +66,9 @@ element {
 }
 
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @primary; text-color: #0a0b10; }
-element selected.active { background-color: @secondary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: #0a0b10; }
+element selected.normal { background-color: @primary; text-color: #1a0a00; }
+element selected.active { background-color: @primary; text-color: #1a0a00; }
+element selected.urgent { background-color: @urgent; text-color: #1a0a00; }
 element alternate.normal { background-color: transparent; text-color: @text; }
 element alternate.active { background-color: transparent; text-color: @accent; }
 element alternate.urgent { background-color: transparent; text-color: @urgent; }
@@ -86,4 +85,4 @@ button {
     text-color: @muted;
 }
 
-button selected { background-color: @primary; text-color: #0a0b10; }
+button selected { background-color: @primary; text-color: #1a0a00; }
