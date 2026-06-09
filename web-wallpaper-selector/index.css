@@ -3,15 +3,12 @@
     --panel-bg: rgba(20, 20, 25, 0.4);
     --panel-border: rgba(255, 255, 255, 0.05);
     --panel-blur: blur(25px);
-    
     --card-width: 180px;
     --card-height: 280px;
     --card-radius: 25px;
-    
     --label-bg: rgba(230, 230, 220, 0.9);
     --label-color: #1a1a1a;
     --unselected-label-color: rgba(255, 255, 255, 0.5);
-    
     --transition-speed: 0.4s;
     --transition-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -33,7 +30,6 @@ body {
     color: white;
 }
 
-/* Background image that changes and blurs */
 .background {
     position: absolute;
     top: -5%;
@@ -64,7 +60,6 @@ body {
     z-index: 0;
 }
 
-/* Dark overlay to ensure contrast */
 .overlay {
     position: absolute;
     inset: 0;
@@ -78,15 +73,10 @@ body {
 }
 
 @keyframes overlay-brightness-pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    42% {
-        opacity: 0.9;
-    }
+    0%, 100% { opacity: 1; }
+    42% { opacity: 0.9; }
 }
 
-/* Glassmorphism Panel */
 .panel {
     position: relative;
     z-index: 10;
@@ -101,35 +91,29 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
     overflow: hidden;
 }
 
-/* Carousel container for panning */
 .carousel-container {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 30px;
     transition: transform var(--transition-speed) var(--transition-easing);
-    /* Set initial transform via JS or keep it centered */
 }
 
-/* Individual Card Wrapper */
 .card-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 15px;
-    transition: transform var(--transition-speed) var(--transition-easing),
-                opacity var(--transition-speed) var(--transition-easing);
+    transition: transform var(--transition-speed) var(--transition-easing), opacity var(--transition-speed) var(--transition-easing);
     opacity: 0.5;
     transform: scale(0.85);
     will-change: transform, opacity;
 }
 
-/* Card Image */
 .card {
     width: var(--card-width);
     height: var(--card-height);
@@ -142,7 +126,6 @@ body {
     transition: box-shadow var(--transition-speed) ease;
 }
 
-/* Optional soft glow for selected card */
 .card::after {
     content: '';
     position: absolute;
@@ -153,7 +136,6 @@ body {
     opacity: 0;
 }
 
-/* Label */
 .label {
     font-size: 0.85rem;
     font-weight: 500;
@@ -164,7 +146,6 @@ body {
     transition: all var(--transition-speed) var(--transition-easing);
 }
 
-/* Selected State */
 .card-wrapper.selected {
     opacity: 1;
     transform: scale(1.15);
@@ -172,8 +153,7 @@ body {
 }
 
 .card-wrapper.selected .card {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 
-                0 0 40px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 255, 255, 0.1);
 }
 
 .card-wrapper.selected .card::after {
@@ -187,7 +167,6 @@ body {
     transform: translateY(5px);
 }
 
-/* Adjacent items (left and right of selected) can be slightly larger than far items if desired, but 0.85 scale is specified for all side items */
 .card-wrapper.adjacent {
     opacity: 0.7;
     transform: scale(0.95);

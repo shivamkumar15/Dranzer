@@ -28,74 +28,62 @@ const brightnessPulseDurationMs = 450;
 
 let brightnessPulseToken = 0;
 
-// Config
 const cardWidth = 180;
 const gap = 30;
 const itemSize = cardWidth + gap;
 
 function init() {
-    // Generate cards
     wallpapers.forEach((wp, index) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'card-wrapper';
         wrapper.dataset.index = index;
-        
+
         const card = document.createElement('div');
         card.className = 'card';
         card.style.backgroundImage = `url('${wp.path}')`;
-        
+
         const label = document.createElement('div');
         label.className = 'label';
-        // Remove extension for cleaner look
         label.textContent = wp.name.replace('.png', '').replace('.jpg', '');
-        
+
         wrapper.appendChild(card);
         wrapper.appendChild(label);
-        
-        // Click to select
+
         wrapper.addEventListener('click', () => {
             if (selectedIndex !== index) {
                 selectedIndex = index;
                 updateSelection();
             }
         });
-        
+
         carousel.appendChild(wrapper);
     });
-    
+
     updateSelection();
 }
 
 function updateSelection() {
     const wrappers = document.querySelectorAll('.card-wrapper');
-    
+
     wrappers.forEach((wrapper, index) => {
         wrapper.classList.remove('selected', 'adjacent');
-        
+
         if (index === selectedIndex) {
             wrapper.classList.add('selected');
         } else if (index === selectedIndex - 1 || index === selectedIndex + 1) {
             wrapper.classList.add('adjacent');
         }
     });
-    
-    // Update background
+
     const selectedWallpaper = wallpapers[selectedIndex];
     const direction = Math.sign(selectedIndex - previousSelectedIndex);
     setBackground(selectedWallpaper.path, direction);
     previousSelectedIndex = selectedIndex;
-    
-    // Calculate translation to keep selected item in center
-    // Assuming container is perfectly centered, we just shift by the offset
-    // Since initially all items are laid out from center (wait, display flex content center).
-    // Let's rethink layout.
-    // Actually, if we use translateX, we need to know the offset from the middle.
-    // Middle item index in a centered flex container is (wallpapers.length - 1) / 2
-    // The visual center is 0. 
+
     const centerIndex = (wallpapers.length - 1) / 2;
     const diff = centerIndex - selectedIndex;
     const translateX = diff * itemSize;
-    
+
     carousel.style.transform = `translateX(${translateX}px)`;
 }
 
@@ -169,7 +157,6 @@ function triggerBrightnessPulse() {
     }, brightnessPulseDurationMs);
 }
 
-// Keyboard navigation
 window.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight' || e.key === 'l') {
         if (selectedIndex < wallpapers.length - 1) {
@@ -188,5 +175,4 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// Initialize
 init();

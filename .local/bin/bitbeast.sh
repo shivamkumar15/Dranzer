@@ -1028,11 +1028,6 @@ activate_theme() {
 }
 
 pick_theme() {
-    if ! command -v rofi >/dev/null 2>&1; then
-        printf 'rofi is required for bitbeast pick\n' >&2
-        exit 1
-    fi
-
     selection=$(
         while IFS= read -r theme_name; do
             [ -n "$theme_name" ] || continue
@@ -1049,7 +1044,20 @@ EOF_LIST
         exit 1
     }
 
-    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
+    selector="$SCRIPT_DIR/bitbeast-wallpaper-selector"
+    if [ ! -x "$selector" ] && [ -x "$HOME/.local/bin/bitbeast-wallpaper-selector" ]; then
+        selector="$HOME/.local/bin/bitbeast-wallpaper-selector"
+    fi
+
+    if [ -x "$selector" ]; then
+        choice=$("$selector")
+    else
+        if ! command -v rofi >/dev/null 2>&1; then
+            printf 'rofi or bitbeast-wallpaper-selector is required for bitbeast pick\n' >&2
+            exit 1
+        fi
+        choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Select Wallpaper")
+    fi
     chosen_wallpaper=$(printf '%s' "$choice")
 
     [ -n "$chosen_wallpaper" ] || exit 0
