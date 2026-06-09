@@ -1,80 +1,76 @@
 * {
-    bg: #080b0dcc;
-    panel: #050607d9;
-    tile: #dfe6e61f;
-    tile-hover: #eaf7f72e;
-    primary: #6fffe0;
-    accent: #e9f5ef99;
-    text: #edf7f4;
-    muted: #edf7f499;
+    bg: #100d16cc;
+    bg-alt: #2d2d3fcc;
+    primary: #af91ea;
+    accent: #f0b43c;
+    text: #f7eeff;
+    muted: #f7eeff99;
     border: 2px;
-    font: "JetBrainsMono Nerd Font 10";
+    font: "JetBrainsMono Nerd Font 11";
     background-color: transparent;
 }
 
 window {
     fullscreen: true;
-    padding: 0px;
+    padding: 100px;
     background-color: @bg;
 }
 
 mainbox {
     children: [ inputbar, listview ];
-    spacing: 16px;
-    padding: 300px 210px 0px 210px;
-    background-color: transparent;
+    spacing: 30px;
 }
 
 inputbar {
-    children: [ entry ];
-    padding: 13px 26px;
+    children: [ prompt, entry ];
+    spacing: 12px;
+    padding: 14px 18px;
     border-radius: 999px;
-    background-color: #020303d9;
+    background-color: @bg-alt;
     text-color: @text;
-    margin: 0px 39%;
+    margin: 0px 30%;
     border: @border;
-    border-color: @accent;
+    border-color: #ffb4e6; /* Pink border like in the screenshot */
+}
+
+prompt {
+    enabled: false;
 }
 
 entry {
     placeholder: "Type to search";
     placeholder-color: @muted;
     text-color: @text;
-    horizontal-align: 0.5;
+    horizontal-align: 0.5; /* center the text */
 }
 
 listview {
     columns: 5;
     lines: 2;
-    spacing: 14px;
+    spacing: 20px;
     layout: vertical;
     flow: horizontal;
     fixed-columns: true;
-    fixed-height: true;
     border: 0px;
     scrollbar: false;
-    padding: 16px;
-    border-radius: 18px;
-    background-color: @panel;
 }
 
 element {
     orientation: vertical;
-    padding: 8px;
-    border-radius: 14px;
-    background-color: @tile;
+    padding: 10px;
+    border-radius: 16px;
+    background-color: @bg-alt;
     border: 1px;
-    border-color: @accent;
-    text-color: @text;
+    border-color: @muted;
 }
 
 element selected {
-    border-color: @primary;
-    background-color: @tile-hover;
+    border-color: #ffb4e6; /* Pink border on selected */
+    background-color: #2d2d3fff;
 }
 
 element-icon {
-    size: 190px;
+    size: 250px;
     horizontal-align: 0.5;
     vertical-align: 0.5;
     background-color: transparent;
@@ -85,5 +81,5 @@ element-text {
     horizontal-align: 0.5;
     vertical-align: 0.5;
     background-color: transparent;
-    padding: 6px 0px 0px 0px;
+    padding: 10px 0px 0px 0px;
 }
