@@ -335,26 +335,27 @@ build_rofi_theme() {
     colors_file=$3
     require_file "$colors_file"
 
-    bg=$(theme_color_hex "$colors_file" bg '#150608')
-    primary=$(theme_color_hex "$colors_file" primary '#e8450c')
-    secondary=$(theme_color_hex "$colors_file" secondary '#7b120f')
-    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
-    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg=$(theme_color_hex "$colors_file" bg '#0a0b10')
+    primary=$(theme_color_hex "$colors_file" primary '#00f2ff')
+    secondary=$(theme_color_hex "$colors_file" secondary '#7000ff')
+    accent=$(theme_color_hex "$colors_file" accent '#00f2ff')
+    text=$(theme_color_hex "$colors_file" text '#e0e6ed')
     muted="${text}99"
     prompt_text="$(basename "$theme_dir")"
 
     mkdir -p "$(dirname "$target_path")"
     cat > "$target_path" <<EOF_ROFI
 * {
-    bg: ${bg};
-    bg-alt: ${secondary};
+    bg: ${bg}f2;
+    bg-alt: ${secondary}cc;
     primary: ${primary};
     accent: ${accent};
     text: ${text};
     muted: ${muted};
-    urgent: #ff5555;
+    urgent: #ff0055;
     border: 2px;
     spacing: 14px;
+    background-color: transparent;
 }
 
 window {
@@ -407,20 +408,20 @@ listview {
 element {
     padding: 14px 16px;
     border-radius: 16px;
-    background-color: @bg-alt;
+    background-color: transparent;
     text-color: @text;
 }
 
-element normal.normal { background-color: @bg-alt; text-color: @text; }
-element selected.normal { background-color: @accent; text-color: #1a0a00; }
-element selected.active { background-color: @primary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: #1a0a00; }
-element alternate.normal { background-color: @bg-alt; text-color: @text; }
-element alternate.active { background-color: @bg-alt; text-color: @accent; }
-element alternate.urgent { background-color: @bg-alt; text-color: @urgent; }
+element normal.normal { background-color: transparent; text-color: @text; }
+element selected.normal { background-color: @primary; text-color: #0a0b10; }
+element selected.active { background-color: @secondary; text-color: @text; }
+element selected.urgent { background-color: @urgent; text-color: #0a0b10; }
+element alternate.normal { background-color: transparent; text-color: @text; }
+element alternate.active { background-color: transparent; text-color: @accent; }
+element alternate.urgent { background-color: transparent; text-color: @urgent; }
 
-element-icon { size: 28px; vertical-align: 0.5; }
-element-text { text-color: inherit; vertical-align: 0.5; }
+element-icon { size: 28px; vertical-align: 0.5; background-color: transparent; }
+element-text { text-color: inherit; vertical-align: 0.5; background-color: transparent; }
 
 mode-switcher { spacing: 10px; background-color: transparent; }
 
@@ -431,9 +432,10 @@ button {
     text-color: @muted;
 }
 
-button selected { background-color: @primary; text-color: @text; }
+button selected { background-color: @primary; text-color: #0a0b10; }
 EOF_ROFI
 }
+
 
 resolve_wallpaper_path() {
     wallpaper_value=$1
