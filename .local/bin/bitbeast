@@ -27,6 +27,7 @@ WAYBAR_DIR="$CONFIG_HOME/waybar"
 KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
+FASTFETCH_DIR="$CONFIG_HOME/fastfetch"
 DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-hud}"
 HANCORE_DIR="$WAYBAR_DIR/hancore-themes"
 
@@ -493,22 +494,82 @@ theme_wallpaper_path() {
 build_kitty_theme() {
     theme_dir=$1
     target_path=$2
-    wallpaper_path=$3
 
     require_file "$theme_dir/kitty.conf"
     mkdir -p "$(dirname "$target_path")"
     cp "$theme_dir/kitty.conf" "$target_path"
+}
 
-    if [ -f "$wallpaper_path" ]; then
-        wallpaper_escaped=$(printf '%s' "$wallpaper_path" | sed 's/\\/\\\\/g; s/ /\\ /g')
-        cat >> "$target_path" <<EOF_KITTY
+build_fastfetch_config() {
+    target_path=$1
+    wallpaper_path=$2
 
-# BitBeast wallpaper overlay
-background_image $wallpaper_escaped
-background_image_layout scaled
-background_tint 0.45
-EOF_KITTY
-    fi
+    mkdir -p "$(dirname "$target_path")"
+    cat > "$target_path" <<EOF_FASTFETCH
+{
+  "\$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": {
+    "type": "kitty",
+    "source": "$wallpaper_path",
+    "width": 30,
+    "height": 15,
+    "preserveAspectRatio": true,
+    "padding": {
+      "right": 4,
+      "top": 1,
+      "left": 2
+    }
+  },
+  "display": {
+    "separator": " "
+  },
+  "modules": [
+    "title",
+    {
+        "type": "custom",
+        "format": "---------------------"
+    },
+    {
+      "type": "kernel",
+      "key": "   ->",
+      "keyColor": "green"
+    },
+    {
+      "type": "wm",
+      "key": "   ->",
+      "keyColor": "blue"
+    },
+    {
+      "type": "shell",
+      "key": "   ->",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "terminal",
+      "key": "   ->",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "memory",
+      "key": "   ->",
+      "keyColor": "cyan"
+    },
+    {
+      "type": "uptime",
+      "key": "  󰅐 ->",
+      "keyColor": "red"
+    },
+    {
+        "type": "custom",
+        "format": "---------------------"
+    },
+    {
+      "type": "colors",
+      "symbol": "circle"
+    }
+  ]
+}
+EOF_FASTFETCH
 }
 
 current_theme_name() {
@@ -1013,7 +1074,7 @@ activate_theme() {
     require_file "$theme_dir/rofi.rasi"
     require_file "$theme_dir/cava.conf"
 
-    mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR"
+    mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR" "$FASTFETCH_DIR"
 
     wallpaper_path=$(theme_wallpaper_path "$theme_dir")
 
@@ -1021,6 +1082,7 @@ activate_theme() {
     cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
     cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
     build_kitty_theme "$theme_dir" "$KITTY_DIR/bitbeast.conf" "$wallpaper_path"
+    build_fastfetch_config "$FASTFETCH_DIR/config.jsonc" "$wallpaper_path"
     build_rofi_theme "$theme_dir" "$ROFI_DIR/bitbeast.rasi" "$theme_dir/colors.conf"
     cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
