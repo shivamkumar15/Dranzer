@@ -1,0 +1,83 @@
+/* HANCORE V2.1 Rose Pine adapted for BitBeast */
+
+@define-color base #191724;
+@define-color surface #1f1d2e;
+@define-color overlay #26233a;
+@define-color muted #6e6a86;
+@define-color subtle #908caa;
+@define-color text-rp #e0def4;
+@define-color love #eb6f92;
+@define-color foam #9ccfd8;
+
+window#waybar {
+    background: transparent;
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+#workspaces,
+#clock,
+#custom-media,
+#network,
+#custom-style,
+#pulseaudio,
+#backlight,
+#custom-bluetooth,
+#custom-power {
+    background-color: @base;
+    color: @text-rp;
+    border-radius: 8px;
+    border: 1px solid alpha(@text-rp, 0.15);
+    box-shadow: none;
+}
+
+#workspaces {
+    padding: 0 6px;
+}
+
+#workspaces button {
+    padding: 3px 6px;
+    background: transparent;
+    color: @text-rp;
+    border-radius: 2px;
+}
+
+#workspaces button.active {
+    color: @love;
+}
+
+#workspaces button.empty {
+    color: alpha(@text-rp, 0.4);
+}
+
+#custom-media {
+    color: @love;
+}
+
+#clock,
+#network,
+#custom-style {
+    color: @foam;
+}
+
+#custom-power {
+    color: @love;
+}
+
+#clock:hover,
+#custom-media:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#custom-bluetooth:hover,
+#network:hover,
+#custom-style:hover,
+#custom-power:hover {
+    background-color: @overlay;
+    color: @foam;
+}

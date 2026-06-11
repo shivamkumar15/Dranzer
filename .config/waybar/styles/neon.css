@@ -1,0 +1,149 @@
+/* 
+ * BitBeast Waybar - Neon Style
+ * A vibrant, cyberpunk-inspired theme with glowing borders.
+ */
+
+@import url("../bitbeast.css");
+@import url("../theme.css");
+
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    min-height: 0;
+}
+
+window#waybar {
+    background: transparent;
+    color: @text;
+}
+
+tooltip {
+    background: alpha(@bg, 0.95);
+    border: 2px solid @glow;
+    border-radius: 8px;
+    box-shadow: 0 0 20px alpha(@glow, 0.5);
+}
+
+tooltip label {
+    color: @text;
+    padding: 8px;
+}
+
+#workspaces,
+#window,
+#clock,
+#battery,
+#network,
+#pulseaudio,
+#tray,
+#custom-power,
+#custom-media,
+#custom-notification,
+#custom-lock,
+#idle_inhibitor,
+#cpu,
+#memory,
+#backlight,
+#custom-theme,
+#custom-style {
+    background: alpha(@bg, 0.85);
+    border: 2px solid @glow;
+    border-radius: 8px;
+    margin: 5px 6px;
+    padding: 2px 14px;
+    color: @text;
+    box-shadow: 0 0 10px alpha(@glow, 0.6);
+    transition: all 0.2s ease-in-out;
+}
+
+#workspaces:hover,
+#clock:hover,
+#battery:hover,
+#network:hover,
+#pulseaudio:hover,
+#tray:hover,
+#custom-power:hover,
+#custom-media:hover,
+#custom-notification:hover,
+#custom-lock:hover,
+#idle_inhibitor:hover,
+#cpu:hover,
+#memory:hover,
+#backlight:hover,
+#custom-theme:hover,
+#custom-style:hover {
+    background: alpha(@bg, 1.0);
+    border: 2px solid @primary;
+    box-shadow: 0 0 25px alpha(@primary, 0.8);
+    color: @primary;
+}
+
+#workspaces button {
+    color: alpha(@text, 0.5);
+    border-radius: 6px;
+    margin: 4px 6px;
+    padding: 0 8px;
+    transition: all 0.2s ease;
+}
+
+#workspaces button.active {
+    background: @glow;
+    color: @bg;
+    box-shadow: 0 0 15px @glow;
+}
+
+#workspaces button.urgent {
+    background: #ff5555;
+    color: white;
+    box-shadow: 0 0 20px #ff5555;
+}
+
+#workspaces button:hover {
+    color: @glow;
+    background: alpha(@glow, 0.2);
+}
+
+#custom-power {
+    color: #ff5555;
+    border-color: #ff5555;
+    box-shadow: 0 0 10px alpha(#ff5555, 0.6);
+}
+
+#custom-power:hover {
+    background: alpha(#ff5555, 0.2);
+    box-shadow: 0 0 25px alpha(#ff5555, 0.8);
+}
+
+#clock {
+    color: @accent;
+    border-color: @accent;
+    box-shadow: 0 0 10px alpha(@accent, 0.6);
+}
+
+#battery.charging {
+    color: #50fa7b;
+    border-color: #50fa7b;
+    box-shadow: 0 0 10px alpha(#50fa7b, 0.6);
+}
+
+#battery.critical:not(.charging) {
+    color: #ff5555;
+    border-color: #ff5555;
+    box-shadow: 0 0 20px #ff5555;
+    animation: blink 1s steps(5, start) infinite;
+}
+
+#custom-media.playing {
+    border-color: @primary;
+    box-shadow: 0 0 15px alpha(@primary, 0.6);
+}
+
+@keyframes blink {
+    to {
+        background-color: alpha(#ff5555, 0.6);
+        color: white;
+    }
+}

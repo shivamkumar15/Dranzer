@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Patch/Diff files
+*.orig
+*.rej
+*.bak
+
+# Temporary/Output directories
+graphify-out/
+fftest/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

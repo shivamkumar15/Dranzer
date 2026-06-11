@@ -1,0 +1,55 @@
+--- .local/bin/bitbeast
++++ .local/bin/bitbeast
+@@ -345,15 +345,15 @@
+ 
+     mkdir -p "$(dirname "$target_path")"
+     cat > "$target_path" <<EOF_ROFI
+ * {
+-    bg: ${bg};
+-    bg-alt: ${secondary};
++    bg: ${bg}f2;
++    bg-alt: ${secondary}cc;
+     primary: ${primary};
+     accent: ${accent};
+     text: ${text};
+     muted: ${muted};
+     urgent: #ff5555;
+     border: 2px;
+     spacing: 14px;
+     background-color: transparent;
+ }
+ 
+@@ -410,18 +410,18 @@
+ }
+ 
+ element {
+     padding: 14px 16px;
+     border-radius: 16px;
+-    background-color: @bg-alt;
++    background-color: transparent;
+     text-color: @text;
+ }
+ 
+-element normal.normal { background-color: @bg-alt; text-color: @text; }
+-element selected.normal { background-color: @accent; text-color: #1a0a00; }
++element normal.normal { background-color: transparent; text-color: @text; }
++element selected.normal { background-color: @primary; text-color: #0a0b10; }
+ element selected.active { background-color: @primary; text-color: @text; }
+-element selected.urgent { background-color: @urgent; text-color: #1a0a00; }
+-element alternate.normal { background-color: @bg-alt; text-color: @text; }
+-element alternate.active { background-color: @bg-alt; text-color: @accent; }
+-element alternate.urgent { background-color: @bg-alt; text-color: @urgent; }
++element selected.urgent { background-color: @urgent; text-color: #0a0b10; }
++element alternate.normal { background-color: transparent; text-color: @text; }
++element alternate.active { background-color: transparent; text-color: @accent; }
++element alternate.urgent { background-color: transparent; text-color: @urgent; }
+ 
+ element-icon { size: 28px; vertical-align: 0.5; background-color: transparent; }
+ element-text { text-color: inherit; vertical-align: 0.5; background-color: transparent; }
+ 
+@@ -430,6 +430,6 @@
+     text-color: @muted;
+ }
+ 
+-button selected { background-color: @primary; text-color: @text; }
++button selected { background-color: @primary; text-color: #0a0b10; }

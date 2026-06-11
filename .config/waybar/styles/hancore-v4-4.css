@@ -1,0 +1,63 @@
+/* HANCORE V4.4 rounded shell adapted for BitBeast */
+
+window#waybar {
+    background: linear-gradient(180deg, @background 75%, @foreground);
+    border-radius: 24px;
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+    color: @foreground;
+    border-radius: 16px;
+    opacity: 0.95;
+    border: 2px solid alpha(@foreground, 0.8);
+    background-color: alpha(@background, 0.9);
+    box-shadow: none;
+}
+
+#workspaces {
+    border-radius: 24px;
+    background-color: alpha(@background, 1);
+    opacity: 0.95;
+    padding: 1px;
+}
+
+#workspaces button {
+    padding: 0 6px;
+    margin: 1px 2px;
+    border-radius: 24px;
+    background-color: alpha(@foreground, 0.5);
+    color: @background;
+}
+
+#workspaces button.active {
+    background-color: alpha(@foreground, 0.9);
+    color: @background;
+}
+
+#workspaces button.empty {
+    background-color: alpha(@foreground, 0.4);
+    border: 1px groove alpha(@foreground, 0.9);
+    color: @foreground;
+    opacity: 0.45;
+}
+
+#workspaces button:hover {
+    color: @foreground;
+    background: linear-gradient(180deg, @background 75%, @foreground);
+}
+
+#clock,
+#custom-media,
+#pulseaudio,
+#backlight,
+#network,
+#custom-bluetooth,
+#custom-style,
+#custom-power {
+    margin: 0 4px 0 2px;
+    padding: 0 6px;
+    background: transparent;
+    color: @foreground;
+}

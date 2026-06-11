@@ -1,0 +1,126 @@
+/* 
+ * BitBeast Waybar - Glass Style
+ * A heavy glassmorphic theme with a fully connected bar.
+ */
+
+@import url("../bitbeast.css");
+@import url("../theme.css");
+
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 0;
+}
+
+window#waybar {
+    background: alpha(@bg, 0.4);
+    color: @text;
+    border-bottom: 1px solid alpha(@text, 0.1);
+}
+
+tooltip {
+    background: alpha(@bg, 0.6);
+    border: 1px solid alpha(@text, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+tooltip label {
+    color: @text;
+    padding: 6px;
+}
+
+#workspaces,
+#window,
+#clock,
+#battery,
+#network,
+#pulseaudio,
+#tray,
+#custom-power,
+#custom-media,
+#custom-notification,
+#custom-lock,
+#idle_inhibitor,
+#cpu,
+#memory,
+#backlight,
+#custom-theme,
+#custom-style {
+    background: transparent;
+    margin: 0;
+    padding: 0 14px;
+    color: @text;
+    transition: all 0.3s ease;
+}
+
+#workspaces:hover,
+#clock:hover,
+#battery:hover,
+#network:hover,
+#pulseaudio:hover,
+#tray:hover,
+#custom-power:hover,
+#custom-media:hover,
+#custom-notification:hover,
+#custom-lock:hover,
+#idle_inhibitor:hover,
+#cpu:hover,
+#memory:hover,
+#backlight:hover,
+#custom-theme:hover,
+#custom-style:hover {
+    background: alpha(@text, 0.05);
+}
+
+#workspaces button {
+    color: alpha(@text, 0.6);
+    border-radius: 8px;
+    margin: 8px 4px;
+    padding: 0 6px;
+    min-width: 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#workspaces button.active {
+    background: alpha(@primary, 0.3);
+    color: @primary;
+    box-shadow: 0 2px 10px alpha(@primary, 0.4);
+}
+
+#workspaces button.urgent {
+    background: alpha(#ff5555, 0.3);
+    color: #ff5555;
+}
+
+#workspaces button:hover {
+    background: alpha(@text, 0.1);
+    color: @text;
+}
+
+#custom-power {
+    color: #ff5555;
+}
+
+#custom-power:hover {
+    background: alpha(#ff5555, 0.2);
+}
+
+#clock {
+    color: @accent;
+    font-weight: 800;
+}
+
+#battery.critical:not(.charging) {
+    color: #ff5555;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { background-color: transparent; }
+    50% { background-color: alpha(#ff5555, 0.2); }
+    100% { background-color: transparent; }
+}
