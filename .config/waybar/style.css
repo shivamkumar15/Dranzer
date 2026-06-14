@@ -43,7 +43,8 @@ window#waybar {
 #temperature,
 #custom-bluetooth,
 #battery,
-#pulseaudio {
+#pulseaudio,
+#custom-power {
     margin: 0 4px;
     padding: 0 3px;
 }
@@ -128,6 +129,18 @@ window#waybar {
 
 #custom-media {
     color: #a2d2fb;
+}
+
+#custom-power {
+    color: #ff6b7a;
+    font-size: 17px;
+    min-width: 34px;
+}
+
+#custom-power:hover {
+    color: #ffffff;
+    background: rgba(255, 77, 103, 0.9);
+    border-radius: 10px;
 }
 
 /* Animations */

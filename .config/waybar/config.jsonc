@@ -33,7 +33,8 @@
     "temperature",
     "custom/bluetooth",
     "battery",
-    "pulseaudio"
+    "pulseaudio",
+    "custom/power"
   ],
 
   "hyprland/workspaces": {
@@ -156,5 +157,11 @@
     "on-click-right": "playerctl next",
     "on-click-middle": "playerctl previous",
     "tooltip": false
+  },
+
+  "custom/power": {
+    "format": "⏻",
+    "tooltip-format": "Power menu",
+    "on-click": "~/.local/bin/bitbeast-power-popup"
   }
 }
