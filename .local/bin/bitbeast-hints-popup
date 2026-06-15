@@ -161,6 +161,22 @@ def get_keybinds():
                         desc = f"Switch to Workspace {extra}"
                     elif action == "movetoworkspace":
                         desc = f"Move Window to Workspace {extra}"
+                    elif action == "movetoworkspacesilent":
+                        desc = f"Move Window to Workspace {extra}"
+                    elif action == "movefocus":
+                        desc = f"Move Focus {extra.upper()}"
+                    elif action == "movewindow":
+                        desc = f"Move Window {extra.upper()}"
+                    elif action == "layoutmsg" and extra == "togglesplit":
+                        desc = "Toggle Split Layout"
+                    elif action == "pseudo":
+                        desc = "Toggle Pseudo Tiling"
+                    elif action == "togglespecialworkspace":
+                        desc = "Toggle Special Workspace"
+                    elif extra:
+                        desc = f"{action} {extra}"
+                    else:
+                        desc = action
                     
                     if desc:
                         # Clean up descriptions
