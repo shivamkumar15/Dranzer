@@ -207,31 +207,25 @@ ACCENT = theme["accent"]
 
 CSS = f"""
 window {{
-    background: #f7f7f7;
+    background: #101014;
 }}
 #popup-frame {{
-    background-color: #f7f7f7;
-    border: 2px solid #262626;
+    background-color: #101014;
+    border: 2px solid #f2f2f2;
     border-radius: 30px;
     padding: 20px;
 }}
 .title-label {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 24px;
+    font-size: 30px;
     font-weight: 700;
-    color: #262626;
+    color: #f2f2f2;
 }}
 .inner-panel {{
-    background-color: #f7f7f7;
-    border: 2px solid #262626;
-    border-radius: 30px;
+    background-color: transparent;
+    border: 0px;
+    border-radius: 0px;
     padding: 12px 28px 18px 28px;
-}}
-.hint-footer {{
-    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: #262626;
 }}
 .keybind-row {{
     background: transparent;
@@ -241,20 +235,20 @@ window {{
 }}
 .keybind-num {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 13px;
+    font-size: 18px;
     font-weight: bold;
-    color: #262626;
+    color: #f2f2f2;
 }}
 .keybind-combo {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 13px;
+    font-size: 18px;
     font-weight: bold;
-    color: #262626;
+    color: #f2f2f2;
 }}
 .keybind-action {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 13px;
-    color: #262626;
+    font-size: 18px;
+    color: #f2f2f2;
 }}
 """
 
@@ -388,12 +382,6 @@ class HintsPopup(Gtk.Window):
             row.pack_start(desc_label, True, True, 0)
             
             list_box.pack_start(row, False, False, 0)
-
-        footer = Gtk.Label(label="AND SO ON .....")
-        footer.get_style_context().add_class("hint-footer")
-        footer.set_halign(Gtk.Align.CENTER)
-        footer.set_margin_top(8)
-        inner_panel.pack_start(footer, False, False, 0)
 
 if toggle_existing_instance():
     remove_pid_file()
