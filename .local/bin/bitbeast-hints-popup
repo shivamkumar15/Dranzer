@@ -40,6 +40,165 @@ def hex_to_rgb(hex_str):
     hex_str = hex_str.lstrip('#')
     return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
 
+def format_key(key):
+    friendly_names = {
+        "return": "Enter",
+        "space": "Space",
+        "left": "Left Arrow",
+        "right": "Right Arrow",
+        "up": "Up Arrow",
+        "down": "Down Arrow",
+        "tab": "Tab",
+        "comma": ",",
+        "period": ".",
+        "delete": "Delete",
+        "mouse:272": "Left Mouse",
+        "mouse:273": "Right Mouse",
+        "mouse_down": "Scroll Down",
+        "mouse_up": "Scroll Up",
+        "xf86audioraisevolume": "Volume Up",
+        "xf86audiolowervolume": "Volume Down",
+        "xf86audiomute": "Mute Audio",
+        "xf86audiomicmute": "Mute Mic",
+        "xf86audioplay": "Play/Pause",
+        "xf86audionext": "Next Track",
+        "xf86audioprev": "Previous Track",
+        "xf86monbrightnessup": "Brightness Up",
+        "xf86monbrightnessdown": "Brightness Down",
+    }
+    normalized = key.strip().lower()
+    if normalized in friendly_names:
+        return friendly_names[normalized]
+    if len(key) == 1:
+        return key.upper()
+    return key.replace("_", " ").title()
+
+def format_mods(mods):
+    friendly_mods = {
+        "$mod": "Super",
+        "SUPER": "Super",
+        "SHIFT": "Shift",
+        "CTRL": "Ctrl",
+        "CONTROL": "Ctrl",
+        "ALT": "Alt",
+    }
+    return [friendly_mods.get(mod, mod.title()) for mod in mods.split() if mod]
+
+def format_direction(value):
+    return {
+        "l": "Left",
+        "r": "Right",
+        "u": "Up",
+        "d": "Down",
+    }.get(value.lower(), value.upper())
+
+def describe_workspace(value):
+    workspace_names = {
+        "m+1": "Next Workspace",
+        "m-1": "Previous Workspace",
+        "e+1": "Next Existing Workspace",
+        "e-1": "Previous Existing Workspace",
+        "special": "Special Workspace",
+    }
+    return workspace_names.get(value, f"Workspace {value}")
+
+def describe_exec(command):
+    cmd = command.lower()
+    if "kitty --class=\"dropdown\"" in cmd:
+        return "Open Dropdown Terminal"
+    if "kitty" in cmd or "$terminal" in cmd:
+        return "Open Terminal"
+    if "rofi" in cmd or "$menu" in cmd:
+        return "Open App Launcher"
+    if "chrome" in cmd or "$browser" in cmd:
+        return "Open Browser"
+    if "bongocat" in cmd:
+        return "Toggle Bongo Cat"
+    if "dolphin" in cmd:
+        return "Open File Manager"
+    if "yazi" in cmd:
+        return "Open Terminal File Manager"
+    if "bitbeast pick" in cmd:
+        return "Choose Wallpaper"
+    if "bitbeast style cycle" in cmd:
+        return "Cycle Waybar Style"
+    if "bitbeast keybindings" in cmd or "hints" in cmd:
+        return "Show Keyboard Hints"
+    if "bitbeast hancore pick" in cmd:
+        return "Choose Waybar Theme"
+    if "bitbeast zsh cycle" in cmd:
+        return "Cycle Zsh Theme"
+    if "bitbeast zsh pick" in cmd:
+        return "Choose Zsh Theme"
+    if "bitbeast touchpad" in cmd:
+        return "Open Touchpad Settings"
+    if "bitbeast auto-theme" in cmd:
+        return "Apply Theme From Wallpaper"
+    if "bitbeast gradient" in cmd:
+        return "Generate Gradient Theme"
+    if "bitbeast session-init" in cmd:
+        return "Reload BitBeast Session"
+    if "bitbeast lock" in cmd:
+        return "Lock Screen"
+    if "bitbeast clipboard" in cmd:
+        return "Open Clipboard History"
+    if "hyprctl dispatch exit" in cmd:
+        return "Exit Hyprland"
+    if "hyprctl dispatch workspaceopt allfloat" in cmd:
+        return "Toggle Floating Workspace"
+    if "grim" in cmd and "slurp" in cmd:
+        return "Take Region Screenshot"
+    if "grim" in cmd:
+        return "Take Full Screenshot"
+    if "wpctl set-volume" in cmd and "5%+" in cmd:
+        return "Increase Volume"
+    if "wpctl set-volume" in cmd and "5%-" in cmd:
+        return "Decrease Volume"
+    if "wpctl set-mute" in cmd:
+        return "Toggle Mute"
+    if "playerctl play-pause" in cmd:
+        return "Play/Pause Media"
+    if "playerctl next" in cmd:
+        return "Next Media Track"
+    if "playerctl previous" in cmd:
+        return "Previous Media Track"
+    return re.sub(r'^(~/\.local/bin/|/home/\w+/\.local/bin/)', '', command).strip()
+
+def describe_action(action, extra):
+    if action == "exec":
+        return describe_exec(extra)
+    if action == "killactive":
+        return "Close Active Window"
+    if action == "fullscreen":
+        return "Toggle Fullscreen" if extra != "1" else "Toggle Fake Fullscreen"
+    if action == "togglefloating":
+        return "Toggle Floating Window"
+    if action == "workspace":
+        return f"Switch to {describe_workspace(extra)}"
+    if action == "movetoworkspace":
+        return f"Move Window to {describe_workspace(extra)}"
+    if action == "movetoworkspacesilent":
+        return f"Move Window to {describe_workspace(extra)}"
+    if action == "movefocus":
+        return f"Focus Window {format_direction(extra)}"
+    if action == "movewindow":
+        return f"Move Window {format_direction(extra)}" if extra else "Move Window"
+    if action == "resizewindow":
+        return "Resize Window With Mouse"
+    if action == "resizeactive":
+        return "Resize Active Window"
+    if action == "layoutmsg" and extra == "togglesplit":
+        return "Toggle Split Layout"
+    if action == "pseudo":
+        return "Toggle Pseudo Tiling"
+    if action == "togglespecialworkspace":
+        return "Toggle Special Workspace"
+    if action == "workspaceopt" and extra == "allfloat":
+        return "Toggle Floating Workspace"
+    if extra:
+        return f"{action.replace('_', ' ').title()} {extra}"
+    return action.replace("_", " ").title()
+
 def toggle_existing_instance() -> bool:
     os.makedirs(PID_DIR, exist_ok=True)
     if not os.path.exists(PID_FILE):
@@ -77,18 +236,6 @@ def get_keybinds():
         return []
     
     keybinds = []
-    friendly_names = {
-        "Return": "Enter",
-        "space": "Space",
-        "left": "Left Arrow",
-        "right": "Right Arrow",
-        "up": "Up Arrow",
-        "down": "Down Arrow",
-        "Tab": "Tab",
-        "comma": ",",
-        "period": ".",
-    }
-    
     with open(hypr_config, "r") as f:
         for line in f:
             line = line.strip()
@@ -103,87 +250,14 @@ def get_keybinds():
                     action = parts[2].strip()
                     extra = ",".join(parts[3:]).strip()
                     
-                    mods = mods.replace("$mod", "Super")
-                    mods = mods.replace("SHIFT", "Shift")
-                    mods = mods.replace("CTRL", "Ctrl")
-                    mods = mods.replace("ALT", "Alt")
-                    
-                    mod_list = [m for m in mods.split() if m]
+                    mod_list = format_mods(mods)
                     if key:
-                        friendly_key = friendly_names.get(key, key.capitalize())
-                        mod_list.append(friendly_key)
+                        mod_list.append(format_key(key))
                     combo = " + ".join(mod_list)
                     
-                    desc = ""
-                    if action == "exec":
-                        cmd = extra.lower()
-                        if "kitty --class=\"dropdown\"" in cmd:
-                            desc = "Dropdown Terminal"
-                        elif "kitty" in cmd:
-                            desc = "Terminal"
-                        elif "rofi" in cmd:
-                            desc = "Application Menu"
-                        elif "chrome" in cmd:
-                            desc = "Browser"
-                        elif "bongocat" in cmd:
-                            desc = "Bongo Cat"
-                        elif "dolphin" in cmd:
-                            desc = "File Manager"
-                        elif "yazi" in cmd:
-                            desc = "Terminal File Manager"
-                        elif "bitbeast pick" in cmd:
-                            desc = "Select Wallpaper"
-                        elif "bitbeast style cycle" in cmd:
-                            desc = "Cycle Waybar Style"
-                        elif "bitbeast keybindings" in cmd or "hints" in cmd:
-                            desc = "Keyboard Hints"
-                        elif "bitbeast hancore pick" in cmd:
-                            desc = "Select Waybar Theme"
-                        elif "bitbeast zsh" in cmd:
-                            desc = "Zsh Theme Settings"
-                        elif "bitbeast lock" in cmd:
-                            desc = "Lock Screen"
-                        elif "bitbeast clipboard" in cmd:
-                            desc = "Clipboard History"
-                        elif "grim" in cmd and "slurp" in cmd:
-                            desc = "Screenshot (Region)"
-                        elif "grim" in cmd:
-                            desc = "Screenshot (Full)"
-                        else:
-                            desc = extra
-                    elif action == "killactive":
-                        desc = "Close Active Window"
-                    elif action == "fullscreen":
-                        desc = "Toggle Fullscreen"
-                    elif action == "togglefloating":
-                        desc = "Toggle Floating Window"
-                    elif action == "workspace":
-                        desc = f"Switch to Workspace {extra}"
-                    elif action == "movetoworkspace":
-                        desc = f"Move Window to Workspace {extra}"
-                    elif action == "movetoworkspacesilent":
-                        desc = f"Move Window to Workspace {extra}"
-                    elif action == "movefocus":
-                        desc = f"Move Focus {extra.upper()}"
-                    elif action == "movewindow":
-                        desc = f"Move Window {extra.upper()}"
-                    elif action == "layoutmsg" and extra == "togglesplit":
-                        desc = "Toggle Split Layout"
-                    elif action == "pseudo":
-                        desc = "Toggle Pseudo Tiling"
-                    elif action == "togglespecialworkspace":
-                        desc = "Toggle Special Workspace"
-                    elif extra:
-                        desc = f"{action} {extra}"
-                    else:
-                        desc = action
+                    desc = describe_action(action, extra)
                     
                     if desc:
-                        # Clean up descriptions
-                        desc = re.sub(r'^(~/\.local/bin/|/home/\w+/\.local/bin/)', '', desc)
-                        # Capitalize first letter of desc if it's words
-                        if desc and desc[0].isalpha():
-                            desc = desc[0].upper() + desc[1:]
                         keybinds.append((combo, desc))
     
     # Filter duplicates and return
@@ -217,7 +291,7 @@ window {{
 }}
 .title-label {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 30px;
+    font-size: 26px;
     font-weight: 700;
     color: #f2f2f2;
 }}
@@ -225,29 +299,29 @@ window {{
     background-color: transparent;
     border: 0px;
     border-radius: 0px;
-    padding: 12px 28px 18px 28px;
+    padding: 8px 34px 14px 34px;
 }}
 .keybind-row {{
     background: transparent;
     border-radius: 0px;
     border: 0px;
-    padding: 3px 0px;
+    padding: 4px 0px;
 }}
 .keybind-num {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: bold;
     color: #f2f2f2;
 }}
 .keybind-combo {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: bold;
     color: #f2f2f2;
 }}
 .keybind-action {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 18px;
+    font-size: 17px;
     color: #f2f2f2;
 }}
 """
@@ -312,7 +386,7 @@ class HintsPopup(Gtk.Window):
 
         inner_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         inner_panel.get_style_context().add_class("inner-panel")
-        inner_panel.set_size_request(520, 635)
+        inner_panel.set_size_request(980, 635)
         inner_panel.set_hexpand(False)
         inner_panel.set_vexpand(False)
         inner_panel.set_valign(Gtk.Align.CENTER)
@@ -335,7 +409,7 @@ class HintsPopup(Gtk.Window):
 
         list_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         list_box.set_hexpand(True)
-        list_box.set_margin_top(6)
+        list_box.set_margin_top(2)
         scrolled.add(list_box)
         
         keybinds = get_keybinds()
@@ -363,22 +437,30 @@ class HintsPopup(Gtk.Window):
             num_label = Gtk.Label(label=f"{idx:02d}. ")
             num_label.get_style_context().add_class("keybind-num")
             num_label.set_xalign(0)
+            num_label.set_yalign(0.5)
+            num_label.set_size_request(50, -1)
             row.pack_start(num_label, False, False, 0)
             
             combo_label = Gtk.Label(label=combo)
             combo_label.get_style_context().add_class("keybind-combo")
             combo_label.set_xalign(0)
+            combo_label.set_yalign(0.5)
+            combo_label.set_size_request(340, -1)
             row.pack_start(combo_label, False, False, 0)
             
             separator = Gtk.Label(label=" = ")
             separator.get_style_context().add_class("keybind-combo")
             separator.set_xalign(0)
+            separator.set_yalign(0.5)
+            separator.set_size_request(28, -1)
             row.pack_start(separator, False, False, 0)
             
             desc_label = Gtk.Label(label=desc)
             desc_label.get_style_context().add_class("keybind-action")
             desc_label.set_xalign(0)
+            desc_label.set_yalign(0.5)
             desc_label.set_line_wrap(True)
+            desc_label.set_max_width_chars(42)
             row.pack_start(desc_label, True, True, 0)
             
             list_box.pack_start(row, False, False, 0)

@@ -55,9 +55,9 @@
   },
 
   "custom/hint": {
-    "format": "󰌌",
+    "format": "󰌌 Hints",
     "tooltip-format": "Keyboard shortcuts (Super+H)",
-    "on-click": "bitbeast keybindings"
+    "on-click": "~/.local/bin/bitbeast keybindings"
   },
 
   "custom/netspeed": {
