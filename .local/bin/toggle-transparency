@@ -1,0 +1,12 @@
+#!/bin/bash
+current=$(hyprctl getoption decoration:active_opacity -j | jq -r '.float')
+
+if (( $(echo "$current > 0.98" | bc -l) )); then
+    # currently opaque, make transparent
+    hyprctl keyword decoration:active_opacity 0.94
+    hyprctl keyword decoration:inactive_opacity 0.90
+else
+    # currently transparent, make opaque
+    hyprctl keyword decoration:active_opacity 1.0
+    hyprctl keyword decoration:inactive_opacity 1.0
+fi

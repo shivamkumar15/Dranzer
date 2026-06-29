@@ -281,11 +281,11 @@ ACCENT = theme["accent"]
 
 CSS = f"""
 window {{
-    background: #101014;
+    background: rgba({r}, {g}, {b}, 0.95);
 }}
 #popup-frame {{
-    background-color: #101014;
-    border: 2px solid #f2f2f2;
+    background-color: transparent;
+    border: 2px solid {PRIMARY};
     border-radius: 30px;
     padding: 20px;
 }}
@@ -293,7 +293,7 @@ window {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
     font-size: 26px;
     font-weight: 700;
-    color: #f2f2f2;
+    color: {PRIMARY};
 }}
 .inner-panel {{
     background-color: transparent;
@@ -311,18 +311,18 @@ window {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
     font-size: 17px;
     font-weight: bold;
-    color: #f2f2f2;
+    color: {TEXT_DIM};
 }}
 .keybind-combo {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
     font-size: 17px;
     font-weight: bold;
-    color: #f2f2f2;
+    color: {ACCENT};
 }}
 .keybind-action {{
     font-family: "DejaVu Sans", "Noto Sans", sans-serif;
     font-size: 17px;
-    color: #f2f2f2;
+    color: {TEXT};
 }}
 """
 
