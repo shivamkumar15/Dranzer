@@ -43,7 +43,8 @@ window#waybar {
 #temperature,
 #custom-bluetooth,
 #battery,
-#pulseaudio {
+#pulseaudio,
+#custom-notification {
     margin: 0 4px;
     padding: 0 3px;
 }
@@ -124,6 +125,10 @@ window#waybar {
 
 #pulseaudio {
     color: #bd93f9;
+}
+
+#custom-notification {
+    color: #ff5555;
 }
 
 #custom-media {
