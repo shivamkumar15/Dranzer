@@ -99,6 +99,10 @@ The `bitbeast` command is your main tool for managing themes.
 | `bitbeast pick` | Open an interactive Rofi menu to pick a theme |
 | `bitbeast style <name>` | Switch Waybar style (e.g., `bitbeast style glassy`) |
 | `bitbeast list` | List all installed themes |
+| `bitbeast keybindings` | Show the premium GTK3 keyboard hints panel (or `Super + H`) |
+
+### Keyboard Hints Panel
+Press **`Super + H`** at any time to open the premium keyboard shortcuts panel. It features a masonry layout, live search, and dynamic grouping directly generated from your `hyprland.conf` comments.
 
 ### Fastfetch
 The configuration includes a custom Fastfetch layout with BitBeast logos. Run it simply with:
