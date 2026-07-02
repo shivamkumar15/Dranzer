@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
 BitBeast Hints Popup — GTK3 + GtkLayerShell centered keyboard shortcut hints.
-Triggers/toggles with Super+H.
+Grouped, searchable, theme-aware. Toggles with Super+H (bitbeast keybindings).
 """
 
 import os
 import re
 import signal
-import subprocess
 import sys
 import gi
 
@@ -17,12 +16,14 @@ from gi.repository import Gtk, Gdk, GLib, GtkLayerShell
 
 PID_DIR = os.path.expanduser("~/.cache/bitbeast")
 PID_FILE = os.path.join(PID_DIR, "hints-popup.pid")
+HYPR_CONFIG = os.path.expanduser("~/.config/hypr/hyprland.conf")
 
+# ---------- Theme ----------
 def load_theme():
     theme = {
         "bg": "#150608",
-        "primary": "#e8450c",
-        "secondary": "#7b120f",
+        "primary": "#ff2d55",
+        "secondary": "#2c0d0f",
         "accent": "#ffd166",
         "text": "#fff1dd"
     }
@@ -32,39 +33,57 @@ def load_theme():
             for line in f:
                 match = re.match(r"\$(\w+)\s*=\s*(?:rgb\()?([0-9a-fA-F]+)\)?", line.strip())
                 if match:
-                    name = match.group(1).lower()
-                    theme[name] = "#" + match.group(2)
+                    theme[match.group(1).lower()] = "#" + match.group(2)
     return theme
 
 def hex_to_rgb(hex_str):
     hex_str = hex_str.lstrip('#')
     return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
 
+def rgba(hex_str, alpha):
+    r, g, b = hex_to_rgb(hex_str)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+# ---------- Parsing & Formatting ----------
+
+SECTION_RENAMES = {
+    "Hold SUPER and drag an app with mouse to move/resize it": "Mouse",
+    "Scroll through existing workspaces": "Workspace Scroll",
+    "Send active app to a workspace and stay on the current workspace": "Send to Workspace (Stay)",
+    "Send active app to a workspace and follow it": "Send to Workspace (Follow)",
+    "Window focus (vim keys)": "Focus (Vim)",
+    "Window focus (arrow keys)": "Focus (Arrows)",
+    "Move windows (vim keys)": "Move (Vim)",
+    "Move windows (arrow keys)": "Move (Arrows)",
+    "Execution and Launchers": "Launchers",
+    "HANCORE Waybar Themes": "Waybar Themes",
+    "Touchpad Sensitivity Selector": "Touchpad",
+    "Auto Theme from Wallpaper": "Auto Theme",
+    "Desktop/Workspace": "Session",
+    "Brightness (hardware keys)": "Brightness",
+    "Media keys": "Media Keys",
+}
+
+def clean_section(name):
+    name = name.strip()
+    if name in SECTION_RENAMES:
+        return SECTION_RENAMES[name]
+    if len(name) < 20 and name.islower():
+        return name.title()
+    return name
+
 def format_key(key):
     friendly_names = {
-        "return": "Enter",
-        "space": "Space",
-        "left": "Left Arrow",
-        "right": "Right Arrow",
-        "up": "Up Arrow",
-        "down": "Down Arrow",
-        "tab": "Tab",
-        "comma": ",",
-        "period": ".",
-        "delete": "Delete",
-        "mouse:272": "Left Mouse",
-        "mouse:273": "Right Mouse",
-        "mouse_down": "Scroll Down",
-        "mouse_up": "Scroll Up",
-        "xf86audioraisevolume": "Volume Up",
-        "xf86audiolowervolume": "Volume Down",
-        "xf86audiomute": "Mute Audio",
-        "xf86audiomicmute": "Mute Mic",
-        "xf86audioplay": "Play/Pause",
-        "xf86audionext": "Next Track",
-        "xf86audioprev": "Previous Track",
-        "xf86monbrightnessup": "Brightness Up",
-        "xf86monbrightnessdown": "Brightness Down",
+        "return": "Enter", "space": "Space",
+        "left": "Left", "right": "Right", "up": "Up", "down": "Down",
+        "tab": "Tab", "comma": ",", "period": ".", "delete": "Delete",
+        "mouse:272": "Left Mouse", "mouse:273": "Right Mouse",
+        "mouse_down": "Scroll Down", "mouse_up": "Scroll Up",
+        "xf86audioraisevolume": "Vol Up", "xf86audiolowervolume": "Vol Down",
+        "xf86audiomute": "Mute Audio", "xf86audiomicmute": "Mute Mic",
+        "xf86audioplay": "Play/Pause", "xf86audionext": "Next Track",
+        "xf86audioprev": "Prev Track", "xf86monbrightnessup": "Bright Up",
+        "xf86monbrightnessdown": "Bright Down",
     }
     normalized = key.strip().lower()
     if normalized in friendly_names:
@@ -75,137 +94,457 @@ def format_key(key):
 
 def format_mods(mods):
     friendly_mods = {
-        "$mod": "Super",
-        "SUPER": "Super",
-        "SHIFT": "Shift",
-        "CTRL": "Ctrl",
-        "CONTROL": "Ctrl",
-        "ALT": "Alt",
+        "$mod": "Super", "SUPER": "Super", "SHIFT": "Shift",
+        "CTRL": "Ctrl", "CONTROL": "Ctrl", "ALT": "Alt",
     }
     return [friendly_mods.get(mod, mod.title()) for mod in mods.split() if mod]
 
-def format_direction(value):
-    return {
-        "l": "Left",
-        "r": "Right",
-        "u": "Up",
-        "d": "Down",
-    }.get(value.lower(), value.upper())
-
 def describe_workspace(value):
     workspace_names = {
-        "m+1": "Next Workspace",
-        "m-1": "Previous Workspace",
-        "e+1": "Next Existing Workspace",
-        "e-1": "Previous Existing Workspace",
+        "m+1": "Next Workspace", "m-1": "Prev Workspace",
+        "e+1": "Next Existing", "e-1": "Prev Existing",
         "special": "Special Workspace",
     }
     return workspace_names.get(value, f"Workspace {value}")
 
 def describe_exec(command):
     cmd = command.lower()
-    if "kitty --class=\"dropdown\"" in cmd:
-        return "Open Dropdown Terminal"
-    if "kitty" in cmd or "$terminal" in cmd:
-        return "Open Terminal"
-    if "rofi" in cmd or "$menu" in cmd:
-        return "Open App Launcher"
-    if "chrome" in cmd or "$browser" in cmd:
-        return "Open Browser"
-    if "bongocat" in cmd:
-        return "Toggle Bongo Cat"
-    if "dolphin" in cmd:
-        return "Open File Manager"
-    if "yazi" in cmd:
-        return "Open Terminal File Manager"
-    if "bitbeast pick" in cmd:
-        return "Choose Wallpaper"
-    if "bitbeast style cycle" in cmd:
-        return "Cycle Waybar Style"
-    if "bitbeast keybindings" in cmd or "hints" in cmd:
-        return "Show Keyboard Hints"
-    if "bitbeast hancore pick" in cmd:
-        return "Choose Waybar Theme"
-    if "bitbeast zsh cycle" in cmd:
-        return "Cycle Zsh Theme"
-    if "bitbeast zsh pick" in cmd:
-        return "Choose Zsh Theme"
-    if "bitbeast touchpad" in cmd:
-        return "Open Touchpad Settings"
-    if "bitbeast auto-theme" in cmd:
-        return "Apply Theme From Wallpaper"
-    if "bitbeast gradient" in cmd:
-        return "Generate Gradient Theme"
-    if "bitbeast session-init" in cmd:
-        return "Reload BitBeast Session"
-    if "bitbeast lock" in cmd:
-        return "Lock Screen"
-    if "bitbeast clipboard" in cmd:
-        return "Open Clipboard History"
-    if "hyprctl dispatch exit" in cmd:
-        return "Exit Hyprland"
-    if "hyprctl dispatch workspaceopt allfloat" in cmd:
-        return "Toggle Floating Workspace"
-    if "grim" in cmd and "slurp" in cmd:
-        return "Take Region Screenshot"
-    if "grim" in cmd:
-        return "Take Full Screenshot"
-    if "wpctl set-volume" in cmd and "5%+" in cmd:
-        return "Increase Volume"
-    if "wpctl set-volume" in cmd and "5%-" in cmd:
-        return "Decrease Volume"
-    if "wpctl set-mute" in cmd:
-        return "Toggle Mute"
-    if "playerctl play-pause" in cmd:
-        return "Play/Pause Media"
-    if "playerctl next" in cmd:
-        return "Next Media Track"
-    if "playerctl previous" in cmd:
-        return "Previous Media Track"
+    if "kitty --class=\"dropdown\"" in cmd: return "Dropdown Terminal"
+    if "kitty" in cmd or "$terminal" in cmd: return "Terminal"
+    if "rofi" in cmd or "$menu" in cmd: return "App Launcher"
+    if "chrome" in cmd or "$browser" in cmd: return "Browser"
+    if "bongocat" in cmd: return "Toggle Bongo Cat"
+    if "dolphin" in cmd: return "File Manager"
+    if "yazi" in cmd: return "Terminal File Manager"
+    if "bitbeast pick" in cmd: return "Choose Wallpaper"
+    if "bitbeast style cycle" in cmd: return "Cycle Waybar Style"
+    if "bitbeast keybindings" in cmd or "hints" in cmd: return "Keyboard Hints"
+    if "bitbeast hancore pick" in cmd: return "Choose Waybar Theme"
+    if "bitbeast zsh cycle" in cmd: return "Cycle Zsh Theme"
+    if "bitbeast zsh pick" in cmd: return "Choose Zsh Theme"
+    if "bitbeast touchpad" in cmd: return "Touchpad Settings"
+    if "bitbeast auto-theme" in cmd: return "Apply Theme From Wallpaper"
+    if "bitbeast gradient" in cmd: return "Generate Gradient Theme"
+    if "bitbeast session-init" in cmd: return "Reload Session"
+    if "bitbeast lock" in cmd: return "Lock Screen"
+    if "bitbeast clipboard" in cmd: return "Clipboard History"
+    if "toggle-transparency" in cmd: return "Toggle Transparency"
+    if "hyprctl dispatch exit" in cmd: return "Exit Hyprland"
+    if "workspaceopt allfloat" in cmd: return "Toggle Floating Workspace"
+    if "grim" in cmd and "slurp" in cmd: return "Region Screenshot"
+    if "grim" in cmd: return "Full Screenshot"
+    if "wpctl set-volume" in cmd and "5%+" in cmd: return "Increase Volume"
+    if "wpctl set-volume" in cmd and "5%-" in cmd: return "Decrease Volume"
+    if "wpctl set-mute" in cmd: return "Toggle Mute"
+    if "playerctl play-pause" in cmd: return "Play/Pause Media"
+    if "playerctl next" in cmd: return "Next Media Track"
+    if "playerctl previous" in cmd: return "Previous Media Track"
     return re.sub(r'^(~/\.local/bin/|/home/\w+/\.local/bin/)', '', command).strip()
 
-def describe_action(action, extra):
-    if action == "exec":
-        return describe_exec(extra)
-    if action == "killactive":
-        return "Close Active Window"
-    if action == "fullscreen":
-        return "Toggle Fullscreen" if extra != "1" else "Toggle Fake Fullscreen"
-    if action == "togglefloating":
-        return "Toggle Floating Window"
-    if action == "workspace":
-        return f"Switch to {describe_workspace(extra)}"
-    if action == "movetoworkspace":
-        return f"Move Window to {describe_workspace(extra)}"
-    if action == "movetoworkspacesilent":
-        return f"Move Window to {describe_workspace(extra)}"
-    if action == "movefocus":
-        return f"Focus Window {format_direction(extra)}"
-    if action == "movewindow":
-        return f"Move Window {format_direction(extra)}" if extra else "Move Window"
-    if action == "resizewindow":
-        return "Resize Window With Mouse"
+def describe_action(action, extra, is_mouse=False):
+    if is_mouse:
+        if action == "movewindow": return "Drag to Move Window"
+        if action == "resizewindow": return "Drag to Resize Window"
+        
+    if action == "exec": return describe_exec(extra)
+    if action == "killactive": return "Close Window"
+    if action == "fullscreen": return "Toggle Fullscreen" if extra != "1" else "Fake Fullscreen"
+    if action == "togglefloating": return "Toggle Floating"
+    if action == "workspace": return f"Switch to {describe_workspace(extra)}"
+    if action in ("movetoworkspace", "movetoworkspacesilent"): return f"Move to {describe_workspace(extra)}"
+    
+    direction = {"l": "Left", "r": "Right", "u": "Up", "d": "Down"}.get(extra.lower(), extra.upper())
+    if action == "movefocus": return f"Focus {direction}"
+    if action == "movewindow": return f"Move {direction}" if extra else "Move Window"
+    
+    if action == "resizewindow": return "Resize Window With Mouse"
     if action == "resizeactive":
-        return "Resize Active Window"
-    if action == "layoutmsg" and extra == "togglesplit":
-        return "Toggle Split Layout"
-    if action == "pseudo":
-        return "Toggle Pseudo Tiling"
-    if action == "togglespecialworkspace":
-        return "Toggle Special Workspace"
-    if action == "workspaceopt" and extra == "allfloat":
-        return "Toggle Floating Workspace"
-    if extra:
-        return f"{action.replace('_', ' ').title()} {extra}"
-    return action.replace("_", " ").title()
+        dims = extra.replace(",", " ").split()
+        if len(dims) >= 2:
+            try: dx, dy = int(dims[0]), int(dims[1])
+            except ValueError: return "Resize Window"
+            if dx < 0: return "Shrink Horizontally"
+            if dx > 0: return "Grow Horizontally"
+            if dy < 0: return "Shrink Vertically"
+            if dy > 0: return "Grow Vertically"
+        return "Resize Window"
+        
+    if action == "layoutmsg" and extra == "togglesplit": return "Toggle Split Layout"
+    if action == "pseudo": return "Toggle Pseudo Tiling"
+    if action == "togglespecialworkspace": return "Toggle Special Workspace"
+    if action == "workspaceopt" and extra == "allfloat": return "Toggle Floating Workspace"
+    
+    return f"{action.replace('_', ' ').title()} {extra}".strip()
 
-def toggle_existing_instance() -> bool:
+def parse_keybinds(path):
+    if not os.path.exists(path):
+        return []
+        
+    sections = []
+    current_section = None
+    current_binds = []
+    seen = set()
+
+    def flush():
+        nonlocal current_section, current_binds
+        if current_section and current_binds:
+            sections.append((current_section, list(current_binds)))
+            current_binds.clear()
+
+    with open(path, "r") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line: continue
+            
+            if line.startswith("#"):
+                flush()
+                current_section = clean_section(line.lstrip("#").strip())
+                continue
+                
+            match = re.match(r"^bind[a-z]*\s*=\s*", line)
+            if match:
+                is_mouse = line.startswith("bindm")
+                rest = line[match.end():]
+                parts = [p.strip() for p in rest.split(",")]
+                if len(parts) < 3: continue
+                
+                mods, key, action = parts[0], parts[1], parts[2]
+                extra = ",".join(parts[3:])
+                
+                tokens = format_mods(mods)
+                if key: tokens.append(format_key(key))
+                combo = " + ".join(tokens)
+                
+                if combo in seen: continue
+                seen.add(combo)
+                
+                desc = describe_action(action, extra, is_mouse)
+                if desc:
+                    if current_section is None:
+                        current_section = "General"
+                    current_binds.append((tokens, desc, combo))
+    flush()
+    return sections
+
+# ---------- UI & State ----------
+
+THEME = load_theme()
+BG = THEME["bg"]
+PRIMARY = THEME["primary"]
+SECONDARY = THEME["secondary"]
+ACCENT = THEME["accent"]
+TEXT = THEME["text"]
+
+CSS = f"""
+* {{
+    font-family: "JetBrainsMono Nerd Font", "DejaVu Sans", sans-serif;
+}}
+window {{
+    background: transparent;
+}}
+#root {{
+    background: {rgba(BG, 0.93)};
+    border: 1px solid {rgba(PRIMARY, 0.45)};
+    border-radius: 24px;
+    padding: 20px 22px 16px 22px;
+}}
+.header {{ padding: 2px 4px 14px 4px; }}
+.title-icon {{
+    font-size: 26px;
+    color: {PRIMARY};
+}}
+.title {{
+    font-size: 21px;
+    font-weight: 800;
+    color: {TEXT};
+}}
+.subtitle {{
+    font-size: 12px;
+    font-weight: 600;
+    color: {rgba(TEXT, 0.5)};
+}}
+.hint-pill {{
+    background: {rgba(TEXT, 0.06)};
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: {rgba(TEXT, 0.55)};
+}}
+.close-btn {{
+    border-radius: 999px;
+    padding: 4px;
+    color: {rgba(TEXT, 0.5)};
+    background: transparent;
+    border: none;
+}}
+.close-btn:hover {{ background: {rgba(PRIMARY, 0.2)}; color: {PRIMARY}; }}
+.search {{
+    background: {rgba(TEXT, 0.05)};
+    border: 1px solid {rgba(TEXT, 0.10)};
+    border-radius: 12px;
+    padding: 7px 14px;
+    color: {TEXT};
+    font-size: 14px;
+    box-shadow: none;
+}}
+.search image {{ color: {rgba(TEXT, 0.45)}; }}
+.search selection {{ background-color: {rgba(ACCENT, 0.3)}; }}
+#columns {{ padding: 12px 2px 4px 2px; }}
+.column {{ }}
+.card {{
+    background: {rgba(TEXT, 0.035)};
+    border: 1px solid {rgba(TEXT, 0.08)};
+    border-radius: 14px;
+    padding: 12px 16px 14px 16px;
+}}
+.card-header {{
+    font-size: 11.5px;
+    font-weight: 800;
+    color: {ACCENT};
+    padding: 2px 0 8px 0;
+    margin-bottom: 4px;
+    border-bottom: 1px solid {rgba(TEXT, 0.07)};
+    letter-spacing: 1.2px;
+}}
+.kb-row {{ padding: 4px 0; }}
+.kb-chip {{
+    background: {rgba(ACCENT, 0.10)};
+    border: 1px solid {rgba(ACCENT, 0.30)};
+    border-radius: 7px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: {ACCENT};
+}}
+.kb-desc {{
+    font-size: 13px;
+    color: {rgba(TEXT, 0.85)};
+}}
+.hints-scroll {{ border: none; }}
+scrollbar {{ background: transparent; }}
+scrollbar slider {{
+    min-width: 7px;
+    min-height: 40px;
+    border-radius: 999px;
+    background: {rgba(TEXT, 0.16)};
+}}
+scrollbar slider:hover {{ background: {rgba(TEXT, 0.28)}; }}
+scrollbar trough {{ background: transparent; border: none; }}
+"""
+
+class HintsPopup(Gtk.Window):
+    def __init__(self):
+        super().__init__()
+        self.set_title("BitBeast Hints")
+        self.set_default_size(1080, 720)
+        self.set_size_request(1080, 720)
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_wmclass("bitbeast-hints", "bitbeast-hints")
+
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
+        # Use EXCLUSIVE to capture Esc and Super+H robustly without click
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+        for edge in (GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM,
+                     GtkLayerShell.Edge.LEFT, GtkLayerShell.Edge.RIGHT):
+            GtkLayerShell.set_anchor(self, edge, False)
+
+        screen = Gdk.Screen.get_default()
+        visual = screen.get_rgba_visual() if screen else None
+        if visual:
+            self.set_visual(visual)
+        self.set_app_paintable(True)
+
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS.encode())
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+        self.connect("key-press-event", self.on_key_press)
+        self.connect("destroy", self.on_destroy)
+
+        self.cards = []
+        self.build_ui()
+        self.show_all()
+
+    def build_ui(self):
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        root.set_name("root")
+        self.add(root)
+
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        header.get_style_context().add_class("header")
+        root.pack_start(header, False, False, 0)
+
+        icon = Gtk.Label(label="󰌌")
+        icon.get_style_context().add_class("title-icon")
+        header.pack_start(icon, False, False, 0)
+
+        title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        header.pack_start(title_box, False, False, 0)
+
+        title = Gtk.Label(label="Keyboard Shortcuts")
+        title.get_style_context().add_class("title")
+        title.set_xalign(0)
+        title_box.pack_start(title, False, False, 0)
+
+        sections = parse_keybinds(HYPR_CONFIG)
+        if not sections:
+            sections = [("General", [
+                (["Super", "H"], "Keyboard Hints", "Super + H"),
+                (["Super", "Enter"], "Terminal", "Super + Enter"),
+                (["Super", "Q"], "Close Window", "Super + Q")
+            ])]
+            
+        total = sum(len(b) for _, b in sections)
+        subtitle = Gtk.Label(label=f"{len(sections)} categories · {total} shortcuts")
+        subtitle.get_style_context().add_class("subtitle")
+        subtitle.set_xalign(0)
+        title_box.pack_start(subtitle, False, False, 0)
+
+        right = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        header.pack_end(right, False, False, 0)
+
+        pill = Gtk.Label(label="Esc to close")
+        pill.get_style_context().add_class("hint-pill")
+        right.pack_start(pill, False, False, 0)
+
+        close_btn = Gtk.Button()
+        close_btn.set_image(Gtk.Image.new_from_icon_name("window-close-symbolic", Gtk.IconSize.BUTTON))
+        close_btn.get_style_context().add_class("close-btn")
+        close_btn.connect("clicked", lambda *_: self.destroy())
+        right.pack_start(close_btn, False, False, 0)
+
+        search = Gtk.SearchEntry()
+        search.set_placeholder_text("Search keybindings…")
+        search.get_style_context().add_class("search")
+        search.connect("search-changed", self.on_search_changed)
+        root.pack_start(search, False, False, 0)
+        self.search_entry = search
+
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_vexpand(True)
+        scrolled.get_style_context().add_class("hints-scroll")
+        root.pack_start(scrolled, True, True, 0)
+        
+        scroll_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        scrolled.add(scroll_content)
+
+        self.columns_wrap = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        self.columns_wrap.set_name("columns")
+        self.columns_wrap.set_halign(Gtk.Align.CENTER)
+        scroll_content.pack_start(self.columns_wrap, False, False, 0)
+
+        self.no_results = Gtk.Label(label="No matching keybindings")
+        self.no_results.get_style_context().add_class("subtitle")
+        self.no_results.set_margin_top(40)
+        self.no_results.set_visible(False)
+        scroll_content.pack_start(self.no_results, False, False, 0)
+
+        left_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        left_col.get_style_context().add_class("column")
+        right_col.get_style_context().add_class("column")
+        self.columns_wrap.pack_start(left_col, True, True, 0)
+        self.columns_wrap.pack_start(right_col, True, True, 0)
+
+        # Greedy balance by bind count
+        cols = [[0, left_col], [0, right_col]]
+        for name, binds in sections:
+            idx = 0 if cols[0][0] <= cols[1][0] else 1
+            card = self.build_card(name, binds)
+            cols[idx][1].pack_start(card, False, False, 0)
+            cols[idx][0] += len(binds)
+
+    def build_card(self, name, binds):
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        card.get_style_context().add_class("card")
+        card.set_size_request(505, -1)
+
+        hdr = Gtk.Label(label=name.upper())
+        hdr.get_style_context().add_class("card-header")
+        hdr.set_xalign(0)
+        card.pack_start(hdr, False, False, 0)
+
+        rows = []
+        for tokens, desc, combo in binds:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            row.get_style_context().add_class("kb-row")
+
+            chips_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+            chips_box.set_size_request(240, -1)
+            for tok in tokens:
+                chip = Gtk.Label(label=tok)
+                chip.get_style_context().add_class("kb-chip")
+                chips_box.pack_start(chip, False, False, 0)
+            row.pack_start(chips_box, False, False, 0)
+
+            dlab = Gtk.Label(label=desc)
+            dlab.get_style_context().add_class("kb-desc")
+            dlab.set_xalign(0)
+            dlab.set_line_wrap(True)
+            dlab.set_line_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+            row.pack_start(dlab, True, True, 0)
+
+            card.pack_start(row, False, False, 0)
+            rows.append({"row": row, "text": (combo + " " + desc).lower()})
+
+        self.cards.append({"card": card, "rows": rows})
+        return card
+
+    def on_search_changed(self, entry):
+        q = entry.get_text().strip().lower()
+        any_card_visible = False
+        
+        for c in self.cards:
+            any_row_visible = False
+            for r in c["rows"]:
+                visible = (q == "") or (q in r["text"])
+                r["row"].set_visible(visible)
+                any_row_visible = any_row_visible or visible
+            
+            c["card"].set_visible(any_row_visible)
+            any_card_visible = any_card_visible or any_row_visible
+            
+        self.columns_wrap.set_visible(any_card_visible)
+        self.no_results.set_visible(not any_card_visible)
+
+    def on_key_press(self, _widget, event):
+        name = Gdk.keyval_name(event.keyval)
+        
+        if name == "Escape":
+            if self.search_entry.get_text():
+                self.search_entry.set_text("")
+            else:
+                self.destroy()
+            return True
+            
+        # Toggle on Super+H (since EXCLUSIVE intercepts it)
+        if name and name.lower() == "h":
+            mod_mask = Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.MOD4_MASK
+            if event.state & mod_mask:
+                self.destroy()
+                return True
+                
+        return False
+
+    def on_destroy(self, *_args):
+        remove_pid_file()
+        Gtk.main_quit()
+
+# ---------- State / Daemon ----------
+
+def toggle_existing_instance():
     os.makedirs(PID_DIR, exist_ok=True)
     if not os.path.exists(PID_FILE):
         return False
     try:
-        with open(PID_FILE, "r", encoding="utf-8") as handle:
-            old_pid = int(handle.read().strip())
+        with open(PID_FILE, "r") as f:
+            old_pid = int(f.read().strip())
     except Exception:
         return False
     if old_pid <= 0:
@@ -220,8 +559,8 @@ def toggle_existing_instance() -> bool:
 
 def write_pid_file():
     os.makedirs(PID_DIR, exist_ok=True)
-    with open(PID_FILE, "w", encoding="utf-8") as handle:
-        handle.write(str(os.getpid()))
+    with open(PID_FILE, "w") as f:
+        f.write(str(os.getpid()))
 
 def remove_pid_file():
     try:
@@ -230,247 +569,12 @@ def remove_pid_file():
     except OSError:
         pass
 
-def get_keybinds():
-    hypr_config = os.path.expanduser("~/.config/hypr/hyprland.conf")
-    if not os.path.exists(hypr_config):
-        return []
-    
-    keybinds = []
-    with open(hypr_config, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            
-            if line.startswith("bind") and "=" in line:
-                parts = line.split("=", 1)[1].strip().split(",")
-                if len(parts) >= 3:
-                    mods = parts[0].strip()
-                    key = parts[1].strip()
-                    action = parts[2].strip()
-                    extra = ",".join(parts[3:]).strip()
-                    
-                    mod_list = format_mods(mods)
-                    if key:
-                        mod_list.append(format_key(key))
-                    combo = " + ".join(mod_list)
-                    
-                    desc = describe_action(action, extra)
-                    
-                    if desc:
-                        keybinds.append((combo, desc))
-    
-    # Filter duplicates and return
-    seen = set()
-    unique_keybinds = []
-    for combo, desc in keybinds:
-        if combo not in seen:
-            seen.add(combo)
-            unique_keybinds.append((combo, desc))
-    return unique_keybinds
-
-theme = load_theme()
-r, g, b = hex_to_rgb(theme["bg"])
-TEXT = theme["text"]
-TEXT_DIM = f"rgba({r}, {g}, {b}, 0.7)" # We can do a lighter text dim:
-r_txt, g_txt, b_txt = hex_to_rgb(TEXT)
-TEXT_DIM = f"rgba({r_txt}, {g_txt}, {b_txt}, 0.65)"
-PRIMARY = theme["primary"]
-SECONDARY = theme["secondary"]
-ACCENT = theme["accent"]
-
-CSS = f"""
-window {{
-    background: rgba({r}, {g}, {b}, 0.95);
-}}
-#popup-frame {{
-    background-color: transparent;
-    border: 2px solid {PRIMARY};
-    border-radius: 30px;
-    padding: 20px;
-}}
-.title-label {{
-    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 26px;
-    font-weight: 700;
-    color: {PRIMARY};
-}}
-.inner-panel {{
-    background-color: transparent;
-    border: 0px;
-    border-radius: 0px;
-    padding: 8px 34px 14px 34px;
-}}
-.keybind-row {{
-    background: transparent;
-    border-radius: 0px;
-    border: 0px;
-    padding: 4px 0px;
-}}
-.keybind-num {{
-    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 17px;
-    font-weight: bold;
-    color: {TEXT_DIM};
-}}
-.keybind-combo {{
-    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 17px;
-    font-weight: bold;
-    color: {ACCENT};
-}}
-.keybind-action {{
-    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
-    font-size: 17px;
-    color: {TEXT};
-}}
-"""
-
-class HintsPopup(Gtk.Window):
-    def __init__(self):
-        super().__init__()
-        self.set_wmclass("bitbeast-hints", "bitbeast-hints")
-        self.set_title("Hints")
-        self.set_default_size(1080, 675)
-        self.set_size_request(1080, 675)
-        self.set_position(Gtk.WindowPosition.CENTER)
-        self.set_decorated(False)
-        
-        GtkLayerShell.init_for_window(self)
-        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
-        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, False)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, False)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, False)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, False)
-        
-        provider = Gtk.CssProvider()
-        provider.load_from_data(CSS.encode())
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
-        
-        self.connect("key-press-event", self.on_key_press)
-        self.connect("focus-out-event", self.on_focus_out)
-        self.connect("destroy", self.on_destroy)
-        
-        self.build_ui()
-        self.show_all()
-
-    def on_destroy(self, *_args):
-        remove_pid_file()
-        Gtk.main_quit()
-
-    def on_focus_out(self, *_args):
-        self.destroy()
-
-    def on_key_press(self, _widget, event):
-        if Gdk.keyval_name(event.keyval) in ("Escape", "q"):
-            self.destroy()
-
-    def build_ui(self):
-        main_frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        main_frame.set_name("popup-frame")
-        main_frame.set_hexpand(True)
-        main_frame.set_vexpand(True)
-        self.add(main_frame)
-
-        center_wrap = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        center_wrap.set_hexpand(True)
-        center_wrap.set_vexpand(True)
-        main_frame.pack_start(center_wrap, True, True, 0)
-
-        left_spacer = Gtk.Box()
-        left_spacer.set_hexpand(True)
-        center_wrap.pack_start(left_spacer, True, True, 0)
-
-        inner_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
-        inner_panel.get_style_context().add_class("inner-panel")
-        inner_panel.set_size_request(980, 635)
-        inner_panel.set_hexpand(False)
-        inner_panel.set_vexpand(False)
-        inner_panel.set_valign(Gtk.Align.CENTER)
-        center_wrap.pack_start(inner_panel, False, False, 0)
-
-        right_spacer = Gtk.Box()
-        right_spacer.set_hexpand(True)
-        center_wrap.pack_start(right_spacer, True, True, 0)
-
-        title_label = Gtk.Label(label="Hints")
-        title_label.get_style_context().add_class("title-label")
-        title_label.set_halign(Gtk.Align.CENTER)
-        title_label.set_margin_bottom(8)
-        inner_panel.pack_start(title_label, False, False, 0)
-
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled.set_vexpand(True)
-        inner_panel.pack_start(scrolled, True, True, 0)
-
-        list_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        list_box.set_hexpand(True)
-        list_box.set_margin_top(2)
-        scrolled.add(list_box)
-        
-        keybinds = get_keybinds()
-        
-        # If no keybinds could be parsed, provide a fallback list
-        if not keybinds:
-            keybinds = [
-                ("Super + Enter", "Terminal"),
-                ("Super + Shift + Enter", "Dropdown Terminal"),
-                ("Super + R", "Application Menu"),
-                ("Super + B", "Browser"),
-                ("Super + E", "File Manager"),
-                ("Super + H", "Keyboard Hints"),
-                ("Super + Q", "Close Window"),
-                ("Super + Space", "Toggle Floating Window"),
-                ("Super + L", "Lock Screen"),
-                ("Super + V", "Clipboard History"),
-                ("Super + S", "Screenshot (Region)"),
-            ]
-            
-        for idx, (combo, desc) in enumerate(keybinds, start=1):
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-            row.get_style_context().add_class("keybind-row")
-            
-            num_label = Gtk.Label(label=f"{idx:02d}. ")
-            num_label.get_style_context().add_class("keybind-num")
-            num_label.set_xalign(0)
-            num_label.set_yalign(0.5)
-            num_label.set_size_request(50, -1)
-            row.pack_start(num_label, False, False, 0)
-            
-            combo_label = Gtk.Label(label=combo)
-            combo_label.get_style_context().add_class("keybind-combo")
-            combo_label.set_xalign(0)
-            combo_label.set_yalign(0.5)
-            combo_label.set_size_request(340, -1)
-            row.pack_start(combo_label, False, False, 0)
-            
-            separator = Gtk.Label(label=" = ")
-            separator.get_style_context().add_class("keybind-combo")
-            separator.set_xalign(0)
-            separator.set_yalign(0.5)
-            separator.set_size_request(28, -1)
-            row.pack_start(separator, False, False, 0)
-            
-            desc_label = Gtk.Label(label=desc)
-            desc_label.get_style_context().add_class("keybind-action")
-            desc_label.set_xalign(0)
-            desc_label.set_yalign(0.5)
-            desc_label.set_line_wrap(True)
-            desc_label.set_max_width_chars(42)
-            row.pack_start(desc_label, True, True, 0)
-            
-            list_box.pack_start(row, False, False, 0)
-
 if toggle_existing_instance():
     remove_pid_file()
     sys.exit(0)
 
 write_pid_file()
-signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
+signal.signal(signal.SIGTERM, lambda *_: (remove_pid_file(), Gtk.main_quit()))
 
 if __name__ == "__main__":
     HintsPopup()

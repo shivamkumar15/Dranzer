@@ -971,6 +971,12 @@ function normalize(s) {
 }
 
 show_keybindings() {
+    if [ -x "$SCRIPT_DIR/bitbeast-hints-popup" ]; then
+        exec "$SCRIPT_DIR/bitbeast-hints-popup"
+    elif [ -x "$HOME/.local/bin/bitbeast-hints-popup" ]; then
+        exec "$HOME/.local/bin/bitbeast-hints-popup"
+    fi
+
     keybindings=$(list_hypr_keybindings)
     [ -n "$keybindings" ] || {
         printf 'No keybindings found in Hyprland config\n' >&2
