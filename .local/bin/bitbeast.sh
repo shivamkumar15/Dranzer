@@ -692,7 +692,7 @@ apply_wallpaper_swww() {
             ;;
         Drigger.png)
             # Elegant fade with slow ease
-            tr_type="simple"; tr_angle=0;   tr_step=3;   tr_duration=3;  tr_bezier=".22,.61,.36,1"
+            tr_type="simple"; tr_angle=0;   tr_step=30;   tr_duration=3;  tr_bezier=".22,.61,.36,1"
             ;;
         Galeon.png)
             # Burst from center outward
@@ -706,15 +706,29 @@ apply_wallpaper_swww() {
 
     attempt=1
     while [ "$attempt" -le 5 ]; do
-        if swww img "$wallpaper_path" \
-            --transition-type "$tr_type" \
-            --transition-duration "$tr_duration" \
-            --transition-fps 144 \
-            --transition-angle "$tr_angle" \
-            --transition-step "$tr_step" \
-            --transition-bezier "$tr_bezier" \
-            >/dev/null 2>&1; then
-            return 0
+        # Determine if we should include transition-duration (not supported for 'simple' in older swww, or not at all)
+        if [ "$tr_type" = "simple" ]; then
+            # 'simple' transition in swww doesn't accept transition-duration, only transition-step
+            if swww img "$wallpaper_path" \
+                --transition-type "$tr_type" \
+                --transition-fps 144 \
+                --transition-angle "$tr_angle" \
+                --transition-step "$tr_step" \
+                --transition-bezier "$tr_bezier" \
+                >/dev/null 2>&1; then
+                return 0
+            fi
+        else
+            if swww img "$wallpaper_path" \
+                --transition-type "$tr_type" \
+                --transition-duration "$tr_duration" \
+                --transition-fps 144 \
+                --transition-angle "$tr_angle" \
+                --transition-step "$tr_step" \
+                --transition-bezier "$tr_bezier" \
+                >/dev/null 2>&1; then
+                return 0
+            fi
         fi
 
         sleep 1

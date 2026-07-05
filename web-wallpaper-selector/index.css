@@ -49,11 +49,13 @@ body {
 .background.visible {
     opacity: 1;
     transform: translateX(0px) scale(1.04);
+    z-index: 1;
 }
 
 .background.exiting {
     opacity: 0;
     transform: translateX(var(--bg-exit-shift, 0px)) scale(1.01);
+    z-index: 0;
 }
 
 .background-next {
