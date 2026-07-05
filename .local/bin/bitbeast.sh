@@ -644,25 +644,39 @@ fallback_wallpaper_path() {
 }
 
 ensure_swww_daemon() {
-    if ! command -v swww >/dev/null 2>&1; then
-        return 1
+    if command -v swww >/dev/null 2>&1; then
+        if ! pgrep -x swww-daemon >/dev/null 2>&1; then
+            swww-daemon >/dev/null 2>&1 &
+            # Wait for daemon to be fully ready (up to 5 seconds)
+            _swww_tries=0
+            while [ "$_swww_tries" -lt 10 ]; do
+                sleep 0.5
+                if swww query >/dev/null 2>&1; then
+                    return 0
+                fi
+                _swww_tries=$((_swww_tries + 1))
+            done
+            warn "swww-daemon started but may not be fully ready"
+        fi
+        return 0
+    elif command -v awww >/dev/null 2>&1; then
+        if ! pgrep -x awww-daemon >/dev/null 2>&1; then
+            awww-daemon >/dev/null 2>&1 &
+            # Wait for daemon to be fully ready (up to 5 seconds)
+            _awww_tries=0
+            while [ "$_awww_tries" -lt 10 ]; do
+                sleep 0.5
+                if awww query >/dev/null 2>&1; then
+                    return 0
+                fi
+                _awww_tries=$((_awww_tries + 1))
+            done
+            warn "awww-daemon started but may not be fully ready"
+        fi
+        return 0
     fi
 
-    if ! pgrep -x swww-daemon >/dev/null 2>&1; then
-        swww-daemon >/dev/null 2>&1 &
-        # Wait for daemon to be fully ready (up to 5 seconds)
-        _swww_tries=0
-        while [ "$_swww_tries" -lt 10 ]; do
-            sleep 0.5
-            if swww query >/dev/null 2>&1; then
-                return 0
-            fi
-            _swww_tries=$((_swww_tries + 1))
-        done
-        warn "swww-daemon started but may not be fully ready"
-    fi
-
-    return 0
+    return 1
 }
 
 apply_wallpaper_swww() {
@@ -699,17 +713,30 @@ apply_wallpaper_swww() {
             tr_type="center"; tr_angle=0;   tr_step=90;  tr_duration=2;  tr_bezier=".65,0,.35,1"
             ;;
         *)
-            # Random transition for unknown wallpapers
-            tr_type="random"; tr_angle=0;   tr_step=90;  tr_duration=2;  tr_bezier=".42,0,.58,1"
+            # Deterministic transition based on filename checksum
+            _anim_types="wipe wave grow center outer left right top bottom simple fade"
+            _sum=$(printf '%s' "$wallpaper_name" | cksum | awk '{print $1}')
+            _idx=$(( _sum % 11 + 1 ))
+            tr_type=$(echo "$_anim_types" | cut -d' ' -f"$_idx")
+            tr_angle=$(( _sum % 360 ))
+            tr_step=60
+            tr_duration=2
+            tr_bezier=".42,0,.58,1"
             ;;
     esac
 
+    # Determine command to use (swww or awww)
+    cmd_bin="swww"
+    if ! command -v swww >/dev/null 2>&1 && command -v awww >/dev/null 2>&1; then
+        cmd_bin="awww"
+    fi
+
     attempt=1
     while [ "$attempt" -le 5 ]; do
-        # Determine if we should include transition-duration (not supported for 'simple' in older swww, or not at all)
+        # Determine if we should include transition-duration (not supported for 'simple' in older swww/awww, or not at all)
         if [ "$tr_type" = "simple" ]; then
-            # 'simple' transition in swww doesn't accept transition-duration, only transition-step
-            if swww img "$wallpaper_path" \
+            # 'simple' transition in swww/awww doesn't accept transition-duration, only transition-step
+            if "$cmd_bin" img "$wallpaper_path" \
                 --transition-type "$tr_type" \
                 --transition-fps 144 \
                 --transition-angle "$tr_angle" \
@@ -719,7 +746,7 @@ apply_wallpaper_swww() {
                 return 0
             fi
         else
-            if swww img "$wallpaper_path" \
+            if "$cmd_bin" img "$wallpaper_path" \
                 --transition-type "$tr_type" \
                 --transition-duration "$tr_duration" \
                 --transition-fps 144 \
@@ -761,8 +788,8 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Prefer swww for its smooth animated transitions (wave, grow, wipe, etc.)
-    if command -v swww >/dev/null 2>&1; then
+    # Prefer swww or awww for its smooth animated transitions (wave, grow, wipe, etc.)
+    if command -v swww >/dev/null 2>&1 || command -v awww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
         pkill -x swaybg >/dev/null 2>&1 || true
         if apply_wallpaper_swww "$wallpaper_path"; then
