@@ -1,0 +1,9 @@
+/* Graphite — Flat matte grey, understated */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg-alt, 0.9);
+    border: 1px solid alpha(@text, 0.08);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    padding: 1px 9px;
+}
+#workspaces button.active { background: alpha(@text, 0.12); border-radius: 6px; }

@@ -1,0 +1,10 @@
+/* Inferno — Fiery red-orange blaze */
+.modules-left, .modules-center, .modules-right {
+    background: linear-gradient(90deg, alpha(@secondary, 0.8), alpha(@primary, 0.7));
+    border: 1px solid @primary;
+    border-radius: 10px;
+    box-shadow: 0 0 18px alpha(@primary, 0.5);
+    padding: 2px 10px;
+}
+#clock { color: @bg; font-weight: 800; }
+#workspaces button.active { background: @bg; color: @primary; }

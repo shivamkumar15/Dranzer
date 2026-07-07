@@ -3,35 +3,7 @@
  * Distraction-free, clean, and elegant.
  */
 
-@import url("../bitbeast.css");
-@import url("../theme.css");
-
-* {
-    border: none;
-    border-radius: 0;
-    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    min-height: 0;
-}
-
-window#waybar {
-    background: transparent;
-    color: @text;
-}
-
-tooltip {
-    background: @bg;
-    border: 1px solid alpha(@text, 0.2);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-tooltip label {
-    color: @text;
-    padding: 6px;
-}
-
+/* Minimal — Distraction-free, clean, and elegant */
 #workspaces,
 #window,
 #clock,

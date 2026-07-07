@@ -1,0 +1,10 @@
+/* Ocean — Deep blue gradient swell */
+.modules-left, .modules-center, .modules-right {
+    background: linear-gradient(90deg, alpha(@bg, 0.8), alpha(#8be9fd, 0.15), alpha(@bg, 0.8));
+    border: 1px solid alpha(#8be9fd, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 0 16px alpha(#8be9fd, 0.18);
+    padding: 2px 10px;
+}
+#clock { color: #8be9fd; }
+#workspaces button.active { box-shadow: 0 0 10px alpha(#8be9fd, 0.5); }

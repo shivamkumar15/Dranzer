@@ -1,0 +1,10 @@
+/* Cyber — Angular notched cockpit look */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg, 0.9);
+    border: 1px solid @glow;
+    border-radius: 2px;
+    box-shadow: 0 0 14px alpha(@glow, 0.4);
+    padding: 2px 10px;
+}
+#clock { color: @glow; font-weight: 800; }
+#workspaces button.active { background: @glow; color: @bg; }

@@ -1,0 +1,14 @@
+/* Pulse — Breathing animated glow */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg, 0.85);
+    border: 1px solid alpha(@glow, 0.4);
+    border-radius: 14px;
+    box-shadow: 0 0 14px alpha(@glow, 0.3);
+    padding: 2px 10px;
+    animation: breathe 3s ease-in-out infinite;
+}
+@keyframes breathe {
+    0%, 100% { box-shadow: 0 0 10px alpha(@glow, 0.2); }
+    50% { box-shadow: 0 0 22px alpha(@glow, 0.55); }
+}
+#clock { color: @glow; }

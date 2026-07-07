@@ -1,0 +1,10 @@
+/* Volt — Electric yellow high-contrast */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg, 0.9);
+    border: 2px solid #ffd166;
+    border-radius: 2px;
+    box-shadow: 0 0 16px alpha(#ffd166, 0.5);
+    padding: 1px 9px;
+}
+#clock { color: #ffd166; font-weight: 800; }
+#workspaces button.active { background: #ffd166; color: @bg; }

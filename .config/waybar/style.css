@@ -1,6 +1,10 @@
-/* Premium Waybar Style - Pill Layout */
+/* BitBeast Waybar - Base stylesheet
+ * Imports: theme colors, bridge vars, then active style fragment (last wins).
+ * Fragments live under styles and override module groups and accents.
+ */
 @import "bitbeast.css";
-
+@import "theme.css";
+@import "bitbeast-style.css";
 
 * {
     border: none;
@@ -12,19 +16,19 @@
 
 window#waybar {
     background: transparent;
-    color: #ffffff;
+    color: @text;
 }
 
-/* Common pill style */
-.modules-left,
-.modules-center,
-.modules-right {
-    background: rgba(18, 18, 18, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 1px 9px;
-    margin: 3px 0;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+tooltip {
+    background: alpha(@bg, 0.92);
+    border: 1px solid alpha(@glow, 0.35);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+tooltip label {
+    color: @text;
+    padding: 4px 8px;
 }
 
 /* Individual module spacing */
@@ -49,16 +53,16 @@ window#waybar {
     padding: 0 3px;
 }
 
-/* Workspaces Styling */
+/* Workspaces base */
 #workspaces button {
     padding: 0 8px;
-    color: #a0a0a0;
+    color: alpha(@text, 0.6);
     transition: all 0.3s ease;
 }
 
 #workspaces button.active {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.1);
+    color: @text;
+    background: alpha(@text, 0.1);
     border-radius: 10px;
 }
 
@@ -67,32 +71,32 @@ window#waybar {
 }
 
 #workspaces button:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: alpha(@text, 0.05);
     border-radius: 10px;
 }
 
-/* Center Module Seam */
+/* Center module seam */
 #clock {
     margin-right: 0;
     padding-right: 4px;
-    color: #e0e0e0;
+    color: alpha(@text, 0.9);
     font-weight: bold;
 }
 
 #temperature.center {
     margin-left: 0;
     padding-left: 0;
-    color: #e0e0e0;
+    color: alpha(@text, 0.9);
     font-weight: bold;
 }
 
-/* Module Specific Colors */
+/* Module accent colors */
 #custom-cava {
     color: @cava-color;
 }
 
 #custom-hint {
-    color: #ffd166;
+    color: @accent;
 }
 
 #network {
@@ -104,7 +108,7 @@ window#waybar {
 }
 
 #backlight {
-    color: #ffd166;
+    color: @accent;
 }
 
 #cpu {
@@ -135,7 +139,7 @@ window#waybar {
     color: #a2d2fb;
 }
 
-/* Animations */
+/* Battery critical blink */
 @keyframes blink {
     to {
         background-color: #ffffff;

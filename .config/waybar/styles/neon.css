@@ -3,33 +3,16 @@
  * A vibrant, cyberpunk-inspired theme with glowing borders.
  */
 
-@import url("../bitbeast.css");
-@import url("../theme.css");
-
+/* Neon — Vibrant cyberpunk style with glowing borders */
 * {
-    border: none;
-    border-radius: 0;
-    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
     font-size: 14px;
     font-weight: 700;
-    min-height: 0;
-}
-
-window#waybar {
-    background: transparent;
-    color: @text;
 }
 
 tooltip {
     background: alpha(@bg, 0.95);
     border: 2px solid @glow;
-    border-radius: 8px;
     box-shadow: 0 0 20px alpha(@glow, 0.5);
-}
-
-tooltip label {
-    color: @text;
-    padding: 8px;
 }
 
 #workspaces,

@@ -1,0 +1,11 @@
+/* Pill — Rounded floating capsules, the classic BitBeast look */
+.modules-left,
+.modules-center,
+.modules-right {
+    background: rgba(18, 18, 18, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1px 9px;
+    margin: 3px 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}

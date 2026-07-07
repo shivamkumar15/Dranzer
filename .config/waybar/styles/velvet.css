@@ -1,0 +1,10 @@
+/* Velvet — Rich purple fabric texture */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@secondary, 0.75);
+    border: 1px solid alpha(@accent, 0.4);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px alpha(@secondary, 0.4), inset 0 1px 0 alpha(@accent, 0.1);
+    padding: 2px 10px;
+}
+#clock { color: @accent; font-weight: 700; }
+#workspaces button.active { background: alpha(@accent, 0.2); color: @accent; }
