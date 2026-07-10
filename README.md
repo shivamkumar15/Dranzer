@@ -97,12 +97,25 @@ The `bitbeast` command is your main tool for managing themes.
 | :--- | :--- |
 | `bitbeast <theme>` | Apply a specific theme (e.g., `bitbeast dranzer`) |
 | `bitbeast pick` | Open an interactive Rofi menu to pick a theme |
-| `bitbeast style <name>` | Switch Waybar style (e.g., `bitbeast style glassy`) |
+| `bitbeast style <name>` | Switch Waybar style (e.g., `bitbeast style cyber`) |
+| `bitbeast pick-style` | Open an interactive Rofi menu to pick a Waybar style |
+| `bitbeast style cycle` | Cycle through all available Waybar styles |
 | `bitbeast list` | List all installed themes |
 | `bitbeast keybindings` | Show the premium GTK3 keyboard hints panel (or `Super + H`) |
 
 ### Keyboard Hints Panel
 Press **`Super + H`** at any time to open the premium keyboard shortcuts panel. It features a masonry layout, live search, and dynamic grouping directly generated from your `hyprland.conf` comments.
+
+### Waybar Styles
+The system ships with 38 Waybar style fragments that layer on top of your active BitBeast theme. Each fragment overrides module backgrounds, borders, and accents using the theme's color palette.
+
+Available styles: `aurora`, `carbon`, `cyber`, `dawn`, `dusk`, `eclipse`, `ember`, `emerald`, `forge`, `frost`, `glacier`, `glass`, `gold`, `graphite`, `haze`, `hud`, `inferno`, `jade`, `lava`, `minimal`, `mint`, `neon`, `obsidian`, `ocean`, `onyx`, `orchid`, `phantom`, `pill`, `pulse`, `sage`, `shadow`, `slate`, `solar`, `throne`, `twilight`, `velvet`, `volt`, `zenith`.
+
+| Shortcut | Action |
+| :--- | :--- |
+| `Super + Shift + B` | Open the style picker (Rofi menu) |
+| `Super + Shift + W` | Cycle to the next style |
+| `Super + W` | Open the theme picker (Rofi menu) |
 
 ### Fastfetch
 The configuration includes a custom Fastfetch layout with BitBeast logos. Run it simply with:
@@ -137,7 +150,7 @@ Don't worry about your current configs! The installer automatically creates back
 - **`bitbeast` command not found**: Check your `$PATH` (see Post-Installation).
 - **Wallpaper not changing**: Ensure `swww` or `awww` is installed and running.
 - **Audio visualizer (Cava) empty**: Check your `~/.config/cava/config` for the correct audio source.
-- **`zsh: corrupt history file`**: Re-run `./install.sh`; it now auto-recovers printable history entries and enables safer history locking.
+- **`zsh: corrupt history file`**: This is caused by a concurrent-shell history write race. The `.zshrc` now uses `INC_APPEND_HISTORY` with `HIST_FCNTL_LOCK` exclusively (the redundant `APPEND_HISTORY` exit-time append has been removed). Delete any stale `~/.zsh_history.corrupt.*` / `.bad` / `.backup` files. If it persists, run `fc -W` to flush the current session and restart your shell.
 
 ---
 
