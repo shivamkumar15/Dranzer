@@ -48,6 +48,7 @@ check_dependencies() {
     pkg_name() {
         key=$1
         case "$PKG_MANAGER:$key" in
+            pacman:hyprland|apt:hyprland|dnf:hyprland) printf 'hyprland' ;;
             pacman:waybar|apt:waybar|dnf:waybar) printf 'waybar' ;;
             pacman:rofi|apt:rofi|dnf:rofi) printf 'rofi' ;;
             pacman:kitty|apt:kitty|dnf:kitty) printf 'kitty' ;;
@@ -58,6 +59,8 @@ check_dependencies() {
             pacman:pipewire|apt:pipewire|dnf:pipewire) printf 'pipewire' ;;
             pacman:wireplumber|apt:wireplumber|dnf:wireplumber) printf 'wireplumber' ;;
             pacman:xdg-desktop-portal-hyprland|apt:xdg-desktop-portal-hyprland|dnf:xdg-desktop-portal-hyprland) printf 'xdg-desktop-portal-hyprland' ;;
+            pacman:fastfetch|apt:fastfetch|dnf:fastfetch) printf 'fastfetch' ;;
+            pacman:cliphist|apt:cliphist|dnf:cliphist) printf 'cliphist' ;;
             pacman:git|apt:git|dnf:git) printf 'git' ;;
             pacman:bash|apt:bash|dnf:bash) printf 'bash' ;;
             pacman:swww|apt:swww|dnf:swww) printf 'swww' ;;
@@ -103,7 +106,11 @@ check_dependencies() {
         fi
     }
 
-    for cmd in waybar rofi kitty hyprlock swaync playerctl cava pipewire wireplumber git bash; do
+    if ! command -v Hyprland >/dev/null 2>&1; then
+        add_missing_req "hyprland" "Hyprland"
+    fi
+
+    for cmd in waybar rofi kitty hyprlock swaync playerctl cava pipewire wireplumber fastfetch cliphist git bash; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             add_missing_req "$cmd" "$cmd"
         fi
@@ -236,6 +243,7 @@ install_file() {
     fi
 
     backup_path "$target_path"
+    mkdir -p "$(dirname "$target_path")"
     cp "$source_path" "$target_path"
 }
 
@@ -362,7 +370,7 @@ setup_zsh() {
     if [ "$SELECTED_THEME" = "powerlevel10k" ]; then
         cat > "$ZSHRC" << EOF
 # If you come from bash you might have to change your \$PATH.
-# export PATH=\$HOME/bin:\$HOME/.local/bin:/usr/local/bin:\$PATH
+export PATH="\$HOME/.local/bin:\$PATH"
 
 # Path to your Oh My Zsh installation.
 export ZSH="\$HOME/.oh-my-zsh"
@@ -418,7 +426,7 @@ EOF
     else
         cat > "$ZSHRC" << EOF
 # If you come from bash you might have to change your \$PATH.
-# export PATH=\$HOME/bin:\$HOME/.local/bin:/usr/local/bin:\$PATH
+export PATH="\$HOME/.local/bin:\$PATH"
 
 # Path to your Oh My Zsh installation.
 export ZSH="\$HOME/.oh-my-zsh"
@@ -467,6 +475,9 @@ for wallpaper_name in $WALLPAPER_SRC_FILES; do
 done
 
 install_file "$REPO_DIR/.config/bitbeast/current.style" "$STATE_DIR/current.style"
+if [ -f "$CONFIG_HOME/hypr/hyprland.lua" ]; then
+    backup_path "$CONFIG_HOME/hypr/hyprland.lua"
+fi
 install_file "$REPO_DIR/.config/hypr/hyprland.conf" "$CONFIG_HOME/hypr/hyprland.conf"
 install_file "$REPO_DIR/.config/hypr/hyprlock.conf" "$CONFIG_HOME/hypr/hyprlock.conf"
 if [ ! -f "$CONFIG_HOME/hypr/touchpad.conf" ]; then
@@ -492,12 +503,16 @@ install_file "$REPO_DIR/.local/bin/bitbeast-media-popup" "$BIN_DIR/bitbeast-medi
 install_file "$REPO_DIR/.local/bin/bitbeast-hints-popup" "$BIN_DIR/bitbeast-hints-popup"
 install_file "$REPO_DIR/.local/bin/bitbeast-notification" "$BIN_DIR/bitbeast-notification"
 install_file "$REPO_DIR/.local/bin/bitbeast-notification-popdown" "$BIN_DIR/bitbeast-notification-popdown"
+install_file "$REPO_DIR/.local/bin/bitbeast-power-popup" "$BIN_DIR/bitbeast-power-popup"
 install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
 install_file "$REPO_DIR/.local/bin/bitbeast-sysinfo" "$BIN_DIR/bitbeast-sysinfo"
 install_file "$REPO_DIR/.local/bin/bitbeast-wallpaper-selector" "$BIN_DIR/bitbeast-wallpaper-selector"
 install_file "$REPO_DIR/.local/bin/bitbeast-workspaces" "$BIN_DIR/bitbeast-workspaces"
 install_file "$REPO_DIR/.local/bin/circular_cava.py" "$BIN_DIR/circular_cava.py"
-chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py"
+install_file "$REPO_DIR/.local/bin/toggle-transparency" "$BIN_DIR/toggle-transparency"
+install_file "$REPO_DIR/.local/bin/waybar-cava.sh" "$BIN_DIR/waybar-cava.sh"
+install_file "$REPO_DIR/.local/bin/waybar-netspeed.sh" "$BIN_DIR/waybar-netspeed.sh"
+chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/toggle-transparency" "$BIN_DIR/waybar-cava.sh" "$BIN_DIR/waybar-netspeed.sh"
 
 if [ -f "$REPO_DIR/.local/bin/bongocat" ]; then
     printf "Extracting BongoCat AppImage...\n"

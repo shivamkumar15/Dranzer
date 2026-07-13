@@ -788,8 +788,8 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Prefer swww or awww for its smooth animated transitions (wave, grow, wipe, etc.)
-    if command -v swww >/dev/null 2>&1 || command -v awww >/dev/null 2>&1; then
+    # Prefer swww for smooth transitions when available.
+    if command -v swww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
         pkill -x swaybg >/dev/null 2>&1 || true
         if apply_wallpaper_swww "$wallpaper_path"; then
@@ -800,6 +800,12 @@ apply_wallpaper() {
     # Fallback to swaybg (no transitions, hard cut)
     if command -v swaybg >/dev/null 2>&1; then
         if apply_wallpaper_swaybg "$wallpaper_path"; then
+            return 0
+        fi
+    fi
+
+    if command -v awww >/dev/null 2>&1; then
+        if apply_wallpaper_swww "$wallpaper_path"; then
             return 0
         fi
     fi
@@ -1345,8 +1351,7 @@ update_zsh_theme() {
     zshrc=$(zsh_theme_file)
 
     if [ ! -f "$zshrc" ]; then
-        printf 'Error: .zshrc not found\n' >&2
-        return 1
+        : > "$zshrc"
     fi
 
     if grep -q '^ZSH_THEME=' "$zshrc"; then
@@ -1399,6 +1404,8 @@ PS1="%F{$primary}%n%f%F{$text}@%f%F{$accent}%m%f %F{$text}%~%f "
 RPROMPT="%F{$secondary}%(3L|+)…%f"
 EOF_ZSH
     chmod +x "$HOME/.zsh/bitbeast-prompt.zsh"
+
+    [ -f "$HOME/.zshrc" ] || : > "$HOME/.zshrc"
 
     if [ -f "$HOME/.zshrc" ]; then
         if ! grep -q 'bitbeast-prompt.zsh' "$HOME/.zshrc"; then
