@@ -518,6 +518,7 @@ install_file "$REPO_DIR/.local/bin/bitbeast-notification" "$BIN_DIR/bitbeast-not
 install_file "$REPO_DIR/.local/bin/bitbeast-notification-popdown" "$BIN_DIR/bitbeast-notification-popdown"
 install_file "$REPO_DIR/.local/bin/bitbeast-power-popup" "$BIN_DIR/bitbeast-power-popup"
 install_file "$REPO_DIR/.local/bin/bitbeast-osd" "$BIN_DIR/bitbeast-osd"
+install_file "$REPO_DIR/.local/bin/bitbeast-volume-gesture" "$BIN_DIR/bitbeast-volume-gesture"
 install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
 install_file "$REPO_DIR/.local/bin/bitbeast-sysinfo" "$BIN_DIR/bitbeast-sysinfo"
 install_file "$REPO_DIR/.local/bin/bitbeast-wallpaper-selector" "$BIN_DIR/bitbeast-wallpaper-selector"

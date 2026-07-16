@@ -1,0 +1,552 @@
+#!/usr/bin/env python3
+"""
+BitBeast 4-finger touchpad gestures (Windows-style).
+
+  • 4-finger vertical swipe  → volume up/down + OSD slider
+  • 4-finger tap             → media play/pause (playerctl)
+
+Permissions: the process must be able to read the touchpad event node
+(/dev/input/event*). Run once:
+
+  bitbeast-volume-gesture --setup
+
+Then log out/in (or reboot), or re-run after the ACL is applied.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import select
+import signal
+import struct
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+# linux/input.h
+EV_SYN = 0x00
+EV_KEY = 0x01
+EV_ABS = 0x03
+SYN_REPORT = 0
+ABS_MT_SLOT = 0x2F
+ABS_MT_TOUCH_MAJOR = 0x30
+ABS_MT_POSITION_X = 0x35
+ABS_MT_POSITION_Y = 0x36
+ABS_MT_TRACKING_ID = 0x39
+ABS_X = 0x00
+ABS_Y = 0x01
+
+# input_event on 64-bit Linux: timeval {long sec, long usec}, type, code, value
+EVENT_FMT = "llHHi"
+EVENT_SIZE = struct.calcsize(EVENT_FMT)
+
+CACHE_DIR = Path.home() / ".cache" / "bitbeast"
+PID_FILE = CACHE_DIR / "volume-gesture.pid"
+LOG_FILE = CACHE_DIR / "volume-gesture.log"
+
+# Volume mapping: swipe this fraction of the pad height for a full 0→100% swing
+PAD_FRACTION_FOR_FULL_RANGE = 0.55
+VOLUME_MAX = 150
+FINGER_TARGET = 4
+# Ignore tiny jitter before arming the volume swipe (fraction of pad height)
+ARM_THRESHOLD = 0.015
+OSD_BIN = Path.home() / ".local" / "bin" / "bitbeast-osd"
+# Don't spam OSD more often than this
+OSD_MIN_INTERVAL = 0.03
+# 4-finger tap → play/pause (must be short + little movement)
+TAP_MAX_DURATION = 0.40          # seconds fingers may stay down
+TAP_MAX_MOVE = 0.035             # max travel as fraction of pad height
+TAP_COOLDOWN = 0.45              # prevent double-fires
+
+
+def log(msg: str) -> None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    line = f"{time.strftime('%H:%M:%S')} {msg}\n"
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as fh:
+            fh.write(line)
+    except Exception:
+        pass
+
+
+def cmd(args: list[str]) -> str:
+    try:
+        return subprocess.check_output(args, stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        return ""
+
+
+def run(args: list[str], check: bool = False) -> int:
+    try:
+        return subprocess.run(args, check=check).returncode
+    except Exception:
+        return 1
+
+
+def get_volume_percent() -> float:
+    out = cmd(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    if out:
+        m = re.search(r"Volume:\s*([0-9.]+)", out)
+        if m:
+            return float(m.group(1)) * 100.0
+    out = cmd(["pactl", "get-sink-volume", "@DEFAULT_SINK@"])
+    m = re.search(r"(\d+)%", out)
+    return float(m.group(1)) if m else 0.0
+
+
+def set_volume_percent(percent: float) -> None:
+    percent = max(0.0, min(float(VOLUME_MAX), percent))
+    # Prefer absolute set for smooth continuous control
+    if Path("/usr/bin/wpctl").exists() or Path("/bin/wpctl").exists():
+        level = percent / 100.0
+        subprocess.run(
+            ["wpctl", "set-volume", "-l", f"{VOLUME_MAX / 100:.2f}", "@DEFAULT_AUDIO_SINK@", f"{level:.4f}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        return
+    subprocess.run(
+        ["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{int(round(percent))}%"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+
+def media_play_pause() -> None:
+    """Windows-style 4-finger tap: toggle play/pause."""
+    if not (Path("/usr/bin/playerctl").is_file() or Path("/bin/playerctl").is_file()):
+        log("playerctl not found — cannot play/pause")
+        return
+    subprocess.Popen(
+        ["playerctl", "play-pause"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+    def _notify() -> None:
+        time.sleep(0.15)
+        status = (cmd(["playerctl", "status"]) or "Toggled").strip()
+        title = cmd(["playerctl", "metadata", "xesam:title"]) or cmd(
+            ["playerctl", "metadata", "title"]
+        ) or "Media"
+        if status.lower() == "playing":
+            icon, label = "media-playback-start", "Playing"
+        elif status.lower() == "paused":
+            icon, label = "media-playback-pause", "Paused"
+        else:
+            icon, label = "audio-x-generic", status
+        subprocess.run(
+            [
+                "notify-send",
+                "-a",
+                "BitBeast",
+                "-i",
+                icon,
+                "-h",
+                "string:x-canonical-private-synchronous:bitbeast-media-tap",
+                "-t",
+                "1200",
+                label,
+                title,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+    threading.Thread(target=_notify, daemon=True).start()
+    log("4-finger tap → play-pause")
+
+
+def osd_show_volume(percent: int) -> None:
+    """Update OSD without re-applying volume (daemon already set it)."""
+    osd = OSD_BIN if OSD_BIN.is_file() else Path(__file__).resolve().parent / "bitbeast-osd"
+    if not osd.is_file():
+        return
+    # Prefer lightweight IPC-style call: volume set-display N
+    subprocess.Popen(
+        [str(osd), "volume", "display", str(int(percent))],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
+def find_touchpad_devices() -> list[Path]:
+    found: list[Path] = []
+    for dev in sorted(Path("/dev/input").glob("event*")):
+        out = cmd(["udevadm", "info", "-q", "property", "-n", str(dev)])
+        if "ID_INPUT_TOUCHPAD=1" in out:
+            found.append(dev)
+            continue
+        # Fallback without udevadm: name contains touchpad
+        sys_name = Path(f"/sys/class/input/{dev.name}/device/name")
+        try:
+            name = sys_name.read_text(encoding="utf-8", errors="ignore").strip().lower()
+        except Exception:
+            name = ""
+        if "touchpad" in name and dev.exists():
+            found.append(dev)
+    # Prefer devices we can open
+    readable = [d for d in found if os.access(d, os.R_OK)]
+    return readable or found
+
+
+def ioctl_abs_range(fd: int, code: int) -> tuple[int, int]:
+    """Return (min, max) for an ABS axis via EVIOCGABS."""
+    # struct input_absinfo: value, min, max, fuzz, flat, resolution — all __s32
+    # EVIOCGABS(code) = _IOR('E', 0x40 + code, struct input_absinfo)
+    import fcntl
+
+    absinfo = struct.Struct("iiiiii")
+    buf = bytearray(absinfo.size)
+    # _IOC(_IOC_READ, 'E', 0x40+code, sizeof)
+    nr = 0x40 + code
+    ioc = (2 << 30) | (ord("E") << 8) | nr | (absinfo.size << 16)
+    try:
+        fcntl.ioctl(fd, ioc, buf)
+        value, amin, amax, fuzz, flat, res = absinfo.unpack(buf)
+        if amax > amin:
+            return amin, amax
+    except Exception:
+        pass
+    return 0, 3000
+
+
+class SlotState:
+    __slots__ = ("tracking_id", "x", "y", "active")
+
+    def __init__(self) -> None:
+        self.tracking_id = -1
+        self.x = 0
+        self.y = 0
+        self.active = False
+
+
+class VolumeGestureEngine:
+    def __init__(self, fd: int, y_min: int, y_max: int) -> None:
+        self.fd = fd
+        self.y_min = y_min
+        self.y_max = y_max
+        self.y_range = max(1, y_max - y_min)
+        self.slots: dict[int, SlotState] = {}
+        self.current_slot = 0
+        self.active_gesture = False
+        self.armed = False
+        self.start_avg_y = 0.0
+        self.start_volume = 0.0
+        self.last_applied = -1
+        self.last_osd_t = 0.0
+        # Tap detection (4-finger play/pause)
+        self.contact_start = 0.0
+        self.max_move_norm = 0.0
+        self.saw_four = False
+        self.last_tap_t = 0.0
+
+    def slot(self, idx: int) -> SlotState:
+        if idx not in self.slots:
+            self.slots[idx] = SlotState()
+        return self.slots[idx]
+
+    def active_fingers(self) -> list[SlotState]:
+        return [s for s in self.slots.values() if s.active]
+
+    def avg_y(self, fingers: list[SlotState]) -> float:
+        return sum(s.y for s in fingers) / len(fingers)
+
+    def maybe_tap(self) -> None:
+        """If this contact was a short, still 4-finger press → play/pause."""
+        if not self.saw_four:
+            return
+        # Volume swipe already started — not a tap
+        if self.armed or self.last_applied >= 0:
+            return
+        now = time.monotonic()
+        if now - self.last_tap_t < TAP_COOLDOWN:
+            return
+        duration = now - self.contact_start
+        if duration <= 0 or duration > TAP_MAX_DURATION:
+            return
+        if self.max_move_norm > TAP_MAX_MOVE:
+            return
+        self.last_tap_t = now
+        media_play_pause()
+
+    def end_gesture(self) -> None:
+        self.maybe_tap()
+        self.active_gesture = False
+        self.armed = False
+        self.last_applied = -1
+        self.saw_four = False
+        self.max_move_norm = 0.0
+        self.contact_start = 0.0
+
+    def on_syn(self) -> None:
+        fingers = self.active_fingers()
+        count = len(fingers)
+
+        if count < FINGER_TARGET:
+            if self.active_gesture:
+                self.end_gesture()
+            return
+
+        # Exactly 4+ fingers: track volume from vertical motion
+        avg = self.avg_y(fingers)
+
+        if not self.active_gesture:
+            self.active_gesture = True
+            self.armed = False
+            self.start_avg_y = avg
+            self.start_volume = get_volume_percent()
+            self.last_applied = -1
+            self.saw_four = True
+            self.contact_start = time.monotonic()
+            self.max_move_norm = 0.0
+            return
+
+        # Finger moved relative to start (Y grows downward → swipe up decreases Y)
+        dy = self.start_avg_y - avg  # positive when fingers move up
+        norm = dy / self.y_range
+        self.max_move_norm = max(self.max_move_norm, abs(norm))
+
+        if not self.armed:
+            if abs(norm) < ARM_THRESHOLD:
+                return
+            self.armed = True
+            # Re-baseline once the gesture is intentional so we don't jump
+            self.start_avg_y = avg
+            self.start_volume = get_volume_percent()
+            dy = 0.0
+            norm = 0.0
+
+        # Map pad travel → volume delta
+        delta_pct = (norm / PAD_FRACTION_FOR_FULL_RANGE) * 100.0
+        target = self.start_volume + delta_pct
+        target = max(0.0, min(float(VOLUME_MAX), target))
+        target_i = int(round(target))
+
+        if target_i == self.last_applied:
+            return
+
+        set_volume_percent(target)
+        self.last_applied = target_i
+
+        now = time.monotonic()
+        if now - self.last_osd_t >= OSD_MIN_INTERVAL:
+            self.last_osd_t = now
+            osd_show_volume(target_i)
+
+    def handle_event(self, etype: int, code: int, value: int) -> None:
+        if etype == EV_ABS:
+            if code == ABS_MT_SLOT:
+                self.current_slot = value
+            elif code == ABS_MT_TRACKING_ID:
+                s = self.slot(self.current_slot)
+                if value < 0:
+                    s.active = False
+                    s.tracking_id = -1
+                else:
+                    s.active = True
+                    s.tracking_id = value
+            elif code == ABS_MT_POSITION_X:
+                s = self.slot(self.current_slot)
+                s.x = value
+                if s.tracking_id >= 0:
+                    s.active = True
+            elif code == ABS_MT_POSITION_Y:
+                s = self.slot(self.current_slot)
+                s.y = value
+                if s.tracking_id >= 0:
+                    s.active = True
+            elif code == ABS_Y and not self.slots:
+                # Some devices emit single-touch ABS_Y; ignore for multi-finger
+                pass
+        elif etype == EV_SYN and code == SYN_REPORT:
+            self.on_syn()
+
+
+def write_pid() -> None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
+
+
+def remove_pid() -> None:
+    try:
+        if PID_FILE.exists() and PID_FILE.read_text().strip() == str(os.getpid()):
+            PID_FILE.unlink()
+    except Exception:
+        pass
+
+
+def kill_existing() -> None:
+    if not PID_FILE.exists():
+        return
+    try:
+        old = int(PID_FILE.read_text().strip())
+        if old > 0 and old != os.getpid():
+            os.kill(old, signal.SIGTERM)
+            time.sleep(0.15)
+    except Exception:
+        pass
+
+
+def setup_permissions() -> int:
+    """Install udev rule + ACL so the user can read the touchpad. Needs sudo."""
+    rule = (
+        '# BitBeast — allow seat user to read touchpad for continuous volume gestures\n'
+        'KERNEL=="event*", ENV{ID_INPUT_TOUCHPAD}=="1", MODE="0660", GROUP="input", TAG+="uaccess"\n'
+    )
+    rule_path = "/etc/udev/rules.d/99-bitbeast-touchpad.rules"
+    user = os.environ.get("USER") or os.getlogin()
+
+    script = f"""
+set -e
+echo '{rule}' > {rule_path}
+usermod -aG input '{user}' || true
+udevadm control --reload-rules
+udevadm trigger --subsystem-match=input --action=change
+# Immediate ACL for current session (no re-login needed)
+for d in /dev/input/event*; do
+  if udevadm info -q property -n "$d" 2>/dev/null | grep -q 'ID_INPUT_TOUCHPAD=1'; then
+    setfacl -m u:{user}:rw "$d" 2>/dev/null || chmod g+rw "$d" 2>/dev/null || true
+    echo "Granted access: $d"
+  fi
+done
+echo "Setup complete. If gestures still fail, log out and back in."
+"""
+    print("Requesting administrator access to enable continuous touchpad gestures…")
+    # Prefer pkexec (GUI password) then sudo
+    if run(["pkexec", "bash", "-c", script]) == 0:
+        return 0
+    if run(["sudo", "bash", "-c", script]) == 0:
+        return 0
+    print(
+        "Could not elevate privileges.\n"
+        "Run this once in a terminal:\n\n"
+        f"  pkexec bash -c {script!r}\n\n"
+        "Or:\n"
+        f"  sudo bash -c {script!r}\n",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def open_touchpad() -> tuple[int, Path, int, int] | None:
+    devices = find_touchpad_devices()
+    if not devices:
+        log("No touchpad device found")
+        return None
+    for dev in devices:
+        try:
+            fd = os.open(str(dev), os.O_RDONLY | os.O_NONBLOCK)
+        except PermissionError:
+            log(f"Permission denied: {dev}")
+            continue
+        except Exception as e:
+            log(f"Open failed {dev}: {e}")
+            continue
+        y_min, y_max = ioctl_abs_range(fd, ABS_MT_POSITION_Y)
+        if y_max <= y_min:
+            y_min, y_max = ioctl_abs_range(fd, ABS_Y)
+        log(f"Opened {dev} y=[{y_min},{y_max}]")
+        return fd, dev, y_min, y_max
+    return None
+
+
+def run_daemon(foreground: bool = False) -> int:
+    kill_existing()
+    opened = open_touchpad()
+    if not opened:
+        # One notify so the user knows setup is needed
+        subprocess.run(
+            [
+                "notify-send",
+                "-a",
+                "BitBeast",
+                "Volume gesture needs access",
+                "Run: bitbeast-volume-gesture --setup\nThen try 4-finger swipe again.",
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        log("Failed to open touchpad — run with --setup")
+        return 1
+
+    fd, dev, y_min, y_max = opened
+    engine = VolumeGestureEngine(fd, y_min, y_max)
+    write_pid()
+    log(f"Daemon running on {dev} pid={os.getpid()}")
+
+    stopping = False
+
+    def stop(*_args) -> None:
+        nonlocal stopping
+        stopping = True
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+
+    buf = b""
+    try:
+        while not stopping:
+            r, _, _ = select.select([fd], [], [], 1.0)
+            if not r:
+                continue
+            try:
+                chunk = os.read(fd, EVENT_SIZE * 64)
+            except BlockingIOError:
+                continue
+            except OSError as e:
+                log(f"Read error: {e}")
+                break
+            if not chunk:
+                time.sleep(0.05)
+                continue
+            buf += chunk
+            while len(buf) >= EVENT_SIZE:
+                raw = buf[:EVENT_SIZE]
+                buf = buf[EVENT_SIZE:]
+                _sec, _usec, etype, code, value = struct.unpack(EVENT_FMT, raw)
+                engine.handle_event(etype, code, value)
+    finally:
+        try:
+            os.close(fd)
+        except Exception:
+            pass
+        remove_pid()
+        log("Daemon stopped")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="BitBeast continuous 4-finger volume gestures")
+    parser.add_argument("--setup", action="store_true", help="Grant touchpad read access (needs password once)")
+    parser.add_argument("--foreground", "-f", action="store_true", help="Run in foreground")
+    parser.add_argument("--status", action="store_true", help="Show whether the daemon can access the touchpad")
+    args = parser.parse_args()
+
+    if args.setup:
+        return setup_permissions()
+
+    if args.status:
+        devices = find_touchpad_devices()
+        print("Touchpads:", ", ".join(str(d) for d in devices) or "(none)")
+        for d in devices:
+            print(f"  {d}: {'readable' if os.access(d, os.R_OK) else 'NOT readable'}")
+        if PID_FILE.exists():
+            print(f"PID file: {PID_FILE.read_text().strip()}")
+        return 0
+
+    return run_daemon(foreground=args.foreground)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

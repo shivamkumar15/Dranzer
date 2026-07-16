@@ -30,7 +30,7 @@ from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
 CACHE_DIR = Path.home() / ".cache" / "bitbeast"
 SOCKET_PATH = CACHE_DIR / "osd.sock"
 PID_FILE = CACHE_DIR / "osd.pid"
-HIDE_MS = 1600
+HIDE_MS = 1200
 VOLUME_STEP = 5
 VOLUME_MAX = 150
 BRIGHTNESS_STEP = 5
@@ -116,6 +116,23 @@ def set_volume_relative(delta: int) -> None:
     run_quiet(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{sign}{abs(delta)}%"])
 
 
+def set_volume_absolute(percent: int) -> None:
+    percent = max(0, min(VOLUME_MAX, int(percent)))
+    if shutil_which("wpctl"):
+        run_quiet(
+            [
+                "wpctl",
+                "set-volume",
+                "-l",
+                f"{VOLUME_MAX / 100:.2f}",
+                "@DEFAULT_AUDIO_SINK@",
+                f"{percent / 100:.4f}",
+            ]
+        )
+        return
+    run_quiet(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{percent}%"])
+
+
 def toggle_volume_mute() -> None:
     if shutil_which("wpctl"):
         run_quiet(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
@@ -157,7 +174,7 @@ def shutil_which(name: str) -> bool:
     return which(name) is not None
 
 
-def apply_action(kind: str, action: str) -> tuple[str, int, bool]:
+def apply_action(kind: str, action: str, value: int | None = None) -> tuple[str, int, bool]:
     """Apply change and return (kind, percent, muted_or_zero)."""
     kind = kind.lower()
     action = action.lower()
@@ -169,6 +186,15 @@ def apply_action(kind: str, action: str) -> tuple[str, int, bool]:
             set_volume_relative(-VOLUME_STEP)
         elif action == "mute":
             toggle_volume_mute()
+        elif action == "set":
+            if value is None:
+                raise SystemExit("volume set requires a percent value")
+            set_volume_absolute(value)
+        elif action == "display":
+            # Volume already applied by caller (e.g. gesture daemon); only paint OSD.
+            # Skip wpctl/pactl queries on this hot path for smoothness.
+            percent = value if value is not None else get_volume_percent()
+            return "volume", int(percent), False
         # show: no change
         muted = is_volume_muted()
         percent = get_volume_percent()
@@ -179,6 +205,13 @@ def apply_action(kind: str, action: str) -> tuple[str, int, bool]:
             set_brightness_relative(BRIGHTNESS_STEP)
         elif action == "lower":
             set_brightness_relative(-BRIGHTNESS_STEP)
+        elif action == "set":
+            if value is None:
+                raise SystemExit("brightness set requires a percent value")
+            if shutil_which("brightnessctl"):
+                run_quiet(["brightnessctl", "set", f"{int(value)}%"])
+            elif shutil_which("light"):
+                run_quiet(["light", "-S", str(int(value))])
         percent = get_brightness_percent()
         return "brightness", percent, False
 
@@ -206,13 +239,13 @@ def brightness_icon(percent: int) -> str:
 # ── Single-instance IPC ───────────────────────────────────────────────
 
 def try_send_existing(payload: str) -> bool:
+    """Send to a running OSD via datagram (low overhead, no connect/accept)."""
     if not SOCKET_PATH.exists():
         return False
     try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.settimeout(0.15)
-            sock.connect(str(SOCKET_PATH))
-            sock.sendall(payload.encode("utf-8") + b"\n")
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(0.05)
+            sock.sendto(payload.encode("utf-8") + b"\n", str(SOCKET_PATH))
             return True
     except Exception:
         try:
@@ -396,10 +429,23 @@ class OsdWindow(Gtk.Window):
         self.close()
         return False
 
-    def handle_command(self, kind: str, action: str) -> None:
-        k, percent, muted = apply_action(kind, action)
+    def handle_command(self, kind: str, action: str, value: int | None = None) -> None:
+        # Coalesce rapid gesture updates into one paint per GTK frame
+        self._pending_cmd = (kind, action, value)
+        if getattr(self, "_paint_idle", None) is None:
+            self._paint_idle = GLib.idle_add(self._flush_pending)
+
+    def _flush_pending(self) -> bool:
+        self._paint_idle = None
+        pending = getattr(self, "_pending_cmd", None)
+        if not pending:
+            return False
+        kind, action, value = pending
+        self._pending_cmd = None
+        k, percent, muted = apply_action(kind, action, value)
         self.update_display(k, percent, muted)
         self.reset_hide_timer()
+        return False
 
     def _on_destroy(self, *_args) -> None:
         cleanup_runtime()
@@ -414,61 +460,59 @@ def start_socket_server(window: OsdWindow) -> None:
     except Exception:
         pass
 
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    # Datagram: one sendto per update, no connect/accept overhead
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     server.bind(str(SOCKET_PATH))
-    server.listen(8)
     server.setblocking(False)
     PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
 
-    def on_readable(_fd, _condition):
-        try:
-            conn, _ = server.accept()
-        except BlockingIOError:
-            return True
-        except Exception:
-            return True
-
-        try:
-            data = b""
-            conn.settimeout(0.2)
-            while True:
-                chunk = conn.recv(256)
-                if not chunk:
-                    break
-                data += chunk
-                if b"\n" in data:
-                    break
-        except Exception:
-            data = b""
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-        line = data.decode("utf-8", errors="ignore").strip()
+    def parse_and_dispatch(line: str) -> None:
+        line = line.strip()
         if not line:
-            return True
+            return
         parts = line.split()
         if len(parts) >= 2:
-            window.handle_command(parts[0], parts[1])
+            value = None
+            if len(parts) >= 3:
+                try:
+                    value = int(float(parts[2]))
+                except ValueError:
+                    value = None
+            window.handle_command(parts[0], parts[1], value)
         elif line.lower() in {"quit", "exit", "close"}:
             window.close()
+
+    def on_readable(_fd, _condition):
+        # Drain all pending datagrams; last one wins via paint coalescing
+        while True:
+            try:
+                data, _addr = server.recvfrom(256)
+            except BlockingIOError:
+                break
+            except Exception:
+                break
+            parse_and_dispatch(data.decode("utf-8", errors="ignore"))
         return True
 
     GLib.io_add_watch(server.fileno(), GLib.IO_IN, on_readable)
 
 
-def parse_args(argv: list[str]) -> tuple[str, str]:
+def parse_args(argv: list[str]) -> tuple[str, str, int | None]:
     if len(argv) < 2:
         print(
-            "Usage: bitbeast-osd <volume|brightness> <raise|lower|mute|show>",
+            "Usage: bitbeast-osd <volume|brightness> <raise|lower|mute|show|set|display> [value]",
             file=sys.stderr,
         )
         raise SystemExit(1)
 
     kind = argv[0].lower()
     action = argv[1].lower()
+    value: int | None = None
+    if len(argv) >= 3:
+        try:
+            value = int(float(argv[2]))
+        except ValueError as exc:
+            raise SystemExit(f"Invalid value: {argv[2]}") from exc
 
     aliases = {
         "up": "raise",
@@ -482,23 +526,25 @@ def parse_args(argv: list[str]) -> tuple[str, str]:
 
     if kind not in {"volume", "brightness"}:
         raise SystemExit(f"Unknown kind: {kind}")
-    if kind == "volume" and action not in {"raise", "lower", "mute", "show"}:
+    if kind == "volume" and action not in {"raise", "lower", "mute", "show", "set", "display"}:
         raise SystemExit(f"Unknown volume action: {action}")
-    if kind == "brightness" and action not in {"raise", "lower", "show"}:
+    if kind == "brightness" and action not in {"raise", "lower", "show", "set"}:
         raise SystemExit(f"Unknown brightness action: {action}")
-    return kind, action
+    if action in {"set", "display"} and value is None:
+        raise SystemExit(f"{action} requires a numeric value")
+    return kind, action, value
 
 
 def main() -> None:
-    kind, action = parse_args(sys.argv[1:])
-    payload = f"{kind} {action}"
+    kind, action, value = parse_args(sys.argv[1:])
+    payload = f"{kind} {action}" + (f" {value}" if value is not None else "")
 
     # Forward to an already-open OSD if possible
     if try_send_existing(payload):
         return
 
     # First instance: apply change then show UI
-    k, percent, muted = apply_action(kind, action)
+    k, percent, muted = apply_action(kind, action, value)
 
     # Wayland display required
     if not os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("DISPLAY"):

@@ -1273,6 +1273,15 @@ EOF_STYLE_LIST
     activate_style "$chosen_style"
 }
 
+start_volume_gesture() {
+    vg="$SCRIPT_DIR/bitbeast-volume-gesture"
+    [ -x "$vg" ] || vg="$HOME/.local/bin/bitbeast-volume-gesture"
+    [ -x "$vg" ] || return 0
+    # Restart cleanly each session
+    pkill -f 'bitbeast-volume-gesture' >/dev/null 2>&1 || true
+    "$vg" >/dev/null 2>&1 &
+}
+
 session_init() {
     sleep 1
 
@@ -1291,6 +1300,7 @@ session_init() {
     generate_zsh_prompt_colors
     start_clipboard_watchers || true
     restore_gradient_state || true
+    start_volume_gesture || true
 }
 
 brightness_control() {
