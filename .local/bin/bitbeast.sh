@@ -1295,6 +1295,15 @@ session_init() {
 
 brightness_control() {
     action=$1
+    osd="$SCRIPT_DIR/bitbeast-osd"
+    [ -x "$osd" ] || osd="$HOME/.local/bin/bitbeast-osd"
+    if [ -x "$osd" ]; then
+        case "$action" in
+            up) exec "$osd" brightness raise ;;
+            down) exec "$osd" brightness lower ;;
+            *) warn "Usage: bitbeast brightness [up|down]"; return 1 ;;
+        esac
+    fi
     if command -v brightnessctl >/dev/null 2>&1; then
         if [ "$action" = "up" ]; then
             brightnessctl set 5%+

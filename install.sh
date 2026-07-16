@@ -74,6 +74,8 @@ check_dependencies() {
             pacman:awww|yay:awww|paru:awww|apt:awww|dnf:awww) printf 'awww' ;;
             pacman:brightnessctl|yay:brightnessctl|paru:brightnessctl|apt:brightnessctl|dnf:brightnessctl) printf 'brightnessctl' ;;
             pacman:light|yay:light|paru:light|apt:light|dnf:light) printf 'light' ;;
+            pacman:python-gobject|yay:python-gobject|paru:python-gobject|apt:python3-gi|dnf:python3-gobject) printf 'python-gobject' ;;
+            pacman:gtk-layer-shell|yay:gtk-layer-shell|paru:gtk-layer-shell|apt:libgtk-layer-shell0|dnf:gtk-layer-shell) printf 'gtk-layer-shell' ;;
             pacman:grim|yay:grim|paru:grim|apt:grim|dnf:grim) printf 'grim' ;;
             pacman:slurp|yay:slurp|paru:slurp|apt:slurp|dnf:slurp) printf 'slurp' ;;
             pacman:wl-copy|yay:wl-copy|paru:wl-copy|apt:wl-copy|dnf:wl-copy) printf 'wl-clipboard' ;;
@@ -515,6 +517,7 @@ install_file "$REPO_DIR/.local/bin/bitbeast-hints-popup" "$BIN_DIR/bitbeast-hint
 install_file "$REPO_DIR/.local/bin/bitbeast-notification" "$BIN_DIR/bitbeast-notification"
 install_file "$REPO_DIR/.local/bin/bitbeast-notification-popdown" "$BIN_DIR/bitbeast-notification-popdown"
 install_file "$REPO_DIR/.local/bin/bitbeast-power-popup" "$BIN_DIR/bitbeast-power-popup"
+install_file "$REPO_DIR/.local/bin/bitbeast-osd" "$BIN_DIR/bitbeast-osd"
 install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
 install_file "$REPO_DIR/.local/bin/bitbeast-sysinfo" "$BIN_DIR/bitbeast-sysinfo"
 install_file "$REPO_DIR/.local/bin/bitbeast-wallpaper-selector" "$BIN_DIR/bitbeast-wallpaper-selector"

@@ -1,0 +1,518 @@
+#!/usr/bin/env python3
+"""
+BitBeast OSD — floating volume / brightness slider for Hyprland.
+
+Usage:
+  bitbeast-osd volume raise|lower|mute|show
+  bitbeast-osd brightness raise|lower|show
+
+A single instance stays alive while keys are held; each new command updates
+the slider and resets the auto-hide timer.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import signal
+import socket
+import subprocess
+import sys
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
+
+CACHE_DIR = Path.home() / ".cache" / "bitbeast"
+SOCKET_PATH = CACHE_DIR / "osd.sock"
+PID_FILE = CACHE_DIR / "osd.pid"
+HIDE_MS = 1600
+VOLUME_STEP = 5
+VOLUME_MAX = 150
+BRIGHTNESS_STEP = 5
+
+# Fallback palette (Dranzer)
+BG = "#150608"
+PRIMARY = "#e8450c"
+ACCENT = "#ffd166"
+TEXT = "#fff1dd"
+TEXT_DIM = "rgba(255,241,221,0.55)"
+
+
+def cmd(args: list[str]) -> str:
+    try:
+        return subprocess.check_output(args, stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        return ""
+
+
+def run_quiet(args: list[str]) -> None:
+    try:
+        subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    except Exception:
+        pass
+
+
+def load_theme_colors() -> dict[str, str]:
+    colors = {
+        "bg": BG,
+        "primary": PRIMARY,
+        "accent": ACCENT,
+        "text": TEXT,
+        "text_dim": TEXT_DIM,
+    }
+    conf = Path.home() / ".config" / "bitbeast" / "current.conf"
+    if not conf.is_file():
+        conf = Path.home() / ".config" / "bitbeasts" / "dranzer" / "colors.conf"
+    if not conf.is_file():
+        return colors
+
+    text = conf.read_text(encoding="utf-8", errors="ignore")
+    for key in ("bg", "primary", "secondary", "accent", "text"):
+        match = re.search(rf"^\$\s*{key}\s*=\s*rgb\(([0-9a-fA-F]{{6}})\)", text, re.M)
+        if match:
+            colors[key] = f"#{match.group(1).lower()}"
+    colors["text_dim"] = f"rgba({int(colors['text'][1:3], 16)}, {int(colors['text'][3:5], 16)}, {int(colors['text'][5:7], 16)}, 0.55)"
+    return colors
+
+
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    hex_color = hex_color.lstrip("#")
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+# ── Volume / brightness helpers ───────────────────────────────────────
+
+def get_volume_percent() -> int:
+    out = cmd(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    if out:
+        match = re.search(r"Volume:\s*([0-9.]+)", out)
+        if match:
+            return int(round(float(match.group(1)) * 100))
+    out = cmd(["pactl", "get-sink-volume", "@DEFAULT_SINK@"])
+    match = re.search(r"(\d+)%", out)
+    return int(match.group(1)) if match else 0
+
+
+def is_volume_muted() -> bool:
+    out = cmd(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    if out:
+        return "[MUTED]" in out.upper()
+    out = cmd(["pactl", "get-sink-mute", "@DEFAULT_SINK@"])
+    return out.endswith("yes")
+
+
+def set_volume_relative(delta: int) -> None:
+    if shutil_which("wpctl"):
+        sign = "+" if delta > 0 else "-"
+        run_quiet(["wpctl", "set-volume", "-l", f"{VOLUME_MAX / 100:.2f}", "@DEFAULT_AUDIO_SINK@", f"{abs(delta)}%{sign}"])
+        return
+    sign = "+" if delta > 0 else "-"
+    run_quiet(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{sign}{abs(delta)}%"])
+
+
+def toggle_volume_mute() -> None:
+    if shutil_which("wpctl"):
+        run_quiet(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+        return
+    run_quiet(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"])
+
+
+def get_brightness_percent() -> int:
+    out = cmd(["brightnessctl", "-m"])
+    if out:
+        parts = out.split(",")
+        if len(parts) >= 4:
+            try:
+                return int(parts[3].rstrip("%"))
+            except ValueError:
+                pass
+    out = cmd(["light", "-G"])
+    if out:
+        try:
+            return int(round(float(out)))
+        except ValueError:
+            pass
+    return 0
+
+
+def set_brightness_relative(delta: int) -> None:
+    if shutil_which("brightnessctl"):
+        sign = "+" if delta > 0 else "-"
+        run_quiet(["brightnessctl", "set", f"{abs(delta)}%{sign}"])
+        return
+    if shutil_which("light"):
+        flag = "-A" if delta > 0 else "-U"
+        run_quiet(["light", flag, str(abs(delta))])
+
+
+def shutil_which(name: str) -> bool:
+    from shutil import which
+
+    return which(name) is not None
+
+
+def apply_action(kind: str, action: str) -> tuple[str, int, bool]:
+    """Apply change and return (kind, percent, muted_or_zero)."""
+    kind = kind.lower()
+    action = action.lower()
+
+    if kind == "volume":
+        if action == "raise":
+            set_volume_relative(VOLUME_STEP)
+        elif action == "lower":
+            set_volume_relative(-VOLUME_STEP)
+        elif action == "mute":
+            toggle_volume_mute()
+        # show: no change
+        muted = is_volume_muted()
+        percent = get_volume_percent()
+        return "volume", percent, muted
+
+    if kind == "brightness":
+        if action == "raise":
+            set_brightness_relative(BRIGHTNESS_STEP)
+        elif action == "lower":
+            set_brightness_relative(-BRIGHTNESS_STEP)
+        percent = get_brightness_percent()
+        return "brightness", percent, False
+
+    raise SystemExit(f"Unknown kind: {kind}")
+
+
+def volume_icon(percent: int, muted: bool) -> str:
+    if muted or percent <= 0:
+        return "󰖁"
+    if percent < 34:
+        return "󰕿"
+    if percent < 67:
+        return "󰖀"
+    return "󰕾"
+
+
+def brightness_icon(percent: int) -> str:
+    if percent < 34:
+        return "󰃞"
+    if percent < 67:
+        return "󰃟"
+    return "󰃠"
+
+
+# ── Single-instance IPC ───────────────────────────────────────────────
+
+def try_send_existing(payload: str) -> bool:
+    if not SOCKET_PATH.exists():
+        return False
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(0.15)
+            sock.connect(str(SOCKET_PATH))
+            sock.sendall(payload.encode("utf-8") + b"\n")
+            return True
+    except Exception:
+        try:
+            SOCKET_PATH.unlink(missing_ok=True)
+        except Exception:
+            pass
+        return False
+
+
+def cleanup_runtime() -> None:
+    try:
+        if SOCKET_PATH.exists():
+            SOCKET_PATH.unlink()
+    except Exception:
+        pass
+    try:
+        if PID_FILE.exists() and PID_FILE.read_text().strip() == str(os.getpid()):
+            PID_FILE.unlink()
+    except Exception:
+        pass
+
+
+# ── UI ────────────────────────────────────────────────────────────────
+
+class OsdWindow(Gtk.Window):
+    def __init__(self, kind: str, percent: int, muted: bool):
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.set_app_paintable(True)
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_accept_focus(False)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_keep_above(True)
+
+        self.theme = load_theme_colors()
+        self.hide_source = None
+        self.kind = kind
+        self.percent = percent
+        self.muted = muted
+
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.BOTTOM, 72)
+        GtkLayerShell.set_namespace(self, "bitbeast-osd")
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
+
+        self._build_css()
+        self._build_ui()
+        self.update_display(kind, percent, muted)
+        self.reset_hide_timer()
+
+        self.connect("destroy", self._on_destroy)
+
+    def _build_css(self) -> None:
+        t = self.theme
+        primary = t.get("primary", PRIMARY)
+        accent = t.get("accent", ACCENT)
+        text = t.get("text", TEXT)
+        bg = t.get("bg", BG)
+        css = f"""
+        window {{
+            background: transparent;
+        }}
+        #osd-frame {{
+            background-color: {hex_to_rgba(bg, 0.88)};
+            border: 1px solid {hex_to_rgba(primary, 0.40)};
+            border-radius: 22px;
+            padding: 14px 20px;
+            box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55);
+        }}
+        #osd-icon {{
+            font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
+            font-size: 26px;
+            color: {primary};
+            min-width: 36px;
+        }}
+        #osd-label {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: {text};
+            min-width: 48px;
+        }}
+        #osd-title {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            color: {t.get('text_dim', TEXT_DIM)};
+            margin-bottom: 4px;
+        }}
+        progressbar trough {{
+            min-height: 10px;
+            border-radius: 999px;
+            background-color: {hex_to_rgba(text, 0.12)};
+            border: none;
+        }}
+        progressbar progress {{
+            min-height: 10px;
+            border-radius: 999px;
+            background-image: linear-gradient(90deg, {primary}, {accent});
+            border: none;
+        }}
+        progressbar.muted progress {{
+            background-image: none;
+            background-color: {hex_to_rgba(text, 0.28)};
+        }}
+        """
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+    def _build_ui(self) -> None:
+        frame = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        frame.set_name("osd-frame")
+
+        self.icon_label = Gtk.Label(label="")
+        self.icon_label.set_name("osd-icon")
+        self.icon_label.set_halign(Gtk.Align.CENTER)
+        frame.pack_start(self.icon_label, False, False, 0)
+
+        mid = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        self.title_label = Gtk.Label(label="")
+        self.title_label.set_name("osd-title")
+        self.title_label.set_halign(Gtk.Align.START)
+        mid.pack_start(self.title_label, False, False, 0)
+
+        self.bar = Gtk.ProgressBar()
+        self.bar.set_fraction(0)
+        self.bar.set_size_request(220, 10)
+        mid.pack_start(self.bar, False, False, 0)
+        frame.pack_start(mid, True, True, 0)
+
+        self.value_label = Gtk.Label(label="0%")
+        self.value_label.set_name("osd-label")
+        self.value_label.set_halign(Gtk.Align.END)
+        frame.pack_start(self.value_label, False, False, 0)
+
+        self.add(frame)
+        self.show_all()
+
+    def update_display(self, kind: str, percent: int, muted: bool) -> None:
+        self.kind = kind
+        self.percent = max(0, percent)
+        self.muted = muted
+
+        if kind == "volume":
+            self.title_label.set_text("Volume" if not muted else "Muted")
+            self.icon_label.set_text(volume_icon(self.percent, muted))
+            # 100% fills the bar; values above 100 still show as full
+            if muted:
+                fraction = 0.0
+            else:
+                fraction = min(max(self.percent, 0) / 100.0, 1.0)
+            self.bar.set_fraction(fraction)
+            self.value_label.set_text("MUTE" if muted else f"{self.percent}%")
+            ctx = self.bar.get_style_context()
+            if muted:
+                ctx.add_class("muted")
+            else:
+                ctx.remove_class("muted")
+        else:
+            self.title_label.set_text("Brightness")
+            self.icon_label.set_text(brightness_icon(self.percent))
+            self.bar.set_fraction(min(max(self.percent, 0), 100) / 100.0)
+            self.value_label.set_text(f"{self.percent}%")
+            self.bar.get_style_context().remove_class("muted")
+
+    def reset_hide_timer(self) -> None:
+        if self.hide_source is not None:
+            GLib.source_remove(self.hide_source)
+        self.hide_source = GLib.timeout_add(HIDE_MS, self._auto_hide)
+
+    def _auto_hide(self) -> bool:
+        self.hide_source = None
+        self.close()
+        return False
+
+    def handle_command(self, kind: str, action: str) -> None:
+        k, percent, muted = apply_action(kind, action)
+        self.update_display(k, percent, muted)
+        self.reset_hide_timer()
+
+    def _on_destroy(self, *_args) -> None:
+        cleanup_runtime()
+        Gtk.main_quit()
+
+
+def start_socket_server(window: OsdWindow) -> None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        if SOCKET_PATH.exists():
+            SOCKET_PATH.unlink()
+    except Exception:
+        pass
+
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server.bind(str(SOCKET_PATH))
+    server.listen(8)
+    server.setblocking(False)
+    PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
+
+    def on_readable(_fd, _condition):
+        try:
+            conn, _ = server.accept()
+        except BlockingIOError:
+            return True
+        except Exception:
+            return True
+
+        try:
+            data = b""
+            conn.settimeout(0.2)
+            while True:
+                chunk = conn.recv(256)
+                if not chunk:
+                    break
+                data += chunk
+                if b"\n" in data:
+                    break
+        except Exception:
+            data = b""
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+        line = data.decode("utf-8", errors="ignore").strip()
+        if not line:
+            return True
+        parts = line.split()
+        if len(parts) >= 2:
+            window.handle_command(parts[0], parts[1])
+        elif line.lower() in {"quit", "exit", "close"}:
+            window.close()
+        return True
+
+    GLib.io_add_watch(server.fileno(), GLib.IO_IN, on_readable)
+
+
+def parse_args(argv: list[str]) -> tuple[str, str]:
+    if len(argv) < 2:
+        print(
+            "Usage: bitbeast-osd <volume|brightness> <raise|lower|mute|show>",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    kind = argv[0].lower()
+    action = argv[1].lower()
+
+    aliases = {
+        "up": "raise",
+        "down": "lower",
+        "+": "raise",
+        "-": "lower",
+        "toggle": "mute",
+        "mute-toggle": "mute",
+    }
+    action = aliases.get(action, action)
+
+    if kind not in {"volume", "brightness"}:
+        raise SystemExit(f"Unknown kind: {kind}")
+    if kind == "volume" and action not in {"raise", "lower", "mute", "show"}:
+        raise SystemExit(f"Unknown volume action: {action}")
+    if kind == "brightness" and action not in {"raise", "lower", "show"}:
+        raise SystemExit(f"Unknown brightness action: {action}")
+    return kind, action
+
+
+def main() -> None:
+    kind, action = parse_args(sys.argv[1:])
+    payload = f"{kind} {action}"
+
+    # Forward to an already-open OSD if possible
+    if try_send_existing(payload):
+        return
+
+    # First instance: apply change then show UI
+    k, percent, muted = apply_action(kind, action)
+
+    # Wayland display required
+    if not os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("DISPLAY"):
+        print("No display available for OSD", file=sys.stderr)
+        return
+
+    signal.signal(signal.SIGINT, lambda *_: Gtk.main_quit())
+    signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
+
+    window = OsdWindow(k, percent, muted)
+    start_socket_server(window)
+    Gtk.main()
+    cleanup_runtime()
+
+
+if __name__ == "__main__":
+    main()
