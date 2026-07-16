@@ -61,8 +61,21 @@ SECTION_RENAMES = {
     "Auto Theme from Wallpaper": "Auto Theme",
     "Desktop/Workspace": "Session",
     "Brightness (hardware keys)": "Brightness",
+    "Brightness (hardware keys) — BitBeast OSD slider": "Brightness",
+    "Volume — BitBeast OSD slider": "Volume",
+    "Volume": "Volume",
     "Media keys": "Media Keys",
+    "Gestures": "Touchpad Gestures",
 }
+
+# Extra touchpad gestures handled by bitbeast-volume-gesture (not Hyprland bind lines)
+TOUCHPAD_GESTURE_HINTS = [
+    (["3 Fingers", "← →"], "Switch Workspace", "3-Finger Horizontal Swipe"),
+    (["3 Fingers", "↑"], "Workspace Overview", "3-Finger Swipe Up"),
+    (["4 Fingers", "↑"], "Increase Volume", "4-Finger Swipe Up"),
+    (["4 Fingers", "↓"], "Decrease Volume", "4-Finger Swipe Down"),
+    (["4 Fingers", "Tap"], "Play / Pause Media", "4-Finger Tap"),
+]
 
 def clean_section(name):
     name = name.strip()
@@ -133,12 +146,20 @@ def describe_exec(command):
     if "workspaceopt allfloat" in cmd: return "Toggle Floating Workspace"
     if "grim" in cmd and "slurp" in cmd: return "Region Screenshot"
     if "grim" in cmd: return "Full Screenshot"
-    if "wpctl set-volume" in cmd and "5%+" in cmd: return "Increase Volume"
-    if "wpctl set-volume" in cmd and "5%-" in cmd: return "Decrease Volume"
+    if "bitbeast-osd" in cmd and "volume raise" in cmd: return "Increase Volume"
+    if "bitbeast-osd" in cmd and "volume lower" in cmd: return "Decrease Volume"
+    if "bitbeast-osd" in cmd and "volume mute" in cmd: return "Toggle Mute"
+    if "bitbeast-osd" in cmd and "brightness raise" in cmd: return "Increase Brightness"
+    if "bitbeast-osd" in cmd and "brightness lower" in cmd: return "Decrease Brightness"
+    if "wpctl set-volume" in cmd and ("5%+" in cmd or "raise" in cmd): return "Increase Volume"
+    if "wpctl set-volume" in cmd and ("5%-" in cmd or "lower" in cmd): return "Decrease Volume"
+    if "wpctl set-mute" in cmd and "source" in cmd: return "Toggle Mic Mute"
     if "wpctl set-mute" in cmd: return "Toggle Mute"
     if "playerctl play-pause" in cmd: return "Play/Pause Media"
     if "playerctl next" in cmd: return "Next Media Track"
     if "playerctl previous" in cmd: return "Previous Media Track"
+    if "bitbeast-workspaces" in cmd: return "Workspace Overview"
+    if "bitbeast-volume-gesture" in cmd: return "Touchpad Volume Gestures"
     return re.sub(r'^(~/\.local/bin/|/home/\w+/\.local/bin/)', '', command).strip()
 
 def describe_action(action, extra, is_mouse=False):
@@ -188,17 +209,27 @@ def parse_keybinds(path):
     def flush():
         nonlocal current_section, current_binds
         if current_section and current_binds:
-            sections.append((current_section, list(current_binds)))
+            # Skip empty / commentary-only gesture sections; we inject a full set later
+            if current_section not in ("Gestures", "Touchpad Gestures"):
+                sections.append((current_section, list(current_binds)))
             current_binds.clear()
 
     with open(path, "r") as f:
         for raw in f:
             line = raw.strip()
-            if not line: continue
+            if not line:
+                continue
             
             if line.startswith("#"):
+                header = line.lstrip("#").strip()
+                if not header:
+                    continue
+                # Skip note lines under section headers (not real categories)
+                lower = header.lower()
+                if lower.startswith(("3-finger", "4-finger", "(", "windows-style")):
+                    continue
                 flush()
-                current_section = clean_section(line.lstrip("#").strip())
+                current_section = clean_section(header)
                 continue
                 
             match = re.match(r"^bind[a-z]*\s*=\s*", line)
@@ -206,24 +237,39 @@ def parse_keybinds(path):
                 is_mouse = line.startswith("bindm")
                 rest = line[match.end():]
                 parts = [p.strip() for p in rest.split(",")]
-                if len(parts) < 3: continue
+                if len(parts) < 3:
+                    continue
                 
                 mods, key, action = parts[0], parts[1], parts[2]
                 extra = ",".join(parts[3:])
                 
                 tokens = format_mods(mods)
-                if key: tokens.append(format_key(key))
+                if key:
+                    tokens.append(format_key(key))
                 combo = " + ".join(tokens)
                 
-                if combo in seen: continue
+                if combo in seen:
+                    continue
                 seen.add(combo)
                 
                 desc = describe_action(action, extra, is_mouse)
                 if desc:
                     if current_section is None:
                         current_section = "General"
+                    # Don't put keybinds into the gesture bucket
+                    if current_section in ("Gestures", "Touchpad Gestures"):
+                        current_section = "General"
                     current_binds.append((tokens, desc, combo))
+                continue
+
+            # Ignore raw gesture= lines here; full set is injected below
+            if line.startswith("gesture"):
+                continue
+
     flush()
+
+    # Canonical touchpad gestures (Hyprland 3-finger + bitbeast-volume-gesture 4-finger)
+    sections.insert(0, ("Touchpad Gestures", list(TOUCHPAD_GESTURE_HINTS)))
     return sections
 
 # ---------- UI & State ----------
