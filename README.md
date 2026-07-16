@@ -107,28 +107,17 @@ The `bitbeast` command is your main tool for managing themes.
 Press **`Super + H`** at any time to open the premium keyboard shortcuts panel. It features a masonry layout, live search, and dynamic grouping directly generated from your `hyprland.conf` comments.
 
 ### Waybar Styles
-The system ships with **18** Waybar styles. Near-duplicate color variants were removed so each style has a clearly different structure.
+The system ships with **18** Waybar styles. Each style has **high-contrast theme colors** (readable text) and a matching **module layout**.
 
-| Style | Look |
-| :--- | :--- |
-| `azure` | Continuous dark-navy ribbon + cyan neon outline |
-| `plain` | Bare text only — no containers |
-| `clean` | Soft muted strips, no chrome |
-| `flat` | Solid full-width bar |
-| `carbon` | Sharp dark bar, single top accent |
-| `pill` | Classic floating capsules |
-| `glass` | Connected glassmorphic bar |
-| `neon` | Glowing individual modules |
-| `hud` | Cockpit bar (default) |
-| `arrow` | Powerline / chevron segments |
-| `rainbow` | Spectrum — each module a hue |
-| `blocks` | Chunky square tiles |
-| `bubble` | Soft per-module capsules |
-| `underline` | Colored baselines only |
-| `monochrome` | High-contrast greyscale |
-| `pulse` | Breathing glow animation |
-| `eclipse` | Separate module cards |
-| `edges` | Full bar with left/right rails |
+| Style | Look | Modules |
+| :--- | :--- | :--- |
+| `azure` / `edges` | Continuous solid bar | Dense sysinfo (cpu/temp/load/mem/net/cava + clock/power) |
+| `hud` / `pill` / `carbon` / `glass` / `monochrome` | Grouped chrome | Classic (workspaces, cava, media, essentials) |
+| `clean` / `plain` / `flat` / `underline` | Low chrome | Sparse (workspaces, window, clock, net, battery, audio) |
+| `arrow` / `blocks` / `bubble` / `rainbow` / `eclipse` | Segmented tiles | Segments (cpu/mem/net · clock/media · controls) |
+| `neon` / `pulse` | Glow modules | Glow (cava + media focus) |
+
+All styles use theme `@bg` / `@text` / `@primary` / `@glow` so colors match Dranzer, Dragoon, Driger, etc., with solid enough backgrounds that text stays readable on bright wallpapers.
 
 ```bash
 bitbeast style clean        # apply a style
