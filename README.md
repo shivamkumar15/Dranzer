@@ -107,9 +107,35 @@ The `bitbeast` command is your main tool for managing themes.
 Press **`Super + H`** at any time to open the premium keyboard shortcuts panel. It features a masonry layout, live search, and dynamic grouping directly generated from your `hyprland.conf` comments.
 
 ### Waybar Styles
-The system ships with 38 Waybar style fragments that layer on top of your active BitBeast theme. Each fragment overrides module backgrounds, borders, and accents using the theme's color palette.
+The system ships with **18** Waybar styles. Near-duplicate color variants were removed so each style has a clearly different structure.
 
-Available styles: `aurora`, `carbon`, `cyber`, `dawn`, `dusk`, `eclipse`, `ember`, `emerald`, `forge`, `frost`, `glacier`, `glass`, `gold`, `graphite`, `haze`, `hud`, `inferno`, `jade`, `lava`, `minimal`, `mint`, `neon`, `obsidian`, `ocean`, `onyx`, `orchid`, `phantom`, `pill`, `pulse`, `sage`, `shadow`, `slate`, `solar`, `throne`, `twilight`, `velvet`, `volt`, `zenith`.
+| Style | Look |
+| :--- | :--- |
+| `azure` | Continuous dark-navy ribbon + cyan neon outline |
+| `plain` | Bare text only — no containers |
+| `clean` | Soft muted strips, no chrome |
+| `flat` | Solid full-width bar |
+| `carbon` | Sharp dark bar, single top accent |
+| `pill` | Classic floating capsules |
+| `glass` | Connected glassmorphic bar |
+| `neon` | Glowing individual modules |
+| `hud` | Cockpit bar (default) |
+| `arrow` | Powerline / chevron segments |
+| `rainbow` | Spectrum — each module a hue |
+| `blocks` | Chunky square tiles |
+| `bubble` | Soft per-module capsules |
+| `underline` | Colored baselines only |
+| `monochrome` | High-contrast greyscale |
+| `pulse` | Breathing glow animation |
+| `eclipse` | Separate module cards |
+| `edges` | Full bar with left/right rails |
+
+```bash
+bitbeast style clean        # apply a style
+bitbeast style list         # list all styles
+bitbeast pick-style         # Rofi menu
+bitbeast style cycle        # next style
+```
 
 | Shortcut | Action |
 | :--- | :--- |
