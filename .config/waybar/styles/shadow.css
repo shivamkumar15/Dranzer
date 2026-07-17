@@ -1,9 +1,0 @@
-/* Shadow — Pure soft drop shadow, no border */
-.modules-left, .modules-center, .modules-right {
-    background: alpha(@bg, 0.8);
-    border: none;
-    border-radius: 16px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-    padding: 2px 10px;
-}
-#workspaces button.active { background: alpha(@text, 0.1); border-radius: 10px; }

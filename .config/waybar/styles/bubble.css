@@ -1,21 +1,21 @@
-/* Pill */
+/* Bubble */
 .modules-left, .modules-center, .modules-right {
+    background: transparent; background-image: none; border: none; padding: 0; margin: 0;
+}
+#workspaces, #cpu, #memory, #network, #clock, #custom-media, #backlight,
+#pulseaudio, #battery, #tray, #custom-power {
     background: @bg;
     background-image: none;
     border: 1px solid @secondary;
-    border-radius: 18px;
-    padding: 2px 12px;
-    margin: 4px 0;
+    border-radius: 999px;
+    margin: 4px 3px;
+    padding: 2px 14px;
     color: @text;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.72);
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
 }
-#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
-#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
-#custom-notification, #custom-power {
-    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 3px; padding: 0 5px;
-}
-#workspaces button.active { background: @primary; color: @bg; border-radius: 12px; }
-#clock { color: @accent; }
+#workspaces button.active { background: @primary; color: @bg; border-radius: 999px; }
+#clock { color: @accent; border-color: @accent; }
 
 /* Theme vibe + clear depth (simple shadows GTK renders reliably) */
 #workspaces button {

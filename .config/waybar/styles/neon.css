@@ -1,132 +1,97 @@
-/* 
- * BitBeast Waybar - Neon Style
- * A vibrant, cyberpunk-inspired theme with glowing borders.
- */
-
-/* Neon — Vibrant cyberpunk style with glowing borders */
-* {
-    font-size: 14px;
-    font-weight: 700;
+/* Neon */
+.modules-left, .modules-center, .modules-right {
+    background: transparent; background-image: none; border: none; padding: 0; margin: 0;
 }
-
-tooltip {
-    background: alpha(@bg, 0.95);
-    border: 2px solid @glow;
-    box-shadow: 0 0 20px alpha(@glow, 0.5);
-}
-
-#workspaces,
-#window,
-#clock,
-#battery,
-#network,
-#pulseaudio,
-#tray,
-#custom-power,
-#custom-media,
-#custom-notification,
-#custom-lock,
-#idle_inhibitor,
-#cpu,
-#memory,
-#backlight,
-#custom-theme,
-#custom-style {
-    background: alpha(@bg, 0.85);
+#workspaces, #custom-cava, #custom-media, #clock, #cpu, #memory, #network,
+#battery, #pulseaudio, #custom-power {
+    background: @bg;
+    background-image: none;
     border: 2px solid @glow;
     border-radius: 8px;
-    margin: 5px 6px;
-    padding: 2px 14px;
+    margin: 4px 4px;
+    padding: 2px 12px;
     color: @text;
-    box-shadow: 0 0 10px alpha(@glow, 0.6);
-    transition: all 0.2s ease-in-out;
+    font-weight: 800;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
 }
+#workspaces button.active { background: @glow; color: @bg; }
+#clock { border-color: @accent; color: @accent; }
+#custom-power { border-color: @accent; color: @bg; background: @accent; box-shadow: 0 4px 12px rgba(0,0,0,0.7); }
 
-#workspaces:hover,
-#clock:hover,
-#battery:hover,
-#network:hover,
-#pulseaudio:hover,
-#tray:hover,
-#custom-power:hover,
-#custom-media:hover,
-#custom-notification:hover,
-#custom-lock:hover,
-#idle_inhibitor:hover,
-#cpu:hover,
-#memory:hover,
-#backlight:hover,
-#custom-theme:hover,
-#custom-style:hover {
-    background: alpha(@bg, 1.0);
-    border: 2px solid @primary;
-    box-shadow: 0 0 25px alpha(@primary, 0.8);
-    color: @primary;
-}
-
+/* Theme vibe + clear depth (simple shadows GTK renders reliably) */
 #workspaces button {
-    color: alpha(@text, 0.5);
-    border-radius: 6px;
-    margin: 4px 6px;
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
     padding: 0 8px;
-    transition: all 0.2s ease;
+    margin: 2px 2px;
+    border-radius: 8px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
-
 #workspaces button.active {
-    background: @glow;
     color: @bg;
-    box-shadow: 0 0 15px @glow;
+    background: @primary;
+    background-image: none;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+    text-shadow: none;
 }
-
-#workspaces button.urgent {
-    background: #ff5555;
-    color: white;
-    box-shadow: 0 0 20px #ff5555;
-}
-
 #workspaces button:hover {
-    color: @glow;
-    background: alpha(@glow, 0.2);
+    color: @text;
+    background: @bg-alt;
+    background-image: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
-
-#custom-power {
-    color: #ff5555;
-    border-color: #ff5555;
-    box-shadow: 0 0 10px alpha(#ff5555, 0.6);
-}
-
-#custom-power:hover {
-    background: alpha(#ff5555, 0.2);
-    box-shadow: 0 0 25px alpha(#ff5555, 0.8);
-}
-
-#clock {
+#workspaces button.urgent {
     color: @accent;
-    border-color: @accent;
-    box-shadow: 0 0 10px alpha(@accent, 0.6);
+    background: @secondary;
+    background-image: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
-
-#battery.charging {
-    color: #50fa7b;
-    border-color: #50fa7b;
-    box-shadow: 0 0 10px alpha(#50fa7b, 0.6);
+#window, #clock, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
+#network, #backlight, #cpu, #memory, #temperature, #load, #disk, #custom-updates,
+#bluetooth, #battery, #pulseaudio, #language, #custom-notification, #tray {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
-
+#window { color: @text; font-weight: 700; }
+#clock { color: @accent; font-weight: 800; }
+#custom-hint { color: @accent; }
+#custom-cava { color: @cava-color; }
+#custom-media { color: @primary; font-weight: 700; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network { color: @primary; }
+#network.disconnected { color: @accent; }
+#backlight { color: @accent; }
+#cpu { color: @primary; }
+#memory { color: @accent; }
+#temperature { color: @accent; }
+#temperature.critical { color: @glow; }
+#load { color: @primary; }
+#disk { color: @secondary; }
+#custom-updates { color: @accent; }
+#bluetooth { color: @primary; }
+#battery { color: @accent; }
+#battery.charging, #battery.plugged { color: @primary; }
+#pulseaudio { color: @primary; }
+#pulseaudio.muted { color: @text; }
+#language { color: @accent; font-weight: 800; }
+#custom-notification { color: @accent; }
+#custom-power {
+    color: @bg;
+    background: @accent;
+    background-image: none;
+    border-radius: 8px;
+    padding: 0 10px;
+    font-weight: 800;
+    margin: 2px 2px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
+    text-shadow: none;
+}
+#tray { color: @text; }
 #battery.critical:not(.charging) {
-    color: #ff5555;
-    border-color: #ff5555;
-    box-shadow: 0 0 20px #ff5555;
-    animation: blink 1s steps(5, start) infinite;
-}
-
-#custom-media.playing {
-    border-color: @primary;
-    box-shadow: 0 0 15px alpha(@primary, 0.6);
-}
-
-@keyframes blink {
-    to {
-        background-color: alpha(#ff5555, 0.6);
-        color: white;
-    }
+    background: @secondary;
+    color: @accent;
+    animation: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }

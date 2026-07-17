@@ -1,17 +1,38 @@
-/* BitBeast Waybar - Base stylesheet
- * Imports: theme colors, bridge vars, then active style fragment (last wins).
- * Fragments live under styles and override module groups and accents.
+/* BitBeast Waybar base
+ * Theme colors + active style first. Base only resets GTK (kills white Adwaita
+ * chrome) and spacing — never hardcodes pastel palette colors.
  */
 @import "bitbeast.css";
 @import "theme.css";
 @import "bitbeast-style.css";
 
+/* Kill GTK/Adwaita light defaults that paint white chips everywhere.
+ * Do NOT force box-shadow: none on * — styles use shadows for depth. */
 * {
     border: none;
     border-radius: 0;
-    font-family: "JetBrainsMono Nerd Font", Roboto, Helvetica, Arial, sans-serif;
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
     font-size: 13px;
     min-height: 0;
+    text-shadow: none;
+}
+
+/* Buttons default to light theme in GTK — force transparent fills only */
+button,
+button:hover,
+button:active,
+button:checked,
+button:disabled {
+    background: transparent;
+    background-image: none;
+    background-color: transparent;
+    color: @text;
+    border: none;
+    text-shadow: none;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
 }
 
 window#waybar {
@@ -20,10 +41,10 @@ window#waybar {
 }
 
 tooltip {
-    background: alpha(@bg, 0.92);
-    border: 1px solid alpha(@glow, 0.35);
+    background: @bg;
+    border: 1px solid @secondary;
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    color: @text;
 }
 
 tooltip label {
@@ -31,7 +52,7 @@ tooltip label {
     padding: 4px 8px;
 }
 
-/* Individual module spacing */
+/* Spacing only — colors come from the active style fragment */
 #workspaces,
 #custom-hint,
 #custom-cava,
@@ -45,114 +66,100 @@ tooltip label {
 #cpu,
 #memory,
 #temperature,
+#load,
+#disk,
+#custom-updates,
 #custom-bluetooth,
+#bluetooth,
 #battery,
 #pulseaudio,
+#language,
+#tray,
+#custom-power,
 #custom-notification {
-    margin: 0 4px;
-    padding: 0 3px;
+    margin: 0 3px;
+    padding: 0 4px;
+    background: transparent;
+    color: @text;
 }
 
-/* Workspaces base */
+/* Safe workspace defaults (styles refine active look) */
 #workspaces button {
     padding: 0 8px;
-    color: alpha(@text, 0.6);
-    transition: all 0.3s ease;
-}
-
-#workspaces button.active {
+    margin: 2px 1px;
     color: @text;
-    background: alpha(@text, 0.1);
-    border-radius: 10px;
-}
-
-#workspaces button.urgent {
-    color: #ff4d4d;
+    background: transparent;
+    background-image: none;
+    border-radius: 8px;
 }
 
 #workspaces button:hover {
-    background: alpha(@text, 0.05);
-    border-radius: 10px;
+    background: @bg-alt;
+    color: @text;
 }
 
-/* Center module seam */
-#clock {
-    margin-right: 0;
-    padding-right: 4px;
-    color: alpha(@text, 0.9);
-    font-weight: bold;
+#workspaces button.active {
+    background: @primary;
+    color: @bg;
+    font-weight: 800;
 }
 
-#temperature.center {
-    margin-left: 0;
-    padding-left: 0;
-    color: alpha(@text, 0.9);
-    font-weight: bold;
-}
-
-/* Module accent colors */
-#custom-cava {
-    color: @cava-color;
-}
-
-#custom-hint {
+#workspaces button.urgent {
+    background: @secondary;
     color: @accent;
 }
 
-#network {
-    color: #8be9fd;
-}
+/* Theme-vibe accents only (no foreign pastel palette) */
+#custom-cava { color: @cava-color; }
+#custom-hint { color: @accent; }
+#custom-media { color: @primary; }
+#custom-netspeed { color: @accent; }
+#network { color: @primary; }
+#backlight { color: @accent; }
+#cpu { color: @primary; }
+#memory { color: @accent; }
+#temperature { color: @accent; }
+#load { color: @primary; }
+#disk { color: @secondary; }
+#custom-updates { color: @accent; }
+#bluetooth { color: @primary; }
+#battery { color: @accent; }
+#battery.charging,
+#battery.plugged { color: @primary; }
+#pulseaudio { color: @primary; }
+#language { color: @accent; }
+#clock { color: @accent; font-weight: 800; }
+#window { color: @text; }
+#custom-notification { color: @accent; }
+#custom-power { color: @accent; }
 
-#custom-netspeed {
-    color: #7ee2c2;
-}
 
-#backlight {
-    color: @accent;
-}
-
-#cpu {
-    color: #50fa7b;
-}
-
-#memory {
-    color: #ff79c6;
-}
-
-#temperature {
-    color: #f1fa8c;
-}
-
-#battery {
-    color: #ffb86c;
-}
-
-#pulseaudio {
-    color: #bd93f9;
-}
-
+/* Soft text outline so labels stay clear on busy wallpapers */
+#workspaces button,
+#window,
+#clock,
+#cpu,
+#memory,
+#temperature,
+#load,
+#disk,
+#network,
+#backlight,
+#battery,
+#pulseaudio,
+#bluetooth,
+#language,
+#tray,
+#custom-hint,
+#custom-cava,
+#custom-media,
+#custom-netspeed,
+#custom-updates,
 #custom-notification {
-    color: #ff5555;
-}
-
-#custom-media {
-    color: #a2d2fb;
-}
-
-/* Battery critical blink */
-@keyframes blink {
-    to {
-        background-color: #ffffff;
-        color: #000000;
-    }
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 #battery.critical:not(.charging) {
-    background-color: #f53c3c;
-    color: #ffffff;
-    animation-name: blink;
-    animation-duration: 0.5s;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-    animation-direction: alternate;
+    background: @secondary;
+    color: @accent;
 }

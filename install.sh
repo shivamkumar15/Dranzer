@@ -482,6 +482,7 @@ mkdir -p "$BIN_DIR" "$STATE_DIR" "$WALLPAPER_DEST_DIR"
 
 install_dir "$THEMES_SRC_DIR" "$THEMES_DEST_DIR"
 install_dir "$REPO_DIR/.config/waybar/styles" "$CONFIG_HOME/waybar/styles"
+install_dir "$REPO_DIR/.config/waybar/layouts" "$CONFIG_HOME/waybar/layouts"
 
 for wallpaper_name in $WALLPAPER_SRC_FILES; do
     install_file "$REPO_DIR/$wallpaper_name" "$WALLPAPER_DEST_DIR/$wallpaper_name"
@@ -501,6 +502,8 @@ install_dir "$REPO_DIR/.config/waybar/includes" "$CONFIG_HOME/waybar/includes"
 install_file "$REPO_DIR/.config/waybar/theme.css" "$CONFIG_HOME/waybar/theme.css"
 install_file "$REPO_DIR/.config/waybar/style.css" "$CONFIG_HOME/waybar/style.css"
 install_file "$REPO_DIR/.config/waybar/bitbeast-style.css" "$CONFIG_HOME/waybar/bitbeast-style.css"
+# Base module definitions + live config (layout merge writes config.jsonc on style switch)
+install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config.base.jsonc"
 install_file "$REPO_DIR/.config/waybar/config.jsonc" "$CONFIG_HOME/waybar/config.jsonc"
 install_file "$REPO_DIR/.config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
 install_file "$REPO_DIR/.config/rofi/config.rasi" "$CONFIG_HOME/rofi/config.rasi"
@@ -509,7 +512,12 @@ install_file "$REPO_DIR/.config/rofi/overview.rasi" "$CONFIG_HOME/rofi/overview.
 install_dir "$REPO_DIR/.config/swaync" "$CONFIG_HOME/swaync"
 install_dir "$REPO_DIR/.config/fastfetch" "$CONFIG_HOME/fastfetch"
 install_dir "$REPO_DIR/web-wallpaper-selector" "$DATA_HOME/bitbeast/web-wallpaper-selector"
-install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
+# Prefer full bitbeast CLI (includes layout-aware style switching)
+if [ -f "$REPO_DIR/.local/bin/bitbeast" ]; then
+    install_file "$REPO_DIR/.local/bin/bitbeast" "$BIN_DIR/bitbeast"
+else
+    install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
+fi
 install_file "$REPO_DIR/.local/bin/bitbeast-battery" "$BIN_DIR/bitbeast-battery"
 install_file "$REPO_DIR/.local/bin/bitbeast-media" "$BIN_DIR/bitbeast-media"
 install_file "$REPO_DIR/.local/bin/bitbeast-media-popup" "$BIN_DIR/bitbeast-media-popup"
@@ -527,7 +535,8 @@ install_file "$REPO_DIR/.local/bin/circular_cava.py" "$BIN_DIR/circular_cava.py"
 install_file "$REPO_DIR/.local/bin/toggle-transparency" "$BIN_DIR/toggle-transparency"
 install_file "$REPO_DIR/.local/bin/waybar-cava.sh" "$BIN_DIR/waybar-cava.sh"
 install_file "$REPO_DIR/.local/bin/waybar-netspeed.sh" "$BIN_DIR/waybar-netspeed.sh"
-chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/toggle-transparency" "$BIN_DIR/waybar-cava.sh" "$BIN_DIR/waybar-netspeed.sh"
+install_file "$REPO_DIR/.local/bin/waybar-updates.sh" "$BIN_DIR/waybar-updates.sh"
+chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/toggle-transparency" "$BIN_DIR/waybar-cava.sh" "$BIN_DIR/waybar-netspeed.sh" "$BIN_DIR/waybar-updates.sh"
 
 if [ -f "$REPO_DIR/.local/bin/bongocat" ]; then
     printf "Extracting BongoCat AppImage...\n"

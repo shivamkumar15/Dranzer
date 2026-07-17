@@ -1,102 +1,96 @@
-/* 
- * BitBeast Waybar - Glass Style
- * A heavy glassmorphic theme with a fully connected bar.
- */
-
-/* Glass — Heavy glassmorphic connected bar */
+/* Glass */
 window#waybar {
-    background: alpha(@bg, 0.4);
-    border-bottom: 1px solid alpha(@text, 0.1);
-}
-
-#workspaces,
-#window,
-#clock,
-#battery,
-#network,
-#pulseaudio,
-#tray,
-#custom-power,
-#custom-media,
-#custom-notification,
-#custom-lock,
-#idle_inhibitor,
-#cpu,
-#memory,
-#backlight,
-#custom-theme,
-#custom-style {
-    background: transparent;
-    margin: 0;
-    padding: 0 14px;
+    background: @bg;
+    background-image: none;
+    border-bottom: 1px solid @secondary;
     color: @text;
-    transition: all 0.3s ease;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
 }
-
-#workspaces:hover,
-#clock:hover,
-#battery:hover,
-#network:hover,
-#pulseaudio:hover,
-#tray:hover,
-#custom-power:hover,
-#custom-media:hover,
-#custom-notification:hover,
-#custom-lock:hover,
-#idle_inhibitor:hover,
-#cpu:hover,
-#memory:hover,
-#backlight:hover,
-#custom-theme:hover,
-#custom-style:hover {
-    background: alpha(@text, 0.05);
+.modules-left, .modules-center, .modules-right {
+    background: transparent; background-image: none; padding: 0 6px;
 }
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 3px; padding: 0 6px;
+}
+#workspaces button.active { background: @primary; color: @bg; }
+#clock { color: @accent; }
 
+/* Theme vibe + clear depth (simple shadows GTK renders reliably) */
 #workspaces button {
-    color: alpha(@text, 0.6);
-    border-radius: 8px;
-    margin: 8px 4px;
-    padding: 0 6px;
-    min-width: 24px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-#workspaces button.active {
-    background: alpha(@primary, 0.3);
-    color: @primary;
-    box-shadow: 0 2px 10px alpha(@primary, 0.4);
-}
-
-#workspaces button.urgent {
-    background: alpha(#ff5555, 0.3);
-    color: #ff5555;
-}
-
-#workspaces button:hover {
-    background: alpha(@text, 0.1);
     color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 8px;
+    margin: 2px 2px;
+    border-radius: 8px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
-
-#custom-power {
-    color: #ff5555;
-}
-
-#custom-power:hover {
-    background: alpha(#ff5555, 0.2);
-}
-
-#clock {
-    color: @accent;
+#workspaces button.active {
+    color: @bg;
+    background: @primary;
+    background-image: none;
     font-weight: 800;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+    text-shadow: none;
 }
-
+#workspaces button:hover {
+    color: @text;
+    background: @bg-alt;
+    background-image: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+#workspaces button.urgent {
+    color: @accent;
+    background: @secondary;
+    background-image: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+#window, #clock, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
+#network, #backlight, #cpu, #memory, #temperature, #load, #disk, #custom-updates,
+#bluetooth, #battery, #pulseaudio, #language, #custom-notification, #tray {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+#window { color: @text; font-weight: 700; }
+#clock { color: @accent; font-weight: 800; }
+#custom-hint { color: @accent; }
+#custom-cava { color: @cava-color; }
+#custom-media { color: @primary; font-weight: 700; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network { color: @primary; }
+#network.disconnected { color: @accent; }
+#backlight { color: @accent; }
+#cpu { color: @primary; }
+#memory { color: @accent; }
+#temperature { color: @accent; }
+#temperature.critical { color: @glow; }
+#load { color: @primary; }
+#disk { color: @secondary; }
+#custom-updates { color: @accent; }
+#bluetooth { color: @primary; }
+#battery { color: @accent; }
+#battery.charging, #battery.plugged { color: @primary; }
+#pulseaudio { color: @primary; }
+#pulseaudio.muted { color: @text; }
+#language { color: @accent; font-weight: 800; }
+#custom-notification { color: @accent; }
+#custom-power {
+    color: @bg;
+    background: @accent;
+    background-image: none;
+    border-radius: 8px;
+    padding: 0 10px;
+    font-weight: 800;
+    margin: 2px 2px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
+    text-shadow: none;
+}
+#tray { color: @text; }
 #battery.critical:not(.charging) {
-    color: #ff5555;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0% { background-color: transparent; }
-    50% { background-color: alpha(#ff5555, 0.2); }
-    100% { background-color: transparent; }
+    background: @secondary;
+    color: @accent;
+    animation: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }

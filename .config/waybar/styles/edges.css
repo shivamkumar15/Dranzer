@@ -1,21 +1,21 @@
-/* Pill */
-.modules-left, .modules-center, .modules-right {
+/* Edges */
+window#waybar {
     background: @bg;
     background-image: none;
-    border: 1px solid @secondary;
-    border-radius: 18px;
-    padding: 2px 12px;
-    margin: 4px 0;
+    border-left: 3px solid @glow;
+    border-right: 3px solid @accent;
     color: @text;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.72);
 }
-#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
-#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
-#custom-notification, #custom-power {
-    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 3px; padding: 0 5px;
+.modules-left, .modules-center, .modules-right {
+    background: transparent; background-image: none; border: none; padding: 0 8px;
 }
-#workspaces button.active { background: @primary; color: @bg; border-radius: 12px; }
-#clock { color: @accent; }
+#workspaces, #cpu, #temperature, #load, #memory, #custom-updates, #disk, #network,
+#custom-cava, #window, #custom-netspeed, #tray, #bluetooth, #backlight, #pulseaudio,
+#battery, #language, #clock, #custom-power, #custom-hint, #custom-media, #custom-notification {
+    background: transparent; background-image: none; color: @text; margin: 0 3px; padding: 0 5px; font-weight: 700;
+}
+#workspaces button.active { background: @glow; color: @bg; border-radius: 0; }
 
 /* Theme vibe + clear depth (simple shadows GTK renders reliably) */
 #workspaces button {

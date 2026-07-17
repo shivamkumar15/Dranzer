@@ -1,21 +1,27 @@
-/* Pill */
+/* Clean */
 .modules-left, .modules-center, .modules-right {
     background: @bg;
     background-image: none;
     border: 1px solid @secondary;
-    border-radius: 18px;
-    padding: 2px 12px;
-    margin: 4px 0;
+    border-radius: 14px;
+    padding: 2px 14px;
+    margin: 5px 0;
     color: @text;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.72);
 }
-#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
-#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
-#custom-notification, #custom-power {
-    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 3px; padding: 0 5px;
+#workspaces, #window, #clock, #network, #battery, #pulseaudio, #custom-power,
+#custom-hint, #custom-cava, #custom-media, #custom-netspeed, #cpu, #memory, #backlight, #custom-notification {
+    background: transparent; background-image: none; color: @text; margin: 0 4px; padding: 0 6px; font-weight: 700;
 }
-#workspaces button.active { background: @primary; color: @bg; border-radius: 12px; }
-#clock { color: @accent; }
+#clock {
+    background: @bg-alt;
+    background-image: none;
+    color: @accent;
+    border-radius: 10px;
+    padding: 0 12px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+}
+#workspaces button.active { background: @primary; color: @bg; }
 
 /* Theme vibe + clear depth (simple shadows GTK renders reliably) */
 #workspaces button {

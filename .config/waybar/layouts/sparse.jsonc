@@ -1,0 +1,55 @@
+{
+  "height": 28,
+  "spacing": 4,
+  "margin-top": 8,
+  "margin-left": 16,
+  "margin-right": 16,
+  "modules-left": [
+    "hyprland/workspaces",
+    "hyprland/window"
+  ],
+  "modules-center": [
+    "clock"
+  ],
+  "modules-right": [
+    "network",
+    "battery",
+    "pulseaudio",
+    "custom/power"
+  ],
+  "clock": {
+    "format": "{:%H:%M}",
+    "format-alt": "{:%a %d %b  %H:%M}",
+    "interval": 1,
+    "tooltip-format": "{:%A, %d %B %Y}",
+    "on-click": "~/.local/bin/bitbeast-power-popup"
+  },
+  "hyprland/window": {
+    "format": "{}",
+    "separate-outputs": true,
+    "max-length": 48,
+    "rewrite": { "": "" }
+  },
+  "network": {
+    "format": "󰤭",
+    "format-wifi": "󰤨",
+    "format-ethernet": "󰈀",
+    "format-disconnected": "󰤮",
+    "tooltip-format": "{essid} · {ipaddr}",
+    "on-click": "nm-connection-editor"
+  },
+  "battery": {
+    "states": { "warning": 30, "critical": 15 },
+    "format": "{capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰂄 {capacity}%",
+    "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+  },
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "󰖁",
+    "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
+    "on-click": "pavucontrol",
+    "on-click-right": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+  }
+}

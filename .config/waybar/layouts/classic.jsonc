@@ -1,0 +1,41 @@
+{
+  "height": 32,
+  "spacing": 2,
+  "margin-top": 6,
+  "margin-left": 12,
+  "margin-right": 12,
+  "modules-left": [
+    "hyprland/workspaces",
+    "custom/hint",
+    "custom/cava",
+    "hyprland/window"
+  ],
+  "modules-center": [
+    "custom/media",
+    "clock"
+  ],
+  "modules-right": [
+    "custom/netspeed",
+    "network",
+    "backlight",
+    "cpu",
+    "memory",
+    "battery",
+    "pulseaudio",
+    "custom/notification",
+    "custom/power"
+  ],
+  "clock": {
+    "format": "{:%H:%M  %a %d}",
+    "format-alt": "{:%A, %d %B %Y  %H:%M:%S}",
+    "interval": 1,
+    "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+    "on-click": "~/.local/bin/bitbeast-power-popup"
+  },
+  "hyprland/window": {
+    "format": "{}",
+    "separate-outputs": true,
+    "max-length": 32,
+    "rewrite": { "": "󰖯 Desktop" }
+  }
+}

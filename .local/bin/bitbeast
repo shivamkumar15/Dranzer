@@ -15,10 +15,16 @@ if [ ! -d "$CONFIG_HOME/bitbeasts" ] && [ -d "$REPO_DIR/.config/bitbeasts" ]; th
     THEMES_DIR="$REPO_DIR/.config/bitbeasts"
     WALLPAPER_DIR="${BITBEAST_WALLPAPER_DIR:-$REPO_DIR}"
     WAYBAR_STYLES_DIR="$REPO_DIR/.config/waybar/styles"
+    WAYBAR_LAYOUTS_DIR="$REPO_DIR/.config/waybar/layouts"
+    WAYBAR_BASE_CONFIG="$REPO_DIR/.config/waybar/config.jsonc"
 else
     THEMES_DIR="$CONFIG_HOME/bitbeasts"
     WALLPAPER_DIR="${BITBEAST_WALLPAPER_DIR:-$DATA_HOME/bitbeast/wallpapers}"
     WAYBAR_STYLES_DIR="$CONFIG_HOME/waybar/styles"
+    WAYBAR_LAYOUTS_DIR="$CONFIG_HOME/waybar/layouts"
+    WAYBAR_BASE_CONFIG="$CONFIG_HOME/waybar/config.base.jsonc"
+    # Fall back if base not split yet
+    [ -f "$WAYBAR_BASE_CONFIG" ] || WAYBAR_BASE_CONFIG="$CONFIG_HOME/waybar/config.jsonc"
 fi
 
 STATE_DIR="$CONFIG_HOME/bitbeast"
@@ -600,6 +606,80 @@ style_variant_path() {
     printf '%s\n' "$style_path"
 }
 
+layout_name_for_style() {
+    style_name=$1
+    map_file="$WAYBAR_LAYOUTS_DIR/map.conf"
+    layout_name="classic"
+
+    if [ -f "$map_file" ]; then
+        mapped=$(sed -n "s/^${style_name}=//p" "$map_file" | head -n 1 | tr -d '[:space:]')
+        [ -n "$mapped" ] && layout_name=$mapped
+    fi
+
+    printf '%s\n' "$layout_name"
+}
+
+apply_waybar_layout() {
+    style_name=$1
+    layout_name=$(layout_name_for_style "$style_name")
+    layout_file="$WAYBAR_LAYOUTS_DIR/${layout_name}.jsonc"
+    base_config="$WAYBAR_BASE_CONFIG"
+    out_config="$WAYBAR_DIR/config.jsonc"
+
+    # Prefer installed base copy when running from installed tree
+    if [ -f "$WAYBAR_DIR/config.base.jsonc" ]; then
+        base_config="$WAYBAR_DIR/config.base.jsonc"
+    fi
+
+    if [ ! -f "$base_config" ]; then
+        printf 'Waybar base config missing: %s\n' "$base_config" >&2
+        return 1
+    fi
+
+    if [ ! -f "$layout_file" ]; then
+        # No layout overlay — install base as-is
+        cp "$base_config" "$out_config"
+        printf '%s\n' "$layout_name" > "$STATE_DIR/current.layout"
+        return 0
+    fi
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        cp "$base_config" "$out_config"
+        printf '%s\n' "$layout_name" > "$STATE_DIR/current.layout"
+        return 0
+    fi
+
+    python3 - "$base_config" "$layout_file" "$out_config" <<'PY'
+import json, re, sys
+
+def load_jsonc(path):
+    text = open(path, encoding="utf-8").read()
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    text = re.sub(r"(^|[^:])//.*?$", r"\1", text, flags=re.M)
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+    return json.loads(text)
+
+base_path, layout_path, out_path = sys.argv[1:4]
+base = load_jsonc(base_path)
+layout = load_jsonc(layout_path)
+
+def deep_merge(a, b):
+    for k, v in b.items():
+        if isinstance(v, dict) and isinstance(a.get(k), dict):
+            deep_merge(a[k], v)
+        else:
+            a[k] = v
+    return a
+
+merged = deep_merge(base, layout)
+with open(out_path, "w", encoding="utf-8") as f:
+    json.dump(merged, f, indent=2)
+    f.write("\n")
+PY
+
+    printf '%s\n' "$layout_name" > "$STATE_DIR/current.layout"
+}
+
 write_active_style() {
     style_name=$1
     style_file=$(style_variant_path "$style_name") || return 1
@@ -607,6 +687,7 @@ write_active_style() {
     mkdir -p "$STATE_DIR" "$WAYBAR_DIR"
     cp "$style_file" "$WAYBAR_DIR/bitbeast-style.css"
     printf '%s\n' "$(basename "$style_file" .css)" > "$STATE_DIR/current.style"
+    apply_waybar_layout "$style_name" || true
 }
 
 ensure_waybar_style() {

@@ -1,8 +1,0 @@
-/* Zenith — Clean minimal single accent line */
-.modules-left, .modules-center, .modules-right {
-    background: alpha(@bg, 0.82);
-    border-bottom: 2px solid @accent;
-    border-radius: 0;
-    padding: 1px 8px;
-}
-#workspaces button.active { border-bottom: 2px solid @accent; border-radius: 0; color: @accent; }

@@ -1,20 +1,20 @@
-/* Pill */
-.modules-left, .modules-center, .modules-right {
+/* Flat */
+window#waybar {
     background: @bg;
     background-image: none;
-    border: 1px solid @secondary;
-    border-radius: 18px;
-    padding: 2px 12px;
-    margin: 4px 0;
     color: @text;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.72);
+    border-bottom: 2px solid @glow;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
 }
-#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
-#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
-#custom-notification, #custom-power {
-    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 3px; padding: 0 5px;
+.modules-left, .modules-center, .modules-right {
+    background: transparent; background-image: none; padding: 0 8px;
 }
-#workspaces button.active { background: @primary; color: @bg; border-radius: 12px; }
+#workspaces, #window, #clock, #network, #battery, #pulseaudio, #custom-power {
+    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 4px; padding: 0 6px;
+}
+#workspaces button.active {
+    background: transparent; color: @accent; border-bottom: 2px solid @accent; border-radius: 0;
+}
 #clock { color: @accent; }
 
 /* Theme vibe + clear depth (simple shadows GTK renders reliably) */
