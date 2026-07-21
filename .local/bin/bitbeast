@@ -1356,6 +1356,15 @@ start_volume_gesture() {
     "$vg" >/dev/null 2>&1 &
 }
 
+start_battery_watcher() {
+    watcher="$SCRIPT_DIR/bitbeast-battery-watcher"
+    [ -x "$watcher" ] || watcher="$HOME/.local/bin/bitbeast-battery-watcher"
+    [ -x "$watcher" ] || return 0
+    if ! pgrep -f 'bitbeast-battery-watcher' >/dev/null 2>&1; then
+        "$watcher" >/dev/null 2>&1 &
+    fi
+}
+
 session_init() {
     sleep 1
 
@@ -1375,6 +1384,7 @@ session_init() {
     start_clipboard_watchers || true
     restore_gradient_state || true
     start_volume_gesture || true
+    start_battery_watcher || true
 }
 
 brightness_control() {

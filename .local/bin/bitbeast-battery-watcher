@@ -1,0 +1,87 @@
+#!/bin/sh
+# BitBeast Battery Watcher — notify when battery drops to 20% and 10%
+
+set -eu
+
+LOW_THRESHOLD=20
+CRITICAL_THRESHOLD=10
+INTERVAL=${BITBEAST_BATTERY_INTERVAL:-60}
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bitbeast"
+mkdir -p "$STATE_DIR"
+
+LOW_FLAG="$STATE_DIR/battery-low.flag"
+CRITICAL_FLAG="$STATE_DIR/battery-critical.flag"
+
+find_battery() {
+    for bat in /sys/class/power_supply/BAT*; do
+        [ -d "$bat" ] || continue
+        printf '%s\n' "$bat"
+        return 0
+    done
+    return 1
+}
+
+send_notification() {
+    urgency=$1
+    summary=$2
+    body=$3
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u "$urgency" -a "BitBeast" "$summary" "$body"
+    fi
+}
+
+reset_flags() {
+    rm -f "$LOW_FLAG" "$CRITICAL_FLAG"
+}
+
+notify_low() {
+    [ -f "$LOW_FLAG" ] && return 0
+    send_notification "normal" "Low Battery" "Battery is at $1%. Please plug in the charger."
+    : > "$LOW_FLAG"
+}
+
+notify_critical() {
+    [ -f "$CRITICAL_FLAG" ] && return 0
+    send_notification "critical" "Ultimate Low Battery" "Battery is at $1%! Plug in now to avoid shutdown."
+    : > "$CRITICAL_FLAG"
+}
+
+main_loop() {
+    if [ -n "${BITBEAST_BATTERY_PATH:-}" ]; then
+        bat_path=$BITBEAST_BATTERY_PATH
+    else
+        bat_path=$(find_battery) || {
+            # No battery found (desktop) — nothing to watch
+            exit 0
+        }
+    fi
+
+    while true; do
+        capacity=$(cat "$bat_path/capacity" 2>/dev/null || echo "100")
+        status=$(cat "$bat_path/status" 2>/dev/null || echo "Unknown")
+
+        case "$status" in
+            Charging|Full)
+                reset_flags
+                ;;
+            Discharging)
+                if [ "$capacity" -le "$CRITICAL_THRESHOLD" ]; then
+                    notify_critical "$capacity"
+                elif [ "$capacity" -le "$LOW_THRESHOLD" ]; then
+                    notify_low "$capacity"
+                else
+                    reset_flags
+                fi
+                ;;
+            *)
+                # Unknown status: keep current flags but do not notify
+                ;;
+        esac
+
+        sleep "$INTERVAL"
+    done
+}
+
+main_loop
