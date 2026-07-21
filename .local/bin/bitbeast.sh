@@ -725,22 +725,8 @@ fallback_wallpaper_path() {
 }
 
 ensure_swww_daemon() {
-    if command -v swww >/dev/null 2>&1; then
-        if ! pgrep -x swww-daemon >/dev/null 2>&1; then
-            swww-daemon >/dev/null 2>&1 &
-            # Wait for daemon to be fully ready (up to 5 seconds)
-            _swww_tries=0
-            while [ "$_swww_tries" -lt 10 ]; do
-                sleep 0.5
-                if swww query >/dev/null 2>&1; then
-                    return 0
-                fi
-                _swww_tries=$((_swww_tries + 1))
-            done
-            warn "swww-daemon started but may not be fully ready"
-        fi
-        return 0
-    elif command -v awww >/dev/null 2>&1; then
+    # Prefer awww when available, otherwise fall back to swww
+    if command -v awww >/dev/null 2>&1; then
         if ! pgrep -x awww-daemon >/dev/null 2>&1; then
             awww-daemon >/dev/null 2>&1 &
             # Wait for daemon to be fully ready (up to 5 seconds)
@@ -753,6 +739,21 @@ ensure_swww_daemon() {
                 _awww_tries=$((_awww_tries + 1))
             done
             warn "awww-daemon started but may not be fully ready"
+        fi
+        return 0
+    elif command -v swww >/dev/null 2>&1; then
+        if ! pgrep -x swww-daemon >/dev/null 2>&1; then
+            swww-daemon >/dev/null 2>&1 &
+            # Wait for daemon to be fully ready (up to 5 seconds)
+            _swww_tries=0
+            while [ "$_swww_tries" -lt 10 ]; do
+                sleep 0.5
+                if swww query >/dev/null 2>&1; then
+                    return 0
+                fi
+                _swww_tries=$((_swww_tries + 1))
+            done
+            warn "swww-daemon started but may not be fully ready"
         fi
         return 0
     fi
@@ -806,10 +807,10 @@ apply_wallpaper_swww() {
             ;;
     esac
 
-    # Determine command to use (swww or awww)
-    cmd_bin="swww"
-    if ! command -v swww >/dev/null 2>&1 && command -v awww >/dev/null 2>&1; then
-        cmd_bin="awww"
+    # Determine command to use (awww preferred, fallback to swww)
+    cmd_bin="awww"
+    if ! command -v awww >/dev/null 2>&1 && command -v swww >/dev/null 2>&1; then
+        cmd_bin="swww"
     fi
 
     attempt=1
@@ -869,8 +870,8 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Prefer swww for smooth transitions when available.
-    if command -v swww >/dev/null 2>&1; then
+    # Prefer awww (or swww) for smooth animated transitions
+    if command -v awww >/dev/null 2>&1 || command -v swww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
         pkill -x swaybg >/dev/null 2>&1 || true
         if apply_wallpaper_swww "$wallpaper_path"; then
@@ -885,13 +886,7 @@ apply_wallpaper() {
         fi
     fi
 
-    if command -v awww >/dev/null 2>&1; then
-        if apply_wallpaper_swww "$wallpaper_path"; then
-            return 0
-        fi
-    fi
-
-    warn 'No wallpaper backend available. Install swww (recommended) or swaybg.'
+    warn 'No wallpaper backend available. Install awww (recommended) or swww or swaybg.'
     return 1
 }
 
