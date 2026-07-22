@@ -1,8 +1,9 @@
 #!/bin/sh
-# BitBeast Battery Watcher — notify when battery drops to 20% and 10%
+# BitBeast Battery Watcher — notify at 100%, 20%, and 10%
 
 set -eu
 
+FULL_THRESHOLD=100
 LOW_THRESHOLD=20
 CRITICAL_THRESHOLD=10
 INTERVAL=${BITBEAST_BATTERY_INTERVAL:-60}
@@ -10,6 +11,7 @@ INTERVAL=${BITBEAST_BATTERY_INTERVAL:-60}
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bitbeast"
 mkdir -p "$STATE_DIR"
 
+FULL_FLAG="$STATE_DIR/battery-full.flag"
 LOW_FLAG="$STATE_DIR/battery-low.flag"
 CRITICAL_FLAG="$STATE_DIR/battery-critical.flag"
 
@@ -32,8 +34,18 @@ send_notification() {
     fi
 }
 
-reset_flags() {
+reset_low_flags() {
     rm -f "$LOW_FLAG" "$CRITICAL_FLAG"
+}
+
+reset_full_flag() {
+    rm -f "$FULL_FLAG"
+}
+
+notify_full() {
+    [ -f "$FULL_FLAG" ] && return 0
+    send_notification "normal" "Battery Full" "Battery is at $1% — you can unplug the charger."
+    : > "$FULL_FLAG"
 }
 
 notify_low() {
@@ -63,16 +75,26 @@ main_loop() {
         status=$(cat "$bat_path/status" 2>/dev/null || echo "Unknown")
 
         case "$status" in
-            Charging|Full)
-                reset_flags
+            Charging)
+                reset_low_flags
+                if [ "$capacity" -ge "$FULL_THRESHOLD" ]; then
+                    notify_full "$capacity"
+                else
+                    reset_full_flag
+                fi
+                ;;
+            Full)
+                reset_low_flags
+                notify_full "$capacity"
                 ;;
             Discharging)
+                reset_full_flag
                 if [ "$capacity" -le "$CRITICAL_THRESHOLD" ]; then
                     notify_critical "$capacity"
                 elif [ "$capacity" -le "$LOW_THRESHOLD" ]; then
                     notify_low "$capacity"
                 else
-                    reset_flags
+                    reset_low_flags
                 fi
                 ;;
             *)
