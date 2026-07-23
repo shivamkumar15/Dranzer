@@ -62,7 +62,7 @@ Run the installer. We recommend using the `--apply` flag to set everything up im
 > [!TIP]
 > **Advanced Options:**
 > - `--no-deps`: Skip dependency checks if you prefer manual management.
-> - `--force`: Overwrite existing configs (backups will still be created).
+> - `--force`: Overwrite existing configs (backups will still be created) if you dont want to keep keep the backup just delete it.
 > - `--theme <name>`: Install and activate a specific theme (e.g., `dragoon`).
 
 ---

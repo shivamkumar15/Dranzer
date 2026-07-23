@@ -57,6 +57,7 @@ check_dependencies() {
             pacman:waybar|yay:waybar|paru:waybar|apt:waybar|dnf:waybar) printf 'waybar' ;;
             pacman:rofi|yay:rofi|paru:rofi) printf 'rofi-wayland' ;;
             apt:rofi|dnf:rofi) printf 'rofi' ;;
+            pacman:fish|
             pacman:kitty|yay:kitty|paru:kitty|apt:kitty|dnf:kitty) printf 'kitty' ;;
             pacman:hyprlock|yay:hyprlock|paru:hyprlock|apt:hyprlock|dnf:hyprlock) printf 'hyprlock' ;;
             pacman:swaync|yay:swaync|paru:swaync|apt:swaync|dnf:swaync) printf 'swaync' ;;
@@ -67,13 +68,17 @@ check_dependencies() {
             pacman:xdg-desktop-portal-hyprland|yay:xdg-desktop-portal-hyprland|paru:xdg-desktop-portal-hyprland|apt:xdg-desktop-portal-hyprland|dnf:xdg-desktop-portal-hyprland) printf 'xdg-desktop-portal-hyprland' ;;
             pacman:fastfetch|yay:fastfetch|paru:fastfetch|apt:fastfetch|dnf:fastfetch) printf 'fastfetch' ;;
             pacman:cliphist|yay:cliphist|paru:cliphist|apt:cliphist|dnf:cliphist) printf 'cliphist' ;;
-            pacman:git|yay:git|paru:git|apt:git|dnf:git) printf 'git' ;;
             pacman:bash|yay:bash|paru:bash|apt:bash|dnf:bash) printf 'bash' ;;
             pacman:swww|yay:swww|paru:swww|apt:swww|dnf:swww) printf 'swww' ;;
+            pacman:ewww|yay:ewww|paru:ewww:apt:ewww|dnf:ewww) printf 'ewww' ;;
+            pacman:yay) printf 'yay install' ;;
+            pacman:paru) printf 'paru install' ;;
+            pacman:spotify|yay:spotify|paru:spotify) prinntf 'spotfiy downloading' ;;
             pacman:swaybg|yay:swaybg|paru:swaybg|apt:swaybg|dnf:swaybg) printf 'swaybg' ;;
             pacman:awww|yay:awww|paru:awww|apt:awww|dnf:awww) printf 'awww' ;;
             pacman:brightnessctl|yay:brightnessctl|paru:brightnessctl|apt:brightnessctl|dnf:brightnessctl) printf 'brightnessctl' ;;
             pacman:light|yay:light|paru:light|apt:light|dnf:light) printf 'light' ;;
+            pacman:mov-cli|yay:mov-cli|paru:mov-cli|apt:mov-cli|dnf:mov-cli) printf 'mov-cli for youtube in terminal' ;;
             pacman:python-gobject|yay:python-gobject|paru:python-gobject|apt:python3-gi|dnf:python3-gobject) printf 'python-gobject' ;;
             pacman:gtk-layer-shell|yay:gtk-layer-shell|paru:gtk-layer-shell|apt:libgtk-layer-shell0|dnf:gtk-layer-shell) printf 'gtk-layer-shell' ;;
             pacman:grim|yay:grim|paru:grim|apt:grim|dnf:grim) printf 'grim' ;;
@@ -82,6 +87,7 @@ check_dependencies() {
             pacman:pavucontrol|yay:pavucontrol|paru:pavucontrol|apt:pavucontrol|dnf:pavucontrol) printf 'pavucontrol' ;;
             pacman:network-manager-applet|yay:network-manager-applet|paru:network-manager-applet|apt:network-manager-applet|dnf:network-manager-applet) printf 'network-manager-applet' ;;
             pacman:blueman|yay:blueman|paru:blueman|apt:blueman|dnf:blueman) printf 'blueman' ;;
+            pacman:normcap|yay:normcap|paru:normcap|apt:normcap|dnf:normcap) printf "normcap for text extraction form text' ;;
             pacman:jetbrainsmono-nerd|yay:jetbrainsmono-nerd|paru:jetbrainsmono-nerd) printf 'ttf-jetbrains-mono-nerd' ;;
             apt:jetbrainsmono-nerd) printf 'fonts-jetbrains-mono' ;;
             dnf:jetbrainsmono-nerd) printf 'jetbrains-mono-fonts' ;;
@@ -500,6 +506,7 @@ fi
 install_dir "$REPO_DIR/.config/waybar/modules" "$CONFIG_HOME/waybar/modules"
 install_dir "$REPO_DIR/.config/waybar/includes" "$CONFIG_HOME/waybar/includes"
 install_file "$REPO_DIR/.config/waybar/theme.css" "$CONFIG_HOME/waybar/theme.css"
+
 install_file "$REPO_DIR/.config/waybar/style.css" "$CONFIG_HOME/waybar/style.css"
 install_file "$REPO_DIR/.config/waybar/bitbeast-style.css" "$CONFIG_HOME/waybar/bitbeast-style.css"
 # Base module definitions + live config (layout merge writes config.jsonc on style switch)

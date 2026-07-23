@@ -75,7 +75,7 @@ window#waybar {
 #temperature { color: @accent; }
 #temperature.critical { color: @glow; }
 #load { color: @primary; }
-#disk { color: @secondary; }
+#disk { color:@accent; }
 #custom-updates { color: @accent; }
 #bluetooth { color: @primary; }
 #battery { color: @accent; }

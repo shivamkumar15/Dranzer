@@ -18,8 +18,8 @@
     "custom/power"
   ],
   "clock": {
-    "format": "{:%H:%M}",
-    "format-alt": "{:%a %d %b  %H:%M}",
+    "format": "{:%a %d %b  %H:%M}",
+    "format-alt": "{:%H:%M}",
     "interval": 1,
     "tooltip-format": "{:%A, %d %B %Y}",
     "on-click": "~/.local/bin/bitbeast-power-popup"
