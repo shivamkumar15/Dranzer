@@ -73,7 +73,6 @@ check_dependencies() {
             pacman:ewww|yay:ewww|paru:ewww:apt:ewww|dnf:ewww) printf 'ewww' ;;
             pacman:yay) printf 'yay install' ;;
             pacman:paru) printf 'paru install' ;;
-            pacman:spotify|yay:spotify|paru:spotify) prinntf 'spotfiy downloading' ;;
             pacman:swaybg|yay:swaybg|paru:swaybg|apt:swaybg|dnf:swaybg) printf 'swaybg' ;;
             pacman:awww|yay:awww|paru:awww|apt:awww|dnf:awww) printf 'awww' ;;
             pacman:brightnessctl|yay:brightnessctl|paru:brightnessctl|apt:brightnessctl|dnf:brightnessctl) printf 'brightnessctl' ;;
