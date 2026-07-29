@@ -1,0 +1,58 @@
+-- TODO: manual review — unexpected token after 'foreground'
+--f7eeff
+-- TODO: manual review — unexpected token after 'background'
+--100d16
+-- TODO: manual review — unexpected token after 'selection_foreground'
+--100d16
+-- TODO: manual review — unexpected token after 'selection_background'
+--f0b43c
+-- TODO: manual review — unexpected token after 'cursor'
+--f0b43c
+-- TODO: manual review — unexpected token after 'cursor_text_color'
+--100d16
+-- TODO: manual review — unexpected token after 'url_color'
+--af91ea
+-- TODO: manual review — unexpected token after 'active_border_color'
+--f0b43c
+-- TODO: manual review — unexpected token after 'inactive_border_color'
+--2d2d3f
+-- TODO: manual review — unexpected token after 'active_tab_background'
+--af91ea
+-- TODO: manual review — unexpected token after 'active_tab_foreground'
+--100d16
+-- TODO: manual review — unexpected token after 'inactive_tab_background'
+--1d1827
+-- TODO: manual review — unexpected token after 'inactive_tab_foreground'
+--f7eeff
+-- TODO: manual review — unexpected token after 'color0'
+--100d16
+-- TODO: manual review — unexpected token after 'color1'
+--af91ea
+-- TODO: manual review — unexpected token after 'color2'
+--2d2d3f
+-- TODO: manual review — unexpected token after 'color3'
+--f0b43c
+-- TODO: manual review — unexpected token after 'color4'
+--c3b1f3
+-- TODO: manual review — unexpected token after 'color5'
+--7e6bc0
+-- TODO: manual review — unexpected token after 'color6'
+--ffd47c
+-- TODO: manual review — unexpected token after 'color7'
+--f7eeff
+-- TODO: manual review — unexpected token after 'color8'
+--2a2434
+-- TODO: manual review — unexpected token after 'color9'
+--c9b5ff
+-- TODO: manual review — unexpected token after 'color10'
+--43435b
+-- TODO: manual review — unexpected token after 'color11'
+--f8c964
+-- TODO: manual review — unexpected token after 'color12'
+--dccdff
+-- TODO: manual review — unexpected token after 'color13'
+--9886d6
+-- TODO: manual review — unexpected token after 'color14'
+--ffe3a4
+-- TODO: manual review — unexpected token after 'color15'
+--fdf9ff
