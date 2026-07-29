@@ -5,6 +5,10 @@ A modular, premium Hyprland theme system inspired by Beyblade BitBeasts.
 > [!NOTE]
 > Each theme installs into `~/.config/bitbeasts/<theme>/`. The `bitbeast` CLI dynamically switches your Hyprland, Waybar, Kitty, Rofi, Cava, Fastfetch, and wallpaper configurations with a single command.
 
+> [!WARNING]
+> **Hyprland 0.56+ Compatibility Notice:**
+> Hyprland 0.56.1 introduced a deprecation notice for legacy `.conf` files, as they will be removed in version **0.57** in favor of `.lua` configs. Currently, these dotfiles and the `bitbeast` theme switcher script use `.conf` and `sed`/`awk` extensively. They will continue to work perfectly on 0.56.x (aside from the on-screen warning), but full Lua migration is pending for 0.57 compatibility.
+
 ---
 ## Screenshots <img width="1920" height="1076" alt="2026-06-01-123100" src="https://github.com/user-attachments/assets/9d07a1aa-9985-4626-adc2-6622f7caed19" />
 <img width="1916" height="1073" alt="2026-06-01-122839" src="https://github.com/user-attachments/assets/bed4bf83-4376-4d8a-b99f-53ef34014dde" />
