@@ -57,7 +57,6 @@ check_dependencies() {
             pacman:waybar|yay:waybar|paru:waybar|apt:waybar|dnf:waybar) printf 'waybar' ;;
             pacman:rofi|yay:rofi|paru:rofi) printf 'rofi-wayland' ;;
             apt:rofi|dnf:rofi) printf 'rofi' ;;
-            pacman:fish|
             pacman:kitty|yay:kitty|paru:kitty|apt:kitty|dnf:kitty) printf 'kitty' ;;
             pacman:hyprlock|yay:hyprlock|paru:hyprlock|apt:hyprlock|dnf:hyprlock) printf 'hyprlock' ;;
             pacman:swaync|yay:swaync|paru:swaync|apt:swaync|dnf:swaync) printf 'swaync' ;;
