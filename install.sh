@@ -69,9 +69,7 @@ check_dependencies() {
             pacman:cliphist|yay:cliphist|paru:cliphist|apt:cliphist|dnf:cliphist) printf 'cliphist' ;;
             pacman:bash|yay:bash|paru:bash|apt:bash|dnf:bash) printf 'bash' ;;
             pacman:swww|yay:swww|paru:swww|apt:swww|dnf:swww) printf 'swww' ;;
-            pacman:ewww|yay:ewww|paru:ewww:apt:ewww|dnf:ewww) printf 'ewww' ;;
-            pacman:yay) printf 'yay install' ;;
-            pacman:paru) printf 'paru install' ;;
+            pacman:ewww|yay:ewww|paru:ewww|apt:ewww|dnf:ewww) printf 'ewww' ;;
             pacman:swaybg|yay:swaybg|paru:swaybg|apt:swaybg|dnf:swaybg) printf 'swaybg' ;;
             pacman:awww|yay:awww|paru:awww|apt:awww|dnf:awww) printf 'awww' ;;
             pacman:brightnessctl|yay:brightnessctl|paru:brightnessctl|apt:brightnessctl|dnf:brightnessctl) printf 'brightnessctl' ;;
@@ -85,10 +83,13 @@ check_dependencies() {
             pacman:pavucontrol|yay:pavucontrol|paru:pavucontrol|apt:pavucontrol|dnf:pavucontrol) printf 'pavucontrol' ;;
             pacman:network-manager-applet|yay:network-manager-applet|paru:network-manager-applet|apt:network-manager-applet|dnf:network-manager-applet) printf 'network-manager-applet' ;;
             pacman:blueman|yay:blueman|paru:blueman|apt:blueman|dnf:blueman) printf 'blueman' ;;
-            pacman:normcap|yay:normcap|paru:normcap|apt:normcap|dnf:normcap) printf "normcap for text extraction form text' ;;
+            pacman:normcap|yay:normcap|paru:normcap|apt:normcap|dnf:normcap) printf "normcap for text extraction from text" ;;
             pacman:jetbrainsmono-nerd|yay:jetbrainsmono-nerd|paru:jetbrainsmono-nerd) printf 'ttf-jetbrains-mono-nerd' ;;
             apt:jetbrainsmono-nerd) printf 'fonts-jetbrains-mono' ;;
             dnf:jetbrainsmono-nerd) printf 'jetbrains-mono-fonts' ;;
+            pacman:git|yay:git|paru:git|apt:git|dnf:git) printf 'git' ;;
+            pacman:python3|yay:python3|paru:python3) printf 'python' ;;
+            apt:python3|dnf:python3) printf 'python3' ;;
             *) printf '' ;;
         esac
     }
