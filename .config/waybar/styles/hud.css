@@ -1,4 +1,4 @@
-/* HUD */
+/* HUD — Tactical display: scan-line borders, radar-green accents, data-readout precision */
 .modules-left, .modules-center, .modules-right {
     background: @bg;
     background-image: none;
@@ -8,19 +8,31 @@
     border-right: 1px solid @secondary;
     border-radius: 4px;
     padding: 2px 10px;
-    margin: 3px 0;
+    margin: 3px 6px;
     color: @text;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.72);
+    /* HUD holographic depth — scan-line glow + hard elevation */
+    box-shadow: 0 0 8px rgba(255, 100, 0, 0.06),
+                0 6px 20px rgba(0, 0, 0, 0.70),
+                inset 0 0 12px rgba(0, 0, 0, 0.3);
+}
+.modules-center {
+    border-color: @accent;
+    box-shadow: 0 0 10px rgba(255, 180, 0, 0.06),
+                0 6px 20px rgba(0, 0, 0, 0.70),
+                inset 0 0 12px rgba(0, 0, 0, 0.3);
 }
 #workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
 #custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
 #custom-notification, #custom-power {
-    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 3px; padding: 0 5px;
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 0 3px;
+    padding: 0 5px;
 }
-#workspaces button.active { background: @glow; color: @bg; }
-#clock { color: @accent; }
 
-/* Theme vibe + clear depth (simple shadows GTK renders reliably) */
+/* Workspace buttons — targeting pips */
 #workspaces button {
     color: @text;
     background: transparent;
@@ -28,72 +40,103 @@
     font-weight: 700;
     padding: 0 8px;
     margin: 2px 2px;
-    border-radius: 8px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+    border-radius: 2px;
+    border: 1px solid transparent;
+    text-shadow: 0 0 4px rgba(255, 100, 0, 0.12),
+                 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 #workspaces button.active {
     color: @bg;
-    background: @primary;
+    background: @glow;
     background-image: none;
     font-weight: 800;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+    border: 1px solid @accent;
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(255, 100, 0, 0.15),
+                0 2px 6px rgba(0, 0, 0, 0.5),
+                inset 0 0 6px rgba(255, 200, 100, 0.10);
     text-shadow: none;
 }
 #workspaces button:hover {
-    color: @text;
+    color: @accent;
     background: @bg-alt;
     background-image: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    border-color: @secondary;
+    box-shadow: 0 0 6px rgba(255, 100, 0, 0.08),
+                0 2px 4px rgba(0, 0, 0, 0.4);
 }
 #workspaces button.urgent {
-    color: @accent;
-    background: @secondary;
-    background-image: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-}
-#window, #clock, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
-#network, #backlight, #cpu, #memory, #temperature, #load, #disk, #custom-updates,
-#bluetooth, #battery, #pulseaudio, #language, #custom-notification, #tray {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-}
-#window { color: @text; font-weight: 700; }
-#clock { color: @accent; font-weight: 800; }
-#custom-hint { color: @accent; }
-#custom-cava { color: @cava-color; }
-#custom-media { color: @primary; font-weight: 700; }
-#custom-netspeed { color: @accent; font-weight: 700; }
-#network { color: @primary; }
-#network.disconnected { color: @accent; }
-#backlight { color: @accent; }
-#cpu { color: @primary; }
-#memory { color: @accent; }
-#temperature { color: @accent; }
-#temperature.critical { color: @glow; }
-#load { color: @primary; }
-#disk { color: @secondary; }
-#custom-updates { color: @accent; }
-#bluetooth { color: @primary; }
-#battery { color: @accent; }
-#battery.charging, #battery.plugged { color: @primary; }
-#pulseaudio { color: @primary; }
-#pulseaudio.muted { color: @text; }
-#language { color: @accent; font-weight: 800; }
-#custom-notification { color: @accent; }
-#custom-power {
     color: @bg;
     background: @accent;
     background-image: none;
-    border-radius: 8px;
+    border-color: @accent;
+    box-shadow: 0 0 12px rgba(255, 180, 0, 0.15),
+                0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Clock — data readout */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    border: 1px solid @secondary;
+    border-radius: 2px;
+    padding: 0 8px;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Module text — holographic shimmer */
+#window, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
+#network, #backlight, #cpu, #memory, #temperature, #load, #disk, #custom-updates,
+#bluetooth, #battery, #pulseaudio, #language, #custom-notification, #tray {
+    text-shadow: 0 0 4px rgba(255, 100, 0, 0.10),
+                 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @glow; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @primary; font-weight: 700; }
+#custom-netspeed { color: @glow; font-weight: 700; }
+#network         { color: @primary; }
+#network.disconnected { color: @accent; }
+#backlight       { color: @accent; }
+#cpu             { color: @glow; }
+#memory          { color: @accent; }
+#temperature     { color: @glow; }
+#temperature.critical { color: @accent; }
+#load            { color: @primary; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @accent; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+
+/* Power — master switch */
+#custom-power {
+    color: @bg;
+    background: @glow;
+    background-image: none;
+    border-radius: 2px;
+    border: 1px solid @accent;
     padding: 0 10px;
     font-weight: 800;
     margin: 2px 2px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 0 10px rgba(255, 100, 0, 0.15),
+                0 4px 12px rgba(0, 0, 0, 0.55),
+                inset 0 0 6px rgba(255, 200, 100, 0.10);
     text-shadow: none;
 }
 #tray { color: @text; }
 #battery.critical:not(.charging) {
     background: @secondary;
+    background-image: none;
     color: @accent;
     animation: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    border: 1px solid @accent;
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(255, 180, 0, 0.12),
+                0 2px 8px rgba(0, 0, 0, 0.5);
 }

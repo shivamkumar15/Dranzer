@@ -1,22 +1,34 @@
-/* Pulse */
+/* Pulse — Energy wave: thick glow borders, pulsating color bleed, rhythmic depth */
 .modules-left, .modules-center, .modules-right {
     background: @bg;
     background-image: none;
     border: 2px solid @glow;
     border-radius: 14px;
     padding: 2px 12px;
-    margin: 4px 0;
+    margin: 4px 6px;
     color: @text;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.72);
+    /* Pulsating energy — layered glow radiating outward */
+    box-shadow: 0 0 6px rgba(255, 100, 0, 0.12),
+                0 0 14px rgba(255, 100, 0, 0.06),
+                0 6px 22px rgba(0, 0, 0, 0.65);
+}
+.modules-center {
+    border-color: @accent;
+    box-shadow: 0 0 8px rgba(255, 180, 0, 0.12),
+                0 0 18px rgba(255, 180, 0, 0.05),
+                0 6px 22px rgba(0, 0, 0, 0.65);
 }
 #workspaces, #custom-cava, #custom-media, #clock, #cpu, #memory, #network,
 #battery, #pulseaudio, #custom-power {
-    background: transparent; background-image: none; color: @text; font-weight: 700; margin: 0 3px; padding: 0 6px;
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 0 3px;
+    padding: 0 6px;
 }
-#workspaces button.active { background: @glow; color: @bg; }
-#clock { color: @glow; }
 
-/* Theme vibe + clear depth (simple shadows GTK renders reliably) */
+/* Workspace buttons — energy pips */
 #workspaces button {
     color: @text;
     background: transparent;
@@ -24,72 +36,106 @@
     font-weight: 700;
     padding: 0 8px;
     margin: 2px 2px;
-    border-radius: 8px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+    border-radius: 10px;
+    border: 1px solid transparent;
+    text-shadow: 0 0 4px rgba(255, 100, 0, 0.08),
+                 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 #workspaces button.active {
     color: @bg;
-    background: @primary;
+    background: @glow;
     background-image: none;
     font-weight: 800;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+    border: 1px solid @accent;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(255, 100, 0, 0.20),
+                0 0 20px rgba(255, 100, 0, 0.08),
+                0 2px 6px rgba(0, 0, 0, 0.5);
     text-shadow: none;
 }
 #workspaces button:hover {
-    color: @text;
+    color: @accent;
     background: @bg-alt;
     background-image: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    border-color: @secondary;
+    box-shadow: 0 0 6px rgba(255, 100, 0, 0.08),
+                0 2px 6px rgba(0, 0, 0, 0.4);
 }
 #workspaces button.urgent {
-    color: @accent;
-    background: @secondary;
-    background-image: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-}
-#window, #clock, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
-#network, #backlight, #cpu, #memory, #temperature, #load, #disk, #custom-updates,
-#bluetooth, #battery, #pulseaudio, #language, #custom-notification, #tray {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-}
-#window { color: @text; font-weight: 700; }
-#clock { color: @accent; font-weight: 800; }
-#custom-hint { color: @accent; }
-#custom-cava { color: @cava-color; }
-#custom-media { color: @primary; font-weight: 700; }
-#custom-netspeed { color: @accent; font-weight: 700; }
-#network { color: @primary; }
-#network.disconnected { color: @accent; }
-#backlight { color: @accent; }
-#cpu { color: @primary; }
-#memory { color: @accent; }
-#temperature { color: @accent; }
-#temperature.critical { color: @glow; }
-#load { color: @primary; }
-#disk { color: @secondary; }
-#custom-updates { color: @accent; }
-#bluetooth { color: @primary; }
-#battery { color: @accent; }
-#battery.charging, #battery.plugged { color: @primary; }
-#pulseaudio { color: @primary; }
-#pulseaudio.muted { color: @text; }
-#language { color: @accent; font-weight: 800; }
-#custom-notification { color: @accent; }
-#custom-power {
     color: @bg;
     background: @accent;
     background-image: none;
-    border-radius: 8px;
+    border-color: @accent;
+    box-shadow: 0 0 12px rgba(255, 180, 0, 0.18),
+                0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Clock — pulse core */
+#clock {
+    color: @glow;
+    font-weight: 800;
+    background: @bg-alt;
+    background-image: none;
+    border-radius: 10px;
+    padding: 0 12px;
+    border: 1px solid @glow;
+    box-shadow: 0 0 8px rgba(255, 100, 0, 0.12),
+                inset 0 0 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Module text — energy shimmer */
+#window, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
+#network, #backlight, #cpu, #memory, #temperature, #load, #disk, #custom-updates,
+#bluetooth, #battery, #pulseaudio, #language, #custom-notification, #tray {
+    text-shadow: 0 0 4px rgba(255, 100, 0, 0.08),
+                 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @glow; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @glow; font-weight: 700; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network         { color: @glow; }
+#network.disconnected { color: @accent; }
+#backlight       { color: @accent; }
+#cpu             { color: @glow; }
+#memory          { color: @accent; }
+#temperature     { color: @glow; }
+#temperature.critical { color: @accent; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @glow; }
+#battery         { color: @accent; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @glow; }
+#pulseaudio.muted { color: @text; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+
+/* Power — energy core */
+#custom-power {
+    color: @bg;
+    background: @glow;
+    background-image: none;
+    border-radius: 10px;
+    border: 2px solid @accent;
     padding: 0 10px;
     font-weight: 800;
     margin: 2px 2px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 0 12px rgba(255, 100, 0, 0.20),
+                0 0 24px rgba(255, 100, 0, 0.06),
+                0 4px 12px rgba(0, 0, 0, 0.55);
     text-shadow: none;
 }
 #tray { color: @text; }
 #battery.critical:not(.charging) {
     background: @secondary;
+    background-image: none;
     color: @accent;
     animation: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    border: 2px solid @accent;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(255, 180, 0, 0.12),
+                0 2px 8px rgba(0, 0, 0, 0.5);
 }

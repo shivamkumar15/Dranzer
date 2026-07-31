@@ -1,97 +1,127 @@
-/* Underline */
+/* Underline — Editorial typography: ruled lines, baseline emphasis, newspaper precision */
 window#waybar {
     background: @bg;
     background-image: none;
     border-radius: 10px;
+    border: none;
     color: @text;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
+    /* Broadsheet float — subtle page-like elevation */
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45),
+                0 6px 22px rgba(0, 0, 0, 0.25);
 }
 .modules-left, .modules-center, .modules-right {
-    background: transparent; background-image: none; padding: 0 6px;
+    background: transparent;
+    background-image: none;
+    padding: 0 6px;
 }
 #workspaces, #window, #clock, #network, #battery, #pulseaudio, #custom-power {
-    background: transparent; background-image: none; color: @text; font-weight: 700;
-    margin: 4px 4px; padding: 0 6px 2px; border-bottom: 2px solid @secondary;
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 4px 4px;
+    padding: 0 6px 3px;
+    border-bottom: 2px solid @secondary;
 }
-#workspaces button.active {
-    color: @accent; border-bottom: 2px solid @accent; background: transparent; border-radius: 0;
-}
-#clock { color: @accent; border-bottom-color: @accent; }
 
-/* Theme vibe + clear depth (simple shadows GTK renders reliably) */
+/* Workspace buttons — ruled tabs */
 #workspaces button {
     color: @text;
     background: transparent;
     background-image: none;
-    font-weight: 700;
+    font-weight: 600;
     padding: 0 8px;
     margin: 2px 2px;
-    border-radius: 8px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+    border-radius: 0;
+    border: none;
+    border-bottom: 2px solid transparent;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 #workspaces button.active {
-    color: @bg;
-    background: @primary;
+    color: @accent;
+    background: transparent;
     background-image: none;
     font-weight: 800;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
-    text-shadow: none;
+    border-bottom: 2px solid @accent;
+    border-radius: 0;
+    /* Typographic emphasis — no elevation, color + rule weight carry the hierarchy */
+    box-shadow: none;
+    text-shadow: 0 0 4px rgba(255, 180, 0, 0.08);
 }
 #workspaces button:hover {
     color: @text;
     background: @bg-alt;
     background-image: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    border-bottom-color: @secondary;
+    box-shadow: none;
 }
 #workspaces button.urgent {
     color: @accent;
-    background: @secondary;
+    background: transparent;
     background-image: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    font-weight: 800;
+    border-bottom: 2px solid @glow;
+    box-shadow: none;
 }
-#window, #clock, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
+
+/* Clock — masthead */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    border-bottom-color: @accent;
+    border-bottom-width: 3px;
+    padding: 0 10px 2px;
+}
+
+/* Module text — editorial clarity */
+#window, #custom-hint, #custom-cava, #custom-media, #custom-netspeed,
 #network, #backlight, #cpu, #memory, #temperature, #load, #disk, #custom-updates,
 #bluetooth, #battery, #pulseaudio, #language, #custom-notification, #tray {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
-#window { color: @text; font-weight: 700; }
-#clock { color: @accent; font-weight: 800; }
-#custom-hint { color: @accent; }
-#custom-cava { color: @cava-color; }
-#custom-media { color: @primary; font-weight: 700; }
-#custom-netspeed { color: @accent; font-weight: 700; }
-#network { color: @primary; }
+#window          { color: @text; font-weight: 600; }
+#custom-hint     { color: @accent; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @primary; font-weight: 600; }
+#custom-netspeed { color: @accent; font-weight: 600; }
+#network         { color: @primary; }
 #network.disconnected { color: @accent; }
-#backlight { color: @accent; }
-#cpu { color: @primary; }
-#memory { color: @accent; }
-#temperature { color: @accent; }
+#backlight       { color: @accent; }
+#cpu             { color: @primary; }
+#memory          { color: @accent; }
+#temperature     { color: @accent; }
 #temperature.critical { color: @glow; }
-#load { color: @primary; }
-#disk { color: @secondary; }
-#custom-updates { color: @accent; }
-#bluetooth { color: @primary; }
-#battery { color: @accent; }
+#load            { color: @primary; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @accent; }
 #battery.charging, #battery.plugged { color: @primary; }
-#pulseaudio { color: @primary; }
+#pulseaudio      { color: @primary; }
 #pulseaudio.muted { color: @text; }
-#language { color: @accent; font-weight: 800; }
+#language        { color: @accent; font-weight: 700; }
 #custom-notification { color: @accent; }
+
+/* Power — editorial button */
 #custom-power {
     color: @bg;
     background: @accent;
     background-image: none;
-    border-radius: 8px;
+    border-radius: 0;
+    border: none;
+    border-bottom: 3px solid @glow;
     padding: 0 10px;
     font-weight: 800;
     margin: 2px 2px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
     text-shadow: none;
 }
 #tray { color: @text; }
 #battery.critical:not(.charging) {
     background: @secondary;
+    background-image: none;
     color: @accent;
     animation: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    border-bottom: 3px solid @accent;
+    box-shadow: none;
 }

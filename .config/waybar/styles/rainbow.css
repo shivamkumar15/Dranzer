@@ -1,6 +1,10 @@
-/* Rainbow */
+/* Rainbow — Polychrome carnival: each widget its own bold color, inverted text, pop-art energy */
 .modules-left, .modules-center, .modules-right {
-    background: transparent; background-image: none; border: none; padding: 0; margin: 0;
+    background: transparent;
+    background-image: none;
+    border: none;
+    padding: 0;
+    margin: 0;
 }
 #workspaces, #cpu, #memory, #network, #clock, #custom-media, #backlight,
 #pulseaudio, #battery, #tray, #custom-power {
@@ -10,25 +14,78 @@
     font-weight: 800;
     border: none;
     color: @bg;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+    /* Pop-art shadow — each block floating independently */
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.50),
+                0 6px 18px rgba(0, 0, 0, 0.30),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
-#workspaces { background: @primary; color: @bg; }
-#cpu { background: @primary; color: @bg; }
-#memory { background: @accent; color: @bg; }
-#network { background: @glow; color: @bg; }
-#clock { background: @accent; color: @bg; font-weight: 900; }
+
+/* Per-widget carnival colors */
+#workspaces  { background: @primary; }
+#cpu         { background: @primary; }
+#memory      { background: @accent; }
+#network     { background: @glow; }
+#clock       { background: @accent; color: @bg; font-weight: 900;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.50),
+                0 6px 18px rgba(0, 0, 0, 0.30),
+                inset 0 2px 0 rgba(255, 255, 255, 0.20); }
 #custom-media { background: @secondary; color: @text; }
-#backlight { background: @accent; color: @bg; }
-#pulseaudio { background: @primary; color: @bg; }
-#battery { background: @glow; color: @bg; }
-#tray { background: @bg-alt; color: @text; }
-#custom-power { background: @accent; color: @bg; }
+#backlight   { background: @accent; }
+#pulseaudio  { background: @primary; }
+#battery     { background: @glow; }
+#tray        { background: @bg-alt; color: @text; }
+
+/* Workspace buttons — inverted rainbow chips */
 #workspaces button {
-    color: @bg; background: transparent; background-image: none; font-weight: 700; text-shadow: none;
+    color: @bg;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 8px;
+    margin: 2px 2px;
+    border-radius: 8px;
+    border: none;
+    text-shadow: none;
 }
 #workspaces button.active {
-    background: @bg; color: @primary; background-image: none; box-shadow: 0 2px 8px rgba(0,0,0,0.55);
+    color: @primary;
+    background: @bg;
+    background-image: none;
+    font-weight: 800;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-#workspaces button:hover { background: @bg-alt; color: @text; background-image: none; }
-#workspaces button.urgent { background: @secondary; color: @accent; background-image: none; }
-#battery.critical:not(.charging) { background: @secondary; color: @accent; box-shadow: 0 3px 10px rgba(0,0,0,0.65); }
+#workspaces button:hover {
+    color: @text;
+    background: @bg-alt;
+    background-image: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+#workspaces button.urgent {
+    color: @accent;
+    background: @secondary;
+    background-image: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+/* Power — carnival spotlight */
+#custom-power {
+    background: @accent;
+    color: @bg;
+    font-weight: 900;
+    border-radius: 10px;
+    padding: 0 12px;
+    margin: 2px 3px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.50),
+                0 6px 18px rgba(0, 0, 0, 0.25),
+                inset 0 2px 0 rgba(255, 255, 255, 0.20);
+    text-shadow: none;
+}
+#battery.critical:not(.charging) {
+    background: @secondary;
+    background-image: none;
+    color: @accent;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.50),
+                inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
