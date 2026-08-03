@@ -11,18 +11,19 @@ from datetime import datetime
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
 
 PID_DIR = os.path.expanduser("~/.cache/bitbeast")
 PID_FILE = os.path.join(PID_DIR, "power-popup.pid")
-BG = "#11141d"
-TEXT = "#f5f7ff"
-TEXT_DIM = "rgba(245,247,255,0.66)"
-PRIMARY = "#ff4d67"
-PRIMARY_ALT = "#ff3658"
-ACCENT = "#ff7b8e"
+BG = "#0d0405"
+TEXT = "#fff5f5"
+TEXT_DIM = "rgba(255,245,245,0.66)"
+PRIMARY = "#f44336"
+PRIMARY_ALT = "#8d0b0b"
+ACCENT = "#ffc107"
 
 
 def cmd(args):
