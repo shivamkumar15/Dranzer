@@ -455,7 +455,7 @@ class ControlCenter(Gtk.Window):
         )
 
         self.connect("key-press-event", self.on_key_press)
-        self.connect("focus-out-event", self.on_focus_out)
+        # self.connect("focus-out-event", self.on_focus_out) # Disabled to prevent closing on mouse move
         self.connect("destroy", self.on_destroy)
 
         self.build_ui()
