@@ -191,6 +191,8 @@
     "format-charging": "󰂄 {capacity}%",
     "format-plugged": "󰂄 {capacity}%",
     "format-full": "󰁹 {capacity}%",
+    "format-warning": "󰂃 {capacity}% — Low Battery",
+    "format-critical": "󰂎 {capacity}% — Plug In Now!",
     "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
   },
 

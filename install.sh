@@ -525,6 +525,7 @@ else
     install_file "$REPO_DIR/.local/bin/bitbeast.sh" "$BIN_DIR/bitbeast"
 fi
 install_file "$REPO_DIR/.local/bin/bitbeast-battery" "$BIN_DIR/bitbeast-battery"
+install_file "$REPO_DIR/.local/bin/bitbeast-battery-watcher" "$BIN_DIR/bitbeast-battery-watcher"
 install_file "$REPO_DIR/.local/bin/bitbeast-media" "$BIN_DIR/bitbeast-media"
 install_file "$REPO_DIR/.local/bin/bitbeast-media-popup" "$BIN_DIR/bitbeast-media-popup"
 install_file "$REPO_DIR/.local/bin/bitbeast-hints-popup" "$BIN_DIR/bitbeast-hints-popup"
