@@ -1,11 +1,11 @@
 * {
-    bg: #0a0b10f2;
-    bg-alt: #161925cc;
-    primary: #00f2ff;
-    secondary: #7000ff;
-    accent: #00f2ff;
-    text: #e0e6ed;
-    muted: #636e7b;
+    bg: #0d0405f2;
+    bg-alt: #1a080acc;
+    primary: #f44336;
+    secondary: #8d0b0b;
+    accent: #ffc107;
+    text: #fff5f5;
+    muted: #fff5f599;
     urgent: #ff0055;
     border: 2px;
     spacing: 14px;
@@ -67,9 +67,9 @@ element {
 }
 
 element normal.normal { background-color: transparent; text-color: @text; }
-element selected.normal { background-color: @primary; text-color: #0a0b10; }
+element selected.normal { background-color: @primary; text-color: #0d0405; }
 element selected.active { background-color: @secondary; text-color: @text; }
-element selected.urgent { background-color: @urgent; text-color: #0a0b10; }
+element selected.urgent { background-color: @urgent; text-color: #0d0405; }
 element alternate.normal { background-color: transparent; text-color: @text; }
 element alternate.active { background-color: transparent; text-color: @accent; }
 element alternate.urgent { background-color: transparent; text-color: @urgent; }
@@ -86,4 +86,4 @@ button {
     text-color: @muted;
 }
 
-button selected { background-color: @primary; text-color: #0a0b10; }
+button selected { background-color: @primary; text-color: #0d0405; }

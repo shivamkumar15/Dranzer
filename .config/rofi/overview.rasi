@@ -1,10 +1,10 @@
 * {
-    bg: #100d16cc;
-    bg-alt: #2d2d3fcc;
-    primary: #af91ea;
-    accent: #f0b43c;
-    text: #f7eeff;
-    muted: #f7eeff99;
+    bg: #0d0405cc;
+    bg-alt: #1a080acc;
+    primary: #f44336;
+    accent: #ffc107;
+    text: #fff5f5;
+    muted: #fff5f599;
     border: 2px;
     font: "JetBrainsMono Nerd Font 11";
     background-color: transparent;
@@ -30,7 +30,7 @@ inputbar {
     text-color: @text;
     margin: 0px 30%;
     border: @border;
-    border-color: #ffb4e6; /* Pink border like in the screenshot */
+    border-color: @accent;
 }
 
 prompt {
@@ -65,8 +65,8 @@ element {
 }
 
 element selected {
-    border-color: #ffb4e6; /* Pink border on selected */
-    background-color: #2d2d3fff;
+    border-color: @accent;
+    background-color: #1a080aff;
 }
 
 element-icon {
