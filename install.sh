@@ -537,6 +537,7 @@ install_file "$REPO_DIR/.local/bin/bitbeast-volume-gesture" "$BIN_DIR/bitbeast-v
 install_file "$REPO_DIR/.local/bin/bitbeast-session" "$BIN_DIR/bitbeast-session"
 install_file "$REPO_DIR/.local/bin/bitbeast-sysinfo" "$BIN_DIR/bitbeast-sysinfo"
 install_file "$REPO_DIR/.local/bin/bitbeast-wallpaper-selector" "$BIN_DIR/bitbeast-wallpaper-selector"
+install_file "$REPO_DIR/.local/bin/bitbeast_colors.py" "$BIN_DIR/bitbeast_colors.py"
 install_file "$REPO_DIR/.local/bin/bitbeast-workspaces" "$BIN_DIR/bitbeast-workspaces"
 install_file "$REPO_DIR/.local/bin/circular_cava.py" "$BIN_DIR/circular_cava.py"
 install_file "$REPO_DIR/.local/bin/toggle-transparency" "$BIN_DIR/toggle-transparency"
