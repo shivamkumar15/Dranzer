@@ -18,12 +18,47 @@ from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
 
 PID_DIR = os.path.expanduser("~/.cache/bitbeast")
 PID_FILE = os.path.join(PID_DIR, "power-popup.pid")
-BG = "#0d0405"
-TEXT = "#fff5f5"
-TEXT_DIM = "rgba(255,245,245,0.66)"
-PRIMARY = "#f44336"
-PRIMARY_ALT = "#8d0b0b"
-ACCENT = "#ffc107"
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from bitbeast_colors import load as _load_bitbeast_colors
+
+_c = _load_bitbeast_colors()
+BG = _c["bg"]
+TEXT = _c["text"]
+TEXT_DIM = _c["text_dim"]
+PRIMARY = _c["primary"]
+PRIMARY_ALT = _c["primary_dark"]
+ACCENT = _c["accent"]
+
+# Derived theme-aware surface + interaction colors for the CSS below.
+_BG_PANEL_RGB = _c["bg_panel_rgb"]
+_BG_CARD_RGB = _c["bg_card_rgb"]
+_BG_SOFT_RGB = _c["bg_soft_rgb"]
+_BG_DEEP_RGB = _c["bg_deep_rgb"]
+_TEXT_RGB = _c["text_rgb"]
+_PRIMARY_RGB = _c["primary_rgb"]
+_PRIMARY_DARK_RGB = _c["primary_dark_rgb"]
+_PRIMARY_LIGHT_RGB = _c["primary_light_rgb"]
+
+PANEL_BG = f"rgba({_BG_PANEL_RGB}, 0.97)"
+CARD_BG = f"rgba({_BG_CARD_RGB}, 0.98)"
+SOFT_CARD_BG = f"rgba({_BG_SOFT_RGB}, 0.98)"
+TROUGH_BG = f"rgba({_BG_DEEP_RGB}, 0.92)"
+BORDER_FAINT = f"rgba({_TEXT_RGB}, 0.10)"
+BORDER_SOFT = f"rgba({_TEXT_RGB}, 0.08)"
+BORDER_HOVER = f"rgba({_TEXT_RGB}, 0.18)"
+TRANSPORT_BG = f"rgba({_TEXT_RGB}, 0.04)"
+TILE_ACTIVE_GRAD = f"linear-gradient(180deg, rgba({_PRIMARY_RGB}, 0.96), rgba({_PRIMARY_DARK_RGB}, 0.96))"
+TILE_ACTIVE_BORDER = f"rgba({_PRIMARY_LIGHT_RGB}, 0.42)"
+TILE_ACTIVE_GLOW = f"0 0 20px rgba({_PRIMARY_RGB}, 0.18)"
+PLAY_BTN_GRAD = f"linear-gradient(180deg, rgba({_PRIMARY_RGB}, 1.0), rgba({_PRIMARY_DARK_RGB}, 0.98))"
+PLAY_BTN_BORDER = f"rgba({_PRIMARY_LIGHT_RGB}, 0.52)"
+PLAY_BTN_GLOW = f"0 0 22px rgba({_PRIMARY_RGB}, 0.28)"
+DANGER_BTN_BG = f"rgba({_PRIMARY_RGB}, 0.14)"
+DANGER_BTN_BORDER = f"rgba({_PRIMARY_RGB}, 0.26)"
+DANGER_BTN_HOVER_BG = f"rgba({_PRIMARY_RGB}, 0.20)"
+SCALE_HIGHLIGHT_GRAD = f"linear-gradient(180deg, rgba({_PRIMARY_RGB}, 1.0), rgba({_PRIMARY_DARK_RGB}, 1.0))"
+PROGRESS_GRAD = f"linear-gradient(90deg, rgba({_PRIMARY_RGB}, 1.0), rgba({_PRIMARY_LIGHT_RGB}, 1.0))"
 
 
 def cmd(args):
@@ -232,23 +267,23 @@ window {{
 }}
 
 #panel {{
-    background: rgba(17, 20, 29, 0.97);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: {PANEL_BG};
+    border: 1px solid {BORDER_FAINT};
     border-radius: 28px;
     padding: 18px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.48);
 }}
 
 .card {{
-    background: rgba(24, 29, 40, 0.98);
-    border: 1px solid rgba(255,255,255,0.10);
+    background: {CARD_BG};
+    border: 1px solid {BORDER_FAINT};
     border-radius: 24px;
     padding: 18px;
 }}
 
 .soft-card {{
-    background: rgba(17, 22, 31, 0.98);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: {SOFT_CARD_BG};
+    border: 1px solid {BORDER_SOFT};
     border-radius: 20px;
     padding: 16px;
 }}
@@ -325,8 +360,8 @@ window {{
 .footer-btn,
 .row-btn {{
     border-radius: 20px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(17, 22, 31, 0.98);
+    border: 1px solid {BORDER_FAINT};
+    background: {SOFT_CARD_BG};
     color: {TEXT};
 }}
 
@@ -335,17 +370,17 @@ window {{
 .transport-btn:hover,
 .footer-btn:hover,
 .row-btn:hover {{
-    border-color: rgba(255,255,255,0.18);
+    border-color: {BORDER_HOVER};
 }}
 
 .tile-active {{
-    background: linear-gradient(180deg, rgba(255, 77, 103, 0.96), rgba(255, 54, 88, 0.96));
-    border-color: rgba(255, 123, 142, 0.42);
-    box-shadow: 0 0 20px rgba(255, 77, 103, 0.18);
+    background: {TILE_ACTIVE_GRAD};
+    border-color: {TILE_ACTIVE_BORDER};
+    box-shadow: {TILE_ACTIVE_GLOW};
 }}
 
 .tile-inactive {{
-    background: rgba(17, 22, 31, 0.98);
+    background: {SOFT_CARD_BG};
 }}
 
 .mini-btn {{
@@ -364,16 +399,16 @@ window {{
     min-width: 46px;
     min-height: 46px;
     border-radius: 999px;
-    background: rgba(255,255,255,0.04);
+    background: {TRANSPORT_BG};
 }}
 
 #play-btn {{
     min-width: 72px;
     min-height: 72px;
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255, 77, 103, 1.0), rgba(255, 54, 88, 0.98));
-    border-color: rgba(255, 123, 142, 0.52);
-    box-shadow: 0 0 22px rgba(255, 77, 103, 0.28);
+    background: {PLAY_BTN_GRAD};
+    border-color: {PLAY_BTN_BORDER};
+    box-shadow: {PLAY_BTN_GLOW};
 }}
 
 .row-btn {{
@@ -389,23 +424,23 @@ window {{
 }}
 
 #danger-btn {{
-    background: rgba(255, 77, 103, 0.14);
-    border-color: rgba(255, 77, 103, 0.26);
+    background: {DANGER_BTN_BG};
+    border-color: {DANGER_BTN_BORDER};
 }}
 
 #danger-btn:hover {{
-    background: rgba(255, 77, 103, 0.20);
+    background: {DANGER_BTN_HOVER_BG};
 }}
 
 scale trough {{
     min-width: 26px;
-    background: rgba(8, 12, 18, 0.92);
+    background: {TROUGH_BG};
     border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid {BORDER_SOFT};
 }}
 
 scale highlight {{
-    background: linear-gradient(180deg, rgba(255, 77, 103, 1.0), rgba(255, 54, 88, 1.0));
+    background: {SCALE_HIGHLIGHT_GRAD};
     border-radius: 999px;
 }}
 
@@ -418,13 +453,13 @@ scale slider {{
 }}
 
 progressbar trough {{
-    background: rgba(255,255,255,0.08);
+    background: {BORDER_SOFT};
     border-radius: 999px;
     min-height: 6px;
 }}
 
 progressbar progress {{
-    background: linear-gradient(90deg, rgba(255, 77, 103, 1.0), rgba(255, 123, 142, 1.0));
+    background: {PROGRESS_GRAD};
     border-radius: 999px;
     min-height: 6px;
 }}

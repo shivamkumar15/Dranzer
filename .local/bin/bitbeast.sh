@@ -34,6 +34,8 @@ KITTY_DIR="$CONFIG_HOME/kitty"
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
 FASTFETCH_DIR="$CONFIG_HOME/fastfetch"
+SWAYNC_DIR="$CONFIG_HOME/swaync"
+WEB_SELECTOR_DIR="$DATA_HOME/bitbeast/web-wallpaper-selector"
 DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-hud}"
 HANCORE_DIR="$WAYBAR_DIR/hancore-themes"
 
@@ -336,6 +338,28 @@ theme_color_hex() {
     fi
 }
 
+# Lighten/darken a #rrggbb color by a float factor (1.0 = unchanged).
+shade_hex() {
+    hex_color=$1
+    factor=$2
+    r=$(printf '%d' "0x${hex_color:1:2}")
+    g=$(printf '%d' "0x${hex_color:3:2}")
+    b=$(printf '%d' "0x${hex_color:5:2}")
+    r=$(awk "BEGIN{v=${r}*${factor}; if(v>255)v=255; if(v<0)v=0; printf \"%d\", v+0.5}")
+    g=$(awk "BEGIN{v=${g}*${factor}; if(v>255)v=255; if(v<0)v=0; printf \"%d\", v+0.5}")
+    b=$(awk "BEGIN{v=${b}*${factor}; if(v>255)v=255; if(v<0)v=0; printf \"%d\", v+0.5}")
+    printf '#%02x%02x%02x\n' "$r" "$g" "$b"
+}
+
+# Print "R, G, B" decimal triplet for a #rrggbb color (for rgba() in generated CSS).
+hex_rgb() {
+    hex_color=$1
+    r=$(printf '%d' "0x${hex_color:1:2}")
+    g=$(printf '%d' "0x${hex_color:3:2}")
+    b=$(printf '%d' "0x${hex_color:5:2}")
+    printf '%d, %d, %d\n' "$r" "$g" "$b"
+}
+
 build_rofi_theme() {
     theme_dir=$1
     target_path=$2
@@ -441,6 +465,216 @@ button {
 
 button selected { background-color: @primary; text-color: #0a0b10; }
 EOF_ROFI
+}
+
+
+build_rofi_overview() {
+    theme_dir=$1
+    target_path=$2
+    colors_file=$3
+    require_file "$colors_file"
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg_alt=$(shade_hex "$bg" 1.7)
+    muted="${text}99"
+
+    mkdir -p "$(dirname "$target_path")"
+    cat > "$target_path" <<EOF_OVERVIEW
+* {
+    bg: ${bg}cc;
+    bg-alt: ${bg_alt}cc;
+    primary: ${primary};
+    accent: ${accent};
+    text: ${text};
+    muted: ${muted};
+    border: 2px;
+    font: "JetBrainsMono Nerd Font 11";
+    background-color: transparent;
+}
+
+window {
+    fullscreen: true;
+    padding: 100px;
+    background-color: @bg;
+}
+
+mainbox {
+    children: [ inputbar, listview ];
+    spacing: 30px;
+}
+
+inputbar {
+    children: [ prompt, entry ];
+    spacing: 12px;
+    padding: 14px 18px;
+    border-radius: 999px;
+    background-color: @bg-alt;
+    text-color: @text;
+    margin: 0px 30%;
+    border: @border;
+    border-color: @accent;
+}
+
+prompt { enabled: false; }
+
+entry {
+    placeholder: "Type to search";
+    placeholder-color: @muted;
+    text-color: @text;
+    horizontal-align: 0.5;
+}
+
+listview {
+    columns: 5;
+    lines: 2;
+    spacing: 20px;
+    layout: vertical;
+    flow: horizontal;
+    fixed-columns: true;
+    border: 0px;
+    scrollbar: false;
+}
+
+element {
+    orientation: vertical;
+    padding: 10px;
+    border-radius: 16px;
+    background-color: @bg-alt;
+    border: 1px;
+    border-color: @muted;
+}
+
+element selected {
+    border-color: @accent;
+    background-color: @bg-alt;
+}
+
+element-icon {
+    size: 250px;
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    background-color: transparent;
+}
+
+element-text {
+    text-color: @text;
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    background-color: transparent;
+    padding: 10px 0px 0px 0px;
+}
+EOF_OVERVIEW
+}
+
+
+build_swaync_style() {
+    theme_dir=$1
+    target_path=$2
+    colors_file=$3
+    require_file "$colors_file"
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg_alt=$(shade_hex "$bg" 1.7)
+
+    bg_rgb=$(hex_rgb "$bg")
+    bg_alt_rgb=$(hex_rgb "$bg_alt")
+    primary_rgb=$(hex_rgb "$primary")
+    accent_rgb=$(hex_rgb "$accent")
+    text_rgb=$(hex_rgb "$text")
+
+    template=""
+    for candidate in "$REPO_DIR/.config/swaync/style.template.css" "$SWAYNC_DIR/style.template.css"; do
+        [ -f "$candidate" ] && template="$candidate" && break
+    done
+    if [ -z "$template" ]; then
+        warn "swaync style template not found; skipping."
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$target_path")"
+    sed \
+        -e "s|@@BG@@|$bg|g" \
+        -e "s|@@BG_ALT@@|$bg_alt|g" \
+        -e "s|@@PRIMARY@@|$primary|g" \
+        -e "s|@@ACCENT@@|$accent|g" \
+        -e "s|@@TEXT@@|$text|g" \
+        -e "s|@@BG_RGB@@|$bg_rgb|g" \
+        -e "s|@@BG_ALT_RGB@@|$bg_alt_rgb|g" \
+        -e "s|@@PRIMARY_RGB@@|$primary_rgb|g" \
+        -e "s|@@ACCENT_RGB@@|$accent_rgb|g" \
+        -e "s|@@TEXT_RGB@@|$text_rgb|g" \
+        "$template" > "$target_path"
+}
+
+
+# Patch the 5 canonical @define-color lines in a waybar CSS file so they always
+# match the theme's colors.conf (the single source of truth). Leaves bg-alt,
+# glow, cava-color and all rule-body CSS untouched.
+patch_waybar_colors() {
+    target_path=$1
+    colors_file=$2
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    secondary=$(theme_color_hex "$colors_file" secondary '#2c0d0f')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+
+    sed -i \
+        -e "s|@define-color bg [^;]*;|@define-color bg $bg;|" \
+        -e "s|@define-color primary [^;]*;|@define-color primary $primary;|" \
+        -e "s|@define-color secondary [^;]*;|@define-color secondary $secondary;|" \
+        -e "s|@define-color accent [^;]*;|@define-color accent $accent;|" \
+        -e "s|@define-color text [^;]*;|@define-color text $text;|" \
+        "$target_path"
+}
+
+build_web_selector() {
+    theme_dir=$1
+    target_path=$2
+    colors_file=$3
+    require_file "$colors_file"
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg_alt=$(shade_hex "$bg" 1.7)
+
+    bg_rgb=$(hex_rgb "$bg")
+    bg_alt_rgb=$(hex_rgb "$bg_alt")
+    primary_rgb=$(hex_rgb "$primary")
+    accent_rgb=$(hex_rgb "$accent")
+    text_rgb=$(hex_rgb "$text")
+
+    template=""
+    for candidate in "$REPO_DIR/web-wallpaper-selector/index.template.css" "$WEB_SELECTOR_DIR/index.template.css"; do
+        [ -f "$candidate" ] && template="$candidate" && break
+    done
+    if [ -z "$template" ]; then
+        warn "web wallpaper selector template not found; skipping."
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$target_path")"
+    sed \
+        -e "s|@@BG@@|$bg|g" \
+        -e "s|@@BG_ALT@@|$bg_alt|g" \
+        -e "s|@@PRIMARY@@|$primary|g" \
+        -e "s|@@ACCENT@@|$accent|g" \
+        -e "s|@@TEXT@@|$text|g" \
+        -e "s|@@BG_RGB@@|$bg_rgb|g" \
+        -e "s|@@BG_ALT_RGB@@|$bg_alt_rgb|g" \
+        -e "s|@@PRIMARY_RGB@@|$primary_rgb|g" \
+        -e "s|@@ACCENT_RGB@@|$accent_rgb|g" \
+        -e "s|@@TEXT_RGB@@|$text_rgb|g" \
+        "$template" > "$target_path"
 }
 
 
@@ -1197,16 +1431,20 @@ activate_theme() {
     require_file "$theme_dir/rofi.rasi"
     require_file "$theme_dir/cava.conf"
 
-    mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR" "$FASTFETCH_DIR"
+    mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR" "$FASTFETCH_DIR" "$SWAYNC_DIR" "$WEB_SELECTOR_DIR"
 
     wallpaper_path=$(theme_wallpaper_path "$theme_dir")
 
     cp "$theme_dir/colors.conf" "$STATE_DIR/current.conf"
     cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
     cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
+    patch_waybar_colors "$WAYBAR_DIR/bitbeast.css" "$theme_dir/colors.conf"
     build_kitty_theme "$theme_dir" "$KITTY_DIR/bitbeast.conf" "$wallpaper_path"
     build_fastfetch_config "$FASTFETCH_DIR/config.jsonc" "$wallpaper_path"
     build_rofi_theme "$theme_dir" "$ROFI_DIR/bitbeast.rasi" "$theme_dir/colors.conf"
+    build_rofi_overview "$theme_dir" "$ROFI_DIR/overview.rasi" "$theme_dir/colors.conf"
+    build_swaync_style "$theme_dir" "$SWAYNC_DIR/style.css" "$theme_dir/colors.conf"
+    build_web_selector "$theme_dir" "$WEB_SELECTOR_DIR/index.css" "$theme_dir/colors.conf"
     cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
 
@@ -1225,6 +1463,7 @@ activate_theme() {
     reload_kitty
     reload_cava
     reload_hyprland
+    swaync-client -rs >/dev/null 2>&1 || true
     reload_cursor "$theme_dir/colors.conf"
 
     update_zsh_theme "$theme_name" || true

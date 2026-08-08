@@ -11,15 +11,30 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gtk, Gdk, GLib, GtkLayerShell, GdkPixbuf
 
-# ── Theme colors (BitBeast Dranzer defaults) ──────────────────────────
-BG        = "#150608"
-BG_ALT    = "#2c0d0f"
-PRIMARY   = "#e8450c"
-SECONDARY = "#7b120f"
-ACCENT    = "#ffd166"
-TEXT      = "#fff1dd"
-TEXT_DIM  = "rgba(255,241,221,0.55)"
+# ── Theme colors (loaded from active BitBeast theme) ──────────────────
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from bitbeast_colors import load as _load_bitbeast_colors
+
+_c = _load_bitbeast_colors()
+BG        = _c["bg"]
+BG_ALT    = _c["bg_alt"]
+PRIMARY   = _c["primary"]
+SECONDARY = _c["secondary"]
+ACCENT    = _c["accent"]
+TEXT      = _c["text"]
+TEXT_DIM  = _c["text_dim"]
 CACHE_DIR = os.path.expanduser("~/.cache/bitbeast")
+
+_POPUP_BG       = f"rgba({_c['bg_rgb']}, 0.92)"
+_POPUP_BORDER   = f"rgba({_c['primary_rgb']}, 0.35)"
+_CTRL_BTN_BG    = f"rgba({_c['text_rgb']}, 0.06)"
+_CTRL_BTN_BD    = f"rgba({_c['text_rgb']}, 0.08)"
+_CTRL_HOVER_BG  = f"rgba({_c['primary_rgb']}, 0.25)"
+_CTRL_HOVER_BD  = f"rgba({_c['primary_rgb']}, 0.5)"
+_CTRL_HOVER_GLW = f"0 0 12px rgba({_c['primary_rgb']}, 0.3)"
+_PLAY_SHADOW    = f"0 4px 16px rgba({_c['primary_rgb']}, 0.4)"
+_PLAY_HOVER_SH  = f"0 4px 24px rgba({_c['primary_rgb']}, 0.6)"
+_PROG_TROUGH    = f"rgba({_c['text_rgb']}, 0.08)"
 
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -85,8 +100,8 @@ window {{
     background: transparent;
 }}
 #popup-frame {{
-    background-color: rgba(21, 6, 8, 0.92);
-    border: 1px solid rgba(232, 69, 12, 0.35);
+    background-color: {_POPUP_BG};
+    border: 1px solid {_POPUP_BORDER};
     border-radius: 20px;
     padding: 20px;
     box-shadow: 0 12px 40px rgba(0,0,0,0.7);
@@ -109,8 +124,8 @@ window {{
     color: {TEXT_DIM};
 }}
 .control-btn {{
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: {_CTRL_BTN_BG};
+    border: 1px solid {_CTRL_BTN_BD};
     border-radius: 50%;
     color: {TEXT};
     min-width: 42px;
@@ -119,9 +134,9 @@ window {{
     transition: all 200ms ease;
 }}
 .control-btn:hover {{
-    background: rgba(232, 69, 12, 0.25);
-    border-color: rgba(232, 69, 12, 0.5);
-    box-shadow: 0 0 12px rgba(232, 69, 12, 0.3);
+    background: {_CTRL_HOVER_BG};
+    border-color: {_CTRL_HOVER_BD};
+    box-shadow: {_CTRL_HOVER_GLW};
 }}
 #play-btn {{
     background: linear-gradient(135deg, {PRIMARY}, {SECONDARY});
@@ -129,13 +144,13 @@ window {{
     min-width: 52px;
     min-height: 52px;
     font-size: 22px;
-    box-shadow: 0 4px 16px rgba(232, 69, 12, 0.4);
+    box-shadow: {_PLAY_SHADOW};
 }}
 #play-btn:hover {{
-    box-shadow: 0 4px 24px rgba(232, 69, 12, 0.6);
+    box-shadow: {_PLAY_HOVER_SH};
 }}
 #progress-bar trough {{
-    background: rgba(255,255,255,0.08);
+    background: {_PROG_TROUGH};
     border-radius: 4px;
     min-height: 6px;
 }}
@@ -326,8 +341,3 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
     MediaPopup()
     Gtk.main()
-    # Cleanup lock
-    try:
-        os.remove(LOCK)
-    except Exception:
-        pass

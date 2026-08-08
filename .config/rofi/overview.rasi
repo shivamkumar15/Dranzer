@@ -1,10 +1,10 @@
 * {
-    bg: #0d0405cc;
-    bg-alt: #1a080acc;
-    primary: #f44336;
-    accent: #ffc107;
-    text: #fff5f5;
-    muted: #fff5f599;
+    bg: #08111fcc;
+    bg-alt: #0e1d35cc;
+    primary: #2d66df;
+    accent: #89ebff;
+    text: #ecf7ff;
+    muted: #ecf7ff99;
     border: 2px;
     font: "JetBrainsMono Nerd Font 11";
     background-color: transparent;
@@ -33,15 +33,13 @@ inputbar {
     border-color: @accent;
 }
 
-prompt {
-    enabled: false;
-}
+prompt { enabled: false; }
 
 entry {
     placeholder: "Type to search";
     placeholder-color: @muted;
     text-color: @text;
-    horizontal-align: 0.5; /* center the text */
+    horizontal-align: 0.5;
 }
 
 listview {
@@ -66,7 +64,7 @@ element {
 
 element selected {
     border-color: @accent;
-    background-color: #1a080aff;
+    background-color: @bg-alt;
 }
 
 element-icon {

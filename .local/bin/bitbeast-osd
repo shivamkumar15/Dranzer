@@ -37,7 +37,7 @@ BRIGHTNESS_STEP = 5
 
 # Fallback palette (Dranzer)
 BG = "#150608"
-PRIMARY = "#e8450c"
+PRIMARY = "#ff2d55"
 ACCENT = "#ffd166"
 TEXT = "#fff1dd"
 TEXT_DIM = "rgba(255,241,221,0.55)"
