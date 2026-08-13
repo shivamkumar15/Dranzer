@@ -58,6 +58,7 @@ Usage:
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
+  bitbeast battery-saver
   bitbeast zsh <theme-name>
   bitbeast zsh list
   bitbeast zsh cycle
@@ -1922,6 +1923,9 @@ if [ $# -eq 0 ]; then
 fi
 
 case $command_name in
+    battery-saver)
+        "$SCRIPT_DIR/bitbeast-battery-saver"
+        ;;
     gradient)
         toggle_gradient
         ;;

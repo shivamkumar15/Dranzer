@@ -1,0 +1,69 @@
+#!/bin/sh
+# BitBeast Battery Saver Toggle
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bitbeast"
+mkdir -p "$STATE_DIR"
+STATE_FILE="$STATE_DIR/battery_saver_state"
+
+enable_saver() {
+    # 1. CPU Power Saver
+    if command -v powerprofilesctl >/dev/null 2>&1; then
+        powerprofilesctl set power-saver
+    fi
+
+    # 2. Dim Screen
+    if command -v brightnessctl >/dev/null 2>&1; then
+        # Save current brightness
+        brightnessctl g > "$STATE_DIR/saved_brightness" 2>/dev/null || echo 100 > "$STATE_DIR/saved_brightness"
+        brightnessctl set 30%
+    fi
+
+    # 3. Disable Animations & Blur
+    if command -v hyprctl >/dev/null 2>&1; then
+        hyprctl keyword animations:enabled false
+        hyprctl keyword decoration:blur:enabled false
+    fi
+
+    echo "on" > "$STATE_FILE"
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u normal -a "BitBeast" "Battery Saver" "Battery saver mode ENABLED"
+    fi
+}
+
+disable_saver() {
+    # 1. Restore CPU Profile
+    if command -v powerprofilesctl >/dev/null 2>&1; then
+        powerprofilesctl set balanced
+    fi
+
+    # 2. Restore Brightness
+    if command -v brightnessctl >/dev/null 2>&1; then
+        if [ -f "$STATE_DIR/saved_brightness" ]; then
+            saved=$(cat "$STATE_DIR/saved_brightness")
+            brightnessctl set "$saved"
+        else
+            brightnessctl set 100%
+        fi
+    fi
+
+    # 3. Enable Animations & Blur
+    if command -v hyprctl >/dev/null 2>&1; then
+        hyprctl keyword animations:enabled true
+        hyprctl keyword decoration:blur:enabled true
+    fi
+
+    echo "off" > "$STATE_FILE"
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u normal -a "BitBeast" "Battery Saver" "Battery saver mode DISABLED"
+    fi
+}
+
+toggle_saver() {
+    if [ -f "$STATE_FILE" ] && [ "$(cat "$STATE_FILE")" = "on" ]; then
+        disable_saver
+    else
+        enable_saver
+    fi
+}
+
+toggle_saver
