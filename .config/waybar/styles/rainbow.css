@@ -15,9 +15,9 @@
     border: none;
     color: @bg;
     /* Pop-art shadow — each block floating independently */
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.50),
-                0 6px 18px rgba(0, 0, 0, 0.30),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45),
+                 0 4px 12px rgba(0, 0, 0, 0.25),
+                 inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
 /* Per-widget carnival colors */
@@ -26,9 +26,9 @@
 #memory      { background: @accent; }
 #network     { background: @glow; }
 #clock       { background: @accent; color: @bg; font-weight: 900;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.50),
-                0 6px 18px rgba(0, 0, 0, 0.30),
-                inset 0 2px 0 rgba(255, 255, 255, 0.20); }
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45),
+                 0 4px 12px rgba(0, 0, 0, 0.25),
+                 inset 0 2px 0 rgba(255, 255, 255, 0.15); }
 #custom-media { background: @secondary; color: @text; }
 #backlight   { background: @accent; }
 #pulseaudio  { background: @primary; }
@@ -77,9 +77,9 @@
     border-radius: 10px;
     padding: 0 12px;
     margin: 2px 3px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.50),
-                0 6px 18px rgba(0, 0, 0, 0.25),
-                inset 0 2px 0 rgba(255, 255, 255, 0.20);
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45),
+                 0 4px 12px rgba(0, 0, 0, 0.22),
+                 inset 0 2px 0 rgba(255, 255, 255, 0.15);
     text-shadow: none;
 }
 #battery.critical:not(.charging) {

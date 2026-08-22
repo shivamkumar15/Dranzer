@@ -7,7 +7,7 @@
     text: #ecf7ff;
     muted: #ecf7ff99;
     urgent: #ff0055;
-    border: 2px;
+    border: 1px;
     spacing: 14px;
     background-color: transparent;
 }
