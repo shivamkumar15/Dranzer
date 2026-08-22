@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Build & install the Hyprspace workspace-overview plugin for the running Hyprland.
+# Applies Dranzer's patch (hover highlight + keyboard arrow navigation).
+#
+# Usage: bitbeast-hyprspace [build|load|all]   (default: all)
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PATCH="$REPO_DIR/hyprspace_keyboard_hover.patch"
+PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hyprland-plugins"
+SRC_DIR="$PLUGINS_DIR/Hyprspace-src"
+ACTION="${1:-all}"
+
+need() { command -v "$1" >/dev/null || { echo "[bitbeast-hyprspace] missing dependency: $1"; exit 1; }; }
+need git
+need make
+need pkg-config
+pkg-config --exists hyprland || { echo "[bitbeast-hyprspace] Hyprland headers not found (pkg-config hyprland)"; exit 1; }
+
+clone_src() {
+    if [ ! -d "$SRC_DIR/.git" ]; then
+        mkdir -p "$PLUGINS_DIR"
+        git clone https://github.com/KZDKM/Hyprspace.git "$SRC_DIR"
+    fi
+    # PR #238: V2 API — compatible with Hyprland 0.55+
+    git -C "$SRC_DIR" fetch origin pull/238/head:pr238 2>/dev/null || true
+    git -C "$SRC_DIR" checkout pr238
+}
+
+apply_patch() {
+    [ -f "$PATCH" ] || { echo "[bitbeast-hyprspace] patch not found: $PATCH"; exit 1; }
+    if git -C "$SRC_DIR" apply --check "$PATCH" 2>/dev/null; then
+        git -C "$SRC_DIR" apply "$PATCH"
+        echo "[bitbeast-hyprspace] applied hyprspace_keyboard_hover.patch"
+    else
+        echo "[bitbeast-hyprspace] patch already applied (or conflicts) — skipping"
+    fi
+}
+
+do_build() {
+    clone_src
+    apply_patch
+    make -C "$SRC_DIR" clean all
+    cp "$SRC_DIR/Hyprspace.so" "$PLUGINS_DIR/"
+    echo "[bitbeast-hyprspace] built and installed -> $PLUGINS_DIR/Hyprspace.so"
+}
+
+do_load() {
+    hyprctl plugin unload "$PLUGINS_DIR/Hyprspace.so" >/dev/null 2>&1 || true
+    hyprctl plugin load "$PLUGINS_DIR/Hyprspace.so"
+}
+
+case "$ACTION" in
+    build) do_build ;;
+    load)  do_load ;;
+    all)   do_build; do_load ;;
+    *)     echo "usage: $0 [build|load|all]"; exit 1 ;;
+esac

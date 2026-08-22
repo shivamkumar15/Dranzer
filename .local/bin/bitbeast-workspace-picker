@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Workspace overview — lists EVERY open window (tab title) grouped by workspace.
+# Pick a window to jump straight to it, or pick an empty workspace to switch there.
+# Used by the 3-finger swipe-up touchpad gesture.
+set -euo pipefail
+
+clients=$(hyprctl clients -j)
+
+# Every open window: workspace id, title, class, address
+mapfile -t entries < <(
+    {
+        echo "$clients" | jq -r '
+            .[] | select(.workspace.id > 0)
+            | [.workspace.id, (.title // ""), .class, .address] | @tsv'
+
+        # Persistent workspaces (1-8) stay visible even when empty
+        for i in $(seq 1 8); do
+            if ! echo "$clients" | jq -e --argjson id "$i" 'any(.[]; .workspace.id == $id)' >/dev/null; then
+                printf '%s\t(empty)\t(empty)\tws:%s\n' "$i" "$i"
+            fi
+        done
+    } | sort -t$'\t' -k1,1n
+)
+
+[ ${#entries[@]} -eq 0 ] && exit 0
+
+display=()
+for e in "${entries[@]}"; do
+    IFS=$'\t' read -r id title class addr <<<"$e"
+    if [[ $addr == ws:* ]]; then
+        display+=("Workspace $id   ·   (empty)")
+    else
+        display+=("WS $id  ·  ${title:-(no title)}   [$class]")
+    fi
+done
+
+idx=$(printf '%s\n' "${display[@]}" | rofi -dmenu -i -theme ~/.config/rofi/overview.rasi \
+    -p "All Workspaces" -me-select-entry "" -me-accept-entry "MousePrimary" -format i) || exit 0
+
+[[ $idx =~ ^[0-9]+$ ]] && [ "$idx" -lt ${#entries[@]} ] || exit 0
+target=${entries[$idx]}
+addr=${target##*$'\t'}
+
+if [[ $addr == ws:* ]]; then
+    hyprctl dispatch workspace "${addr#ws:}" >/dev/null
+else
+    # Focus the window directly — Hyprland switches to its workspace too
+    hyprctl dispatch focuswindow "address:$addr" >/dev/null
+fi

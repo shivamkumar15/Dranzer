@@ -380,6 +380,7 @@ build_rofi_theme() {
 * {
     bg: ${bg}f2;
     bg-alt: ${secondary}cc;
+    secondary: ${secondary};
     primary: ${primary};
     accent: ${accent};
     text: ${text};

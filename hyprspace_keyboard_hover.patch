@@ -1,0 +1,389 @@
+diff --git a/src/Globals.hpp b/src/Globals.hpp
+index 336e1fa..b90d2e2 100644
+--- a/src/Globals.hpp
++++ b/src/Globals.hpp
+@@ -57,6 +57,9 @@ struct SConfig {
+     SP<Config::Values::CColorValue> workspaceInactiveBackground;
+     SP<Config::Values::CColorValue> workspaceActiveBorder;
+     SP<Config::Values::CColorValue> workspaceInactiveBorder;
++    SP<Config::Values::CColorValue> workspaceHoverBackground;
++    SP<Config::Values::CColorValue> workspaceHoverBorder;
++    SP<Config::Values::CColorValue> workspaceSelectedBorder;
+ 
+     SP<Config::Values::CIntValue> panelHeight;
+     SP<Config::Values::CIntValue> panelBorderWidth;
+@@ -102,6 +105,9 @@ inline SConfig config = {
+     .workspaceInactiveBackground = makeShared<Config::Values::CColorValue>("plugin:overview:workspaceInactiveBackground", "description", CHyprColor(0, 0, 0, 0.5).getAsHex()),
+     .workspaceActiveBorder = makeShared<Config::Values::CColorValue>("plugin:overview:workspaceActiveBorder", "description", CHyprColor(1, 1, 1, 0.25).getAsHex()),
+     .workspaceInactiveBorder = makeShared<Config::Values::CColorValue>("plugin:overview:workspaceInactiveBorder", "description", CHyprColor(1, 1, 1, 0).getAsHex()),
++    .workspaceHoverBackground = makeShared<Config::Values::CColorValue>("plugin:overview:workspaceHoverBackground", "description", CHyprColor(1, 1, 1, 0.08).getAsHex()),
++    .workspaceHoverBorder = makeShared<Config::Values::CColorValue>("plugin:overview:workspaceHoverBorder", "description", CHyprColor(1, 1, 1, 0.5).getAsHex()),
++    .workspaceSelectedBorder = makeShared<Config::Values::CColorValue>("plugin:overview:workspaceSelectedBorder", "description", CHyprColor(0.3, 0.75, 1, 0.9).getAsHex()),
+ 
+     .panelHeight = makeShared<Config::Values::CIntValue>("plugin:overview:panelHeight", "description", 250),
+     .panelBorderWidth = makeShared<Config::Values::CIntValue>("plugin:overview:panelBorderWidth", "description", 2),
+diff --git a/src/Overview.cpp b/src/Overview.cpp
+index f289720..d93dbca 100644
+--- a/src/Overview.cpp
++++ b/src/Overview.cpp
+@@ -4,6 +4,8 @@
+ #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+ #include <hyprland/src/state/WorkspaceState.hpp>
+ #include <hyprland/src/state/MonitorState.hpp>
++#include <algorithm>
++#include <climits>
+ 
+ CHyprspaceWidget::CHyprspaceWidget(uint64_t inOwnerID) {
+     ownerID = inOwnerID;
+@@ -68,6 +70,9 @@ void CHyprspaceWidget::show() {
+ 
+     active = true;
+ 
++    // start keyboard navigation from the current workspace
++    selectedWsID = owner->activeWorkspaceID();
++
+     // panel offset should be handled by swipe event when swiping
+     if (!swiping) {
+         *curYOffset = 0;
+@@ -145,3 +150,138 @@ void CHyprspaceWidget::updateConfig() {
+ bool CHyprspaceWidget::isActive() {
+     return active;
+ }
++
++// ordered list of workspace ids shown in the panel — kept in sync with draw()
++std::vector<int> CHyprspaceWidget::getWorkspaceList() {
++    std::vector<int> workspaces;
++
++    auto owner = getOwner();
++    if (!owner) return workspaces;
++
++    if (config.showSpecialWorkspace->value()) {
++        workspaces.push_back(SPECIAL_WORKSPACE_START);
++    }
++
++    // find the lowest and highest workspace id to determine which empty workspaces to insert
++    int lowestID = INT_MAX;
++    int highestID = 1;
++    for (auto& ws : State::workspaceState()->workspaces()) {
++        if (!ws) continue;
++        // normal workspaces start from 1, special workspaces ends on -2
++        if (ws->m_id < 1) continue;
++        if (ws->m_monitor->m_id == ownerID) {
++            workspaces.push_back(ws->m_id);
++            if (highestID < ws->m_id) highestID = ws->m_id;
++            if (lowestID > ws->m_id) lowestID = ws->m_id;
++        }
++    }
++
++    // include empty workspaces that are between non-empty ones
++    if (config.showEmptyWorkspace->value()) {
++        int wsIDStart = 1;
++        int wsIDEnd = highestID;
++
++        // hyprsplit/split-monitor-workspaces compatibility
++        if (numWorkspaces > 0) {
++            wsIDStart = std::min<int>(numWorkspaces * ownerID + 1, lowestID);
++            wsIDEnd = std::max<int>(numWorkspaces * ownerID + 1, highestID); // always show the initial workspace for current monitor
++        }
++
++        for (int i = wsIDStart; i <= wsIDEnd; i++) {
++            if (i == owner->activeSpecialWorkspaceID()) continue;
++            const auto pWorkspace = State::workspaceState()->query().id(i).run();
++            if (pWorkspace == nullptr)
++                workspaces.push_back(i);
++        }
++    }
++
++    // add a new empty workspace at last
++    if (config.showNewWorkspace->value()) {
++        // get the lowest empty workspce id after the highest id of current workspace
++        while (State::workspaceState()->query().id(highestID).run() != nullptr) highestID++;
++        workspaces.push_back(highestID);
++    }
++
++    std::sort(workspaces.begin(), workspaces.end());
++    return workspaces;
++}
++
++void CHyprspaceWidget::selectEdge(bool last) {
++    moveSelection(last ? INT_MAX : INT_MIN);
++}
++
++void CHyprspaceWidget::moveSelection(int delta) {
++    if (!active) return;
++
++    auto owner = getOwner();
++    auto list = getWorkspaceList();
++    if (!owner || list.empty()) return;
++
++    // find the index of the current selection (fall back to active workspace)
++    int idx = -1;
++    for (size_t i = 0; i < list.size(); i++) {
++        if (list[i] == selectedWsID) { idx = i; break; }
++    }
++    if (idx < 0) {
++        const int64_t activeID = owner->activeWorkspaceID();
++        for (size_t i = 0; i < list.size(); i++) {
++            if (list[i] == activeID) { idx = i; break; }
++        }
++        if (idx < 0) idx = 0;
++    }
++
++    idx = std::clamp<int>(idx + delta, 0, (int)list.size() - 1);
++    selectedWsID = list[idx];
++
++    // scroll the panel so the selection stays visible
++    double monitorSizeScaleFactor = ((config.panelHeight->value() - 2 * config.workspaceMargin->value()) / (owner->m_transformedSize.y)) * owner->m_scale;
++    double workspaceBoxW = owner->m_transformedSize.x * monitorSizeScaleFactor;
++    double viewW = owner->m_transformedSize.x;
++    double margin = config.workspaceMargin->value() * owner->m_scale;
++    double workspaceGroupWidth = workspaceBoxW * list.size() + margin * (list.size() - 1);
++    double workspaceOverflowSize = std::max<double>(((workspaceGroupWidth - viewW) / 2) + margin, 0);
++
++    double boxStart;
++    if (config.centerAligned->value())
++        boxStart = idx * (workspaceBoxW + margin) - (workspaceGroupWidth - viewW) / 2.;
++    else
++        boxStart = idx * (workspaceBoxW + margin);
++
++    double scroll = workspaceScrollOffset->goal();
++    boxStart += scroll;
++    double boxEnd = boxStart + workspaceBoxW;
++
++    if (boxStart < margin)
++        scroll += margin - boxStart;
++    else if (boxEnd > viewW - margin)
++        scroll -= boxEnd - (viewW - margin);
++
++    *workspaceScrollOffset = std::clamp<double>(scroll, -workspaceOverflowSize, workspaceOverflowSize);
++
++    owner->scheduleFrame();
++}
++
++bool CHyprspaceWidget::confirmSelection() {
++    if (!active || selectedWsID < SPECIAL_WORKSPACE_START) return false;
++
++    auto owner = getOwner();
++    if (!owner) return false;
++
++    auto targetWorkspace = State::workspaceState()->query().id(selectedWsID).run();
++
++    // create new workspace
++    if (targetWorkspace == nullptr && selectedWsID >= SPECIAL_WORKSPACE_START)
++        targetWorkspace = State::workspaceState()->create(selectedWsID, ownerID);
++
++    if (!targetWorkspace) return false;
++
++    if (targetWorkspace->m_isSpecialWorkspace)
++        owner->activeSpecialWorkspaceID() == selectedWsID ? owner->setSpecialWorkspace(nullptr) : owner->setSpecialWorkspace(selectedWsID);
++    else
++        State::monitorState()->query().id(targetWorkspace->m_monitor->m_id).run()->changeWorkspace(targetWorkspace->m_id);
++
++    selectedWsID = owner->activeWorkspaceID();
++
++    if (active) hide();
++    return true;
++}
+diff --git a/src/Overview.hpp b/src/Overview.hpp
+index 5cc1d52..4d60e86 100644
+--- a/src/Overview.hpp
++++ b/src/Overview.hpp
+@@ -37,6 +37,9 @@ class CHyprspaceWidget {
+ 
+     PHLANIMVAR<float> workspaceScrollOffset;
+ 
++    // keyboard navigation: currently selected workspace id
++    int64_t selectedWsID = -1;
++
+ public:
+ 
+     // for slide-in animation and swiping
+@@ -68,4 +71,12 @@ public:
+     bool updateSwipe(IPointer::SSwipeUpdateEvent);
+     bool endSwipe(IPointer::SSwipeEndEvent);
+ 
++    // ordered workspace ids shown in the panel (same list draw() renders)
++    std::vector<int> getWorkspaceList();
++
++    // keyboard navigation
++    void moveSelection(int delta);
++    void selectEdge(bool last);
++    bool confirmSelection();
++
+ };
+diff --git a/src/Render.cpp b/src/Render.cpp
+index 682e821..1cf5ec2 100644
+--- a/src/Render.cpp
++++ b/src/Render.cpp
+@@ -212,53 +212,7 @@ void CHyprspaceWidget::draw() {
+     g_pHyprRenderer->damageMonitor(owner);
+ 
+     // the list of workspaces to show
+-    std::vector<int> workspaces;
+-
+-    if (config.showSpecialWorkspace->value()) {
+-        workspaces.push_back(SPECIAL_WORKSPACE_START);
+-    }
+-
+-    // find the lowest and highest workspace id to determine which empty workspaces to insert
+-    int lowestID = INT_MAX;
+-    int highestID = 1;
+-    for (auto& ws : State::workspaceState()->workspaces()) {
+-        if (!ws) continue;
+-        // normal workspaces start from 1, special workspaces ends on -2
+-        if (ws->m_id < 1) continue;
+-        if (ws->m_monitor->m_id == ownerID) {
+-            workspaces.push_back(ws->m_id);
+-            if (highestID < ws->m_id) highestID = ws->m_id;
+-            if (lowestID > ws->m_id) lowestID = ws->m_id;
+-        }
+-    }
+-
+-    // include empty workspaces that are between non-empty ones
+-    if (config.showEmptyWorkspace->value()) {
+-        int wsIDStart = 1;
+-        int wsIDEnd = highestID;
+-
+-        // hyprsplit/split-monitor-workspaces compatibility
+-        if (numWorkspaces > 0) {
+-            wsIDStart = std::min<int>(numWorkspaces * ownerID + 1, lowestID);
+-            wsIDEnd = std::max<int>(numWorkspaces * ownerID + 1, highestID); // always show the initial workspace for current monitor
+-        }
+-
+-        for (int i = wsIDStart; i <= wsIDEnd; i++) {
+-            if (i == owner->activeSpecialWorkspaceID()) continue;
+-            const auto pWorkspace = State::workspaceState()->query().id(i).run();
+-            if (pWorkspace == nullptr)
+-                workspaces.push_back(i);
+-        }
+-    }
+-
+-    // add a new empty workspace at last
+-    if (config.showNewWorkspace->value()) {
+-        // get the lowest empty workspce id after the highest id of current workspace
+-        while (State::workspaceState()->query().id(highestID).run() != nullptr) highestID++;
+-        workspaces.push_back(highestID);
+-    }
+-
+-    std::sort(workspaces.begin(), workspaces.end());
++    std::vector<int> workspaces = getWorkspaceList();
+ 
+     // render workspace boxes
+     int wsCount = workspaces.size();
+@@ -273,12 +227,20 @@ void CHyprspaceWidget::draw() {
+     *workspaceScrollOffset = std::clamp<double>(workspaceScrollOffset->goal(), -workspaceOverflowSize, workspaceOverflowSize);
+ 
+     if (!(workspaceBoxW > 0 && workspaceBoxH > 0)) return;
++
++    // mouse position in render coords (monitor-relative) for hover detection
++    const Vector2D mouseRel = (g_pInputManager->getMouseCoordsInternal() - owner->m_position) * owner->m_scale;
++
+     for (auto wsID : workspaces) {
+         const auto ws = State::workspaceState()->query().id(wsID).run();
+         CBox curWorkspaceBox = {curWorkspaceRectOffsetX, curWorkspaceRectOffsetY, workspaceBoxW, workspaceBoxH};
+ 
++        const bool isActiveWs = (ws == owner->m_activeWorkspace);
++        const bool isHovered  = active && !isActiveWs && curWorkspaceBox.containsPoint(mouseRel);
++        const bool isSelected = active && !isActiveWs && (wsID == selectedWsID);
++
+         // workspace background rect (NOT background layer) and border
+-        if (ws == owner->m_activeWorkspace) {
++        if (isActiveWs) {
+             if (config.workspaceBorderSize->value() >= 1 && CHyprColor(config.workspaceActiveBorder->value()).a > 0) {
+                 renderBorder(curWorkspaceBox, Config::CGradientValueData(config.workspaceActiveBorder->value()), config.workspaceBorderSize->value());
+             }
+@@ -294,14 +256,26 @@ void CHyprspaceWidget::draw() {
+             }
+         }
+         else {
+-            if (config.workspaceBorderSize->value() >= 1 && CHyprColor(config.workspaceInactiveBorder->value()).a > 0) {
+-                renderBorder(curWorkspaceBox, Config::CGradientValueData(config.workspaceInactiveBorder->value()), config.workspaceBorderSize->value());
++            // border: selected > hovered > inactive
++            if (config.workspaceBorderSize->value() >= 1) {
++                if (isSelected && CHyprColor(config.workspaceSelectedBorder->value()).a > 0)
++                    renderBorder(curWorkspaceBox, Config::CGradientValueData(config.workspaceSelectedBorder->value()), config.workspaceBorderSize->value());
++                else if (isHovered && CHyprColor(config.workspaceHoverBorder->value()).a > 0)
++                    renderBorder(curWorkspaceBox, Config::CGradientValueData(config.workspaceHoverBorder->value()), config.workspaceBorderSize->value());
++                else if (CHyprColor(config.workspaceInactiveBorder->value()).a > 0)
++                    renderBorder(curWorkspaceBox, Config::CGradientValueData(config.workspaceInactiveBorder->value()), config.workspaceBorderSize->value());
+             }
++
++            // background: hovered boxes get a subtle tint
++            CHyprColor bg = config.workspaceInactiveBackground->value();
++            if (isHovered && CHyprColor(config.workspaceHoverBackground->value()).a > 0)
++                bg = config.workspaceHoverBackground->value();
++
+             if (!config.disableBlur->value()) {
+-                renderRectWithBlur(curWorkspaceBox, config.workspaceInactiveBackground->value());
++                renderRectWithBlur(curWorkspaceBox, bg);
+             }
+             else {
+-                renderRect(curWorkspaceBox, config.workspaceInactiveBackground->value());
++                renderRect(curWorkspaceBox, bg);
+             }
+         }
+ 
+diff --git a/src/main.cpp b/src/main.cpp
+index 22d7086..b1d9d45 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -9,6 +9,7 @@
+ #include <hyprland/src/state/MonitorState.hpp>
+ #include <hyprland/src/pointer/PointerController.hpp>
+ #include <hyprutils/memory/SharedPtr.hpp>
++#include <xkbcommon/xkbcommon-keysyms.h>
+ #include <any>
+ #include "Overview.hpp"
+ #include "Globals.hpp"
+@@ -209,15 +210,40 @@ void onSwipeEnd(const IPointer::SSwipeEndEvent& event, SCallbackInfo& info) {
+         widget->endSwipe(event);
+ }
+ 
+-// Close overview with configurable key
++// Close overview with configurable key, navigate and confirm selection with keyboard
+ void onKeyPress(const IKeyboard::SKeyEvent& event, SCallbackInfo& info) {
+     const SP<IKeyboard> keyboard = g_pSeatManager->m_keyboard.lock();
+     if (!keyboard || !keyboard->m_xkbSymState)
+         return;
+ 
++    // only react to key presses, not releases
++    if (event.state != WL_KEYBOARD_KEY_STATE_PRESSED)
++        return;
++
+     const auto keycode = event.keycode + 8; // Because to xkbcommon it's +8 from libinput
+     const xkb_keysym_t keysym = xkb_state_key_get_one_sym(keyboard->m_xkbSymState, keycode);
+ 
++    const auto pMonitor = State::monitorState()->query().vec(g_pInputManager->getMouseCoordsInternal()).run();
++    const auto widget = pMonitor ? getWidgetForMonitor(pMonitor) : nullptr;
++
++    // keyboard navigation while the overview is open
++    if (widget && widget->isActive()) {
++        bool handled = true;
++        switch (keysym) {
++            case XKB_KEY_Left:
++            case XKB_KEY_Up: widget->moveSelection(-1); break;
++            case XKB_KEY_Right:
++            case XKB_KEY_Down: widget->moveSelection(+1); break;
++            case XKB_KEY_Home: widget->selectEdge(false); break;
++            case XKB_KEY_End: widget->selectEdge(true); break;
++            case XKB_KEY_Return:
++            case XKB_KEY_KP_Enter: widget->confirmSelection(); break;
++            default: handled = false; break;
++        }
++        if (handled)
++            info.cancelled = true;
++    }
++
+     const std::string cfgExitKey = config.exitKey->value();
+     if (cfgExitKey.empty())
+         return;
+@@ -386,6 +412,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE inHandle) {
+     HyprlandAPI::addConfigValueV2(pHandle, config.workspaceInactiveBackground);
+     HyprlandAPI::addConfigValueV2(pHandle, config.workspaceActiveBorder);
+     HyprlandAPI::addConfigValueV2(pHandle, config.workspaceInactiveBorder);
++    HyprlandAPI::addConfigValueV2(pHandle, config.workspaceHoverBackground);
++    HyprlandAPI::addConfigValueV2(pHandle, config.workspaceHoverBorder);
++    HyprlandAPI::addConfigValueV2(pHandle, config.workspaceSelectedBorder);
+ 
+     HyprlandAPI::addConfigValueV2(pHandle, config.panelHeight);
+     HyprlandAPI::addConfigValueV2(pHandle, config.panelBorderWidth);

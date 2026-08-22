@@ -1,6 +1,7 @@
 * {
     bg: #08111ff2;
     bg-alt: #158fc7cc;
+    secondary: #158fc7;
     primary: #2d66df;
     accent: #89ebff;
     text: #ecf7ff;
