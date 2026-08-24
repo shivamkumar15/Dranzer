@@ -1,6 +1,6 @@
 /* Edges — Asymmetric side-lit: left/right color borders, diagonal shadow cast, split lighting */
 window#waybar {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border-left: 3px solid @glow;
     border-right: 3px solid @accent;
@@ -66,7 +66,7 @@ window#waybar {
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-left-color: @secondary;
     box-shadow: -2px 0 4px rgba(0, 0, 0, 0.2),

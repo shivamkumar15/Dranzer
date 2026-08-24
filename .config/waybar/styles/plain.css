@@ -1,6 +1,6 @@
 /* Plain — Minimal float: single rounded surface, featherweight shadow, nothing else */
 window#waybar {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border-radius: 12px;
     border: none;
@@ -46,7 +46,7 @@ window#waybar {
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }

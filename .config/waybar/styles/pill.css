@@ -1,6 +1,6 @@
 /* Pill — Organic capsules: generous radii, pillow-soft shadows, smooth transitions */
 .modules-left, .modules-center, .modules-right {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border: 1px solid @secondary;
     border-radius: 18px;
@@ -54,7 +54,7 @@
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-color: @secondary;
     border-radius: 14px;
@@ -75,7 +75,7 @@
 #clock {
     color: @accent;
     font-weight: 800;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-radius: 12px;
     padding: 0 14px;

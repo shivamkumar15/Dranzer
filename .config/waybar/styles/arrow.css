@@ -8,7 +8,7 @@
 }
 #workspaces, #cpu, #memory, #network, #clock, #custom-media, #backlight,
 #pulseaudio, #battery, #tray, #custom-power {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     color: @text;
     border-radius: 0;
@@ -66,7 +66,7 @@
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-left-color: @secondary;
     box-shadow: 2px 0 0 @secondary,

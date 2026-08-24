@@ -41,7 +41,7 @@ window#waybar {
 }
 
 tooltip {
-    background: @bg;
+    background: alpha(@bg, 0.90);
     border: 1px solid @secondary;
     border-radius: 10px;
     color: @text;

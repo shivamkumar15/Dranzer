@@ -1,0 +1,748 @@
+#!/usr/bin/env python3
+"""
+BitBeast Control Center — macOS-style quick settings panel for Hyprland.
+
+Usage:
+  bitbeast-control-center          # toggle (open if closed, close if open)
+  bitbeast-control-center show     # open only
+
+Cards:
+  Wi-Fi / Bluetooth / Power Mode rows, Do Not Disturb, Screenshot, Screen
+  Record, System Theme circles (beast themes), Brightness + Volume sliders.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import signal
+import socket
+import subprocess
+import sys
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
+
+CACHE_DIR = Path.home() / ".cache" / "bitbeast"
+SOCKET_PATH = CACHE_DIR / "cc.sock"
+PID_FILE = CACHE_DIR / "cc.pid"
+
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+BEASTS_DIR = CONFIG_HOME / "bitbeasts"
+
+# Fallback palette (Dranzer)
+BG = "#150608"
+PRIMARY = "#ff2d55"
+ACCENT = "#ffd166"
+TEXT = "#fff1dd"
+SECONDARY = "#2c0d0f"
+
+
+def cmd(args: list[str], timeout: float = 3.0) -> str:
+    try:
+        return subprocess.check_output(
+            args, stderr=subprocess.DEVNULL, timeout=timeout
+        ).decode(errors="ignore").strip()
+    except Exception:
+        return ""
+
+
+def spawn(args: str) -> None:
+    subprocess.Popen(args, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def load_theme_colors() -> dict[str, str]:
+    colors = {
+        "bg": BG,
+        "primary": PRIMARY,
+        "secondary": SECONDARY,
+        "accent": ACCENT,
+        "text": TEXT,
+    }
+    conf = CONFIG_HOME / "bitbeast" / "current.conf"
+    if not conf.is_file():
+        conf = BEASTS_DIR / "dranzer" / "colors.conf"
+    if conf.is_file():
+        text = conf.read_text(encoding="utf-8", errors="ignore")
+        for key in colors:
+            m = re.search(rf"^\$\s*{key}\s*=\s*rgb\(([0-9a-fA-F]{{6}})\)", text, re.M)
+            if m:
+                colors[key] = f"#{m.group(1).lower()}"
+    return colors
+
+
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+# ── System state helpers ─────────────────────────────────────────────
+
+def wifi_state() -> tuple[bool, str]:
+    if "disabled" in cmd(["nmcli", "radio", "wifi"]):
+        return False, "Off"
+    out = cmd(["nmcli", "-t", "-f", "ACTIVE,SSID", "device", "wifi"])
+    for line in out.splitlines():
+        if line.startswith("yes:"):
+            return True, line.split(":", 1)[1] or "Connected"
+    return True, "Not connected"
+
+
+def wifi_toggle() -> None:
+    on, _ = wifi_state()
+    run = "off" if on else "on"
+    spawn(f"nmcli radio wifi {run}")
+
+
+def bt_state() -> tuple[bool, str]:
+    out = cmd(["bluetoothctl", "show"])
+    powered = "Powered: yes" in out
+    if not powered:
+        return False, "Off"
+    devs = cmd(["bluetoothctl", "devices", "Connected"])
+    if devs:
+        parts = devs.splitlines()[0].split(" ", 2)
+        return True, parts[2] if len(parts) > 2 else "Connected"
+    return True, "Not connected"
+
+
+def bt_toggle() -> None:
+    powered = "Powered: yes" in cmd(["bluetoothctl", "show"])
+    spawn(f"bluetoothctl power {'off' if powered else 'on'}")
+
+
+POWER_PROFILES = ["balanced", "performance", "power-saver"]
+
+
+def power_profile() -> str:
+    p = cmd(["powerprofilesctl", "get"]).lower()
+    return p or "balanced"
+
+
+def power_cycle() -> str:
+    current = power_profile()
+    try:
+        idx = (POWER_PROFILES.index(current) + 1) % len(POWER_PROFILES)
+    except ValueError:
+        idx = 0
+    nxt = POWER_PROFILES[idx]
+    spawn(f"powerprofilesctl set {nxt}")
+    return nxt
+
+
+def dnd_state() -> bool:
+    return cmd(["swaync-client", "--get-dnd"]).strip().lower() == "true"
+
+
+def dnd_toggle() -> None:
+    spawn("swaync-client --toggle-dnd")
+
+
+def recording_active() -> bool:
+    return bool(cmd(["pgrep", "-x", "wf-recorder"]))
+
+
+def screenshot() -> None:
+    shots = Path.home() / "Pictures" / "Screenshots"
+    spawn(
+        f"mkdir -p '{shots}' && grim -g \"$(slurp)\" "
+        f"'{shots}/shot-$(date +%Y%m%d-%H%M%S).png'"
+    )
+
+
+def screen_record() -> None:
+    if recording_active():
+        spawn("pkill -x wf-recorder")
+        return
+    vids = Path.home() / "Videos"
+    spawn(
+        f"mkdir -p '{vids}' && wf-recorder -c h264 -f "
+        f"'{vids}/rec-$(date +%Y%m%d-%H%M%S).mkv'"
+    )
+
+
+def get_brightness() -> int:
+    out = cmd(["brightnessctl", "-m"])
+    parts = out.split(",")
+    if len(parts) >= 4:
+        try:
+            return int(parts[3].rstrip("%"))
+        except ValueError:
+            pass
+    return 50
+
+
+def set_brightness(pct: int) -> None:
+    spawn(f"brightnessctl -q set {int(pct)}%")
+
+
+def get_volume() -> int:
+    out = cmd(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    m = re.search(r"Volume:\s*([0-9.]+)", out)
+    return min(100, int(round(float(m.group(1)) * 100))) if m else 0
+
+
+def set_volume(pct: int) -> None:
+    spawn(f"wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ {int(pct)}%")
+
+
+def list_beast_themes() -> list[tuple[str, str, str]]:
+    """[(name, primary_hex, accent_hex)] sorted."""
+    themes = []
+    if BEASTS_DIR.is_dir():
+        for d in sorted(BEASTS_DIR.iterdir()):
+            conf = d / "colors.conf"
+            if not conf.is_file():
+                continue
+            text = conf.read_text(encoding="utf-8", errors="ignore")
+            def pick(key: str, fallback: str) -> str:
+                m = re.search(rf"^\$\s*{key}\s*=\s*rgb\(([0-9a-fA-F]{{6}})\)", text, re.M)
+                return f"#{m.group(1).lower()}" if m else fallback
+            themes.append((d.name, pick("primary", "#888888"), pick("accent", "#ffffff")))
+    return themes
+
+
+def current_beast_theme() -> str:
+    f = CONFIG_HOME / "bitbeast" / "current.theme"
+    return f.read_text().strip() if f.is_file() else ""
+
+
+# ── Single-instance IPC ──────────────────────────────────────────────
+
+def send_toggle() -> bool:
+    if not SOCKET_PATH.exists():
+        return False
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as s:
+            s.settimeout(0.2)
+            s.sendto(b"toggle\n", str(SOCKET_PATH))
+            return True
+    except Exception:
+        SOCKET_PATH.unlink(missing_ok=True)
+        return False
+
+
+# ── UI ───────────────────────────────────────────────────────────────
+
+class ControlCenter(Gtk.Window):
+    def __init__(self) -> None:
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.set_app_paintable(True)
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_accept_focus(True)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_keep_above(True)
+
+        self.theme = load_theme_colors()
+        self._rec_flash = False
+
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 54)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, 14)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
+        GtkLayerShell.set_namespace(self, "bitbeast-cc")
+
+        self._build_css()
+        self._build_ui()
+        self.refresh_states()
+
+        self.connect("key-press-event", self._on_key)
+        self.connect("destroy", self._on_destroy)
+
+        GLib.timeout_add(2500, self.refresh_states)
+
+    # -- CSS ----------------------------------------------------------
+
+    def _css_text(self) -> str:
+        t = self.theme
+        bg, primary, accent = t["bg"], t["primary"], t["accent"]
+        text, secondary = t["text"], t["secondary"]
+        return f"""
+        window {{ background: transparent; }}
+
+        #cc-panel {{
+            background-color: {hex_to_rgba(bg, 0.82)};
+            border: 1px solid {hex_to_rgba(primary, 0.22)};
+            border-radius: 22px;
+            padding: 14px;
+        }}
+        #cc-card {{
+            background-color: {hex_to_rgba(bg, 0.92)};
+            border: 1px solid {hex_to_rgba(text, 0.07)};
+            border-radius: 18px;
+            padding: 14px 16px;
+        }}
+        #cc-card-title {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            color: {text};
+            margin-bottom: 10px;
+        }}
+        #cc-row {{
+            border-radius: 12px;
+            padding: 6px 8px;
+            margin: 2px 0;
+        }}
+        #cc-row:hover {{ background-color: {hex_to_rgba(text, 0.06)}; }}
+        #cc-icon-box {{
+            min-width: 40px;
+            min-height: 40px;
+            border-radius: 12px;
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.30)}, {hex_to_rgba(accent, 0.16)});
+            border: 1px solid {hex_to_rgba(primary, 0.35)};
+        }}
+        #cc-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 19px;
+            color: {text};
+        }}
+        #cc-title {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: {text};
+        }}
+        #cc-sub {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 11px;
+            color: {hex_to_rgba(text, 0.55)};
+        }}
+        #cc-chev {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 14px;
+            color: {hex_to_rgba(text, 0.45)};
+            margin-left: 6px;
+        }}
+        #cc-circle {{
+            min-width: 46px;
+            min-height: 46px;
+            border-radius: 23px;
+            border: 2px solid transparent;
+        }}
+        #cc-circle-active {{
+            min-width: 46px;
+            min-height: 46px;
+            border-radius: 23px;
+            border: 2px solid {text};
+        }}
+        #cc-circle-label {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            color: {hex_to_rgba(text, 0.70)};
+            margin-top: 5px;
+        }}
+        #cc-big-toggle {{
+            border-radius: 16px;
+            padding: 10px 8px;
+        }}
+        #cc-big-active {{
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.45)}, {hex_to_rgba(accent, 0.25)});
+            border: 1px solid {hex_to_rgba(primary, 0.55)};
+            border-radius: 16px;
+            padding: 10px 8px;
+        }}
+        #cc-tile {{
+            border-radius: 14px;
+            padding: 10px 6px;
+        }}
+        #cc-tile:hover {{ background-color: {hex_to_rgba(text, 0.07)}; }}
+        #cc-rec {{
+            color: {primary};
+            font-weight: 800;
+        }}
+        scale trough {{
+            min-height: 7px;
+            border-radius: 999px;
+            background-color: {hex_to_rgba(text, 0.12)};
+            border: none;
+        }}
+        scale highlight {{
+            min-height: 7px;
+            border-radius: 999px;
+            background-image: linear-gradient(90deg, {primary}, {accent});
+            border: none;
+        }}
+        scale slider {{
+            min-width: 20px;
+            min-height: 20px;
+            border-radius: 10px;
+            background-color: {text};
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+            margin: -7px 0;
+        }}
+        """
+
+    def _build_css(self) -> None:
+        css = self._css_text()
+        provider = getattr(self, "_css_provider", None)
+        if provider is not None:
+            try:
+                Gtk.StyleContext.remove_provider_for_screen(
+                    Gdk.Screen.get_default(), provider
+                )
+            except Exception:
+                pass
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css.encode("utf-8"))
+        self._css_provider = provider
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+    # -- widget helpers ------------------------------------------------
+
+    def _card(self, vertical: bool = True) -> Gtk.Box:
+        box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL if vertical else Gtk.Orientation.HORIZONTAL,
+            spacing=8,
+        )
+        box.set_name("cc-card")
+        return box
+
+    def _row(self, icon: str, title: str, on_click) -> tuple[Gtk.EventBox, Gtk.Label, Gtk.Label, Gtk.Label]:
+        ev = Gtk.EventBox()
+        ev.set_name("cc-row")
+        h = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        ibox = Gtk.Box()
+        ibox.set_name("cc-icon-box")
+        ibox.set_valign(Gtk.Align.CENTER)
+        ilab = Gtk.Label(label=icon)
+        ilab.set_name("cc-icon")
+        ilab.set_halign(Gtk.Align.CENTER)
+        ilab.set_valign(Gtk.Align.CENTER)
+        ibox.pack_start(ilab, True, True, 0)
+        h.pack_start(ibox, False, False, 0)
+
+        mid = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        mid.set_valign(Gtk.Align.CENTER)
+        tlab = Gtk.Label(label=title)
+        tlab.set_name("cc-title")
+        tlab.set_halign(Gtk.Align.START)
+        mid.pack_start(tlab, False, False, 0)
+        slab = Gtk.Label(label="…")
+        slab.set_name("cc-sub")
+        slab.set_halign(Gtk.Align.START)
+        mid.pack_start(slab, False, False, 0)
+        h.pack_start(mid, True, True, 0)
+
+        chev = Gtk.Label(label="")
+        chev.set_name("cc-chev")
+        chev.set_valign(Gtk.Align.CENTER)
+        h.pack_start(chev, False, False, 0)
+
+        ev.add(h)
+        if on_click:
+            ev.connect("button-press-event", lambda w, e: on_click() or True)
+        return ev, tlab, slab, chev
+
+    def _tile(self, icon: str, label: str, on_click) -> tuple[Gtk.EventBox, Gtk.Label]:
+        ev = Gtk.EventBox()
+        ev.set_name("cc-tile")
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        ilab = Gtk.Label(label=icon)
+        ilab.set_name("cc-icon")
+        v.pack_start(ilab, False, False, 0)
+        lab = Gtk.Label(label=label)
+        lab.set_name("cc-sub")
+        lab.set_justify(Gtk.Justification.CENTER)
+        v.pack_start(lab, False, False, 0)
+        ev.add(v)
+        ev.connect("button-press-event", lambda w, e: on_click() or True)
+        return ev, lab
+
+    # -- build ----------------------------------------------------------
+
+    def _build_ui(self) -> None:
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        panel.set_name("cc-panel")
+        panel.set_size_request(470, -1)
+
+        # ── Row 1: connectivity | (dnd + capture) ──
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        conn = self._card()
+        self.wifi_row, self.wifi_title, self.wifi_sub, self.wifi_chev = self._row(
+            "", "Wi-Fi", wifi_toggle
+        )
+        self.bt_row, self.bt_title, self.bt_sub, self.bt_chev = self._row(
+            "", "Bluetooth", bt_toggle
+        )
+        self.pw_row, self.pw_title, self.pw_sub, self.pw_chev = self._row(
+            "", "Power Mode", power_cycle
+        )
+        self.wifi_chev.set_text("󰅂")
+        self.bt_chev.set_text("󰅂")
+        for r in (self.wifi_row, self.bt_row, self.pw_row):
+            conn.pack_start(r, False, False, 0)
+        top.pack_start(conn, True, True, 0)
+
+        right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+
+        dnd_outer = Gtk.EventBox()
+        self.dnd_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.dnd_box.set_name("cc-big-toggle")
+        dlab = Gtk.Label(label="")
+        dlab.set_name("cc-icon")
+        dlab.set_valign(Gtk.Align.CENTER)
+        self.dnd_box.pack_start(dlab, False, False, 4)
+        dtext = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        dt1 = Gtk.Label(label="Do Not")
+        dt2 = Gtk.Label(label="Disturb")
+        for w in (dt1, dt2):
+            w.set_name("cc-title")
+            w.set_halign(Gtk.Align.START)
+            dtext.pack_start(w, False, False, 0)
+        self.dnd_box.pack_start(dtext, True, True, 0)
+        dnd_outer.add(self.dnd_box)
+        dnd_outer.connect("button-press-event", lambda w, e: dnd_toggle() or True)
+        right.pack_start(dnd_outer, False, False, 0)
+        self.dnd_outer = dnd_outer
+
+        cap = self._card(vertical=False)
+        cap.set_homogeneous(True)
+        self.shot_lab = None
+        shot_ev, _ = self._tile("", "Screen\nshot", screenshot)
+        self.rec_ev, self.rec_lab = self._tile("", "Screen\nRecord", self._on_record)
+        cap.pack_start(shot_ev, True, True, 0)
+        cap.pack_start(self.rec_ev, True, True, 0)
+        right.pack_start(cap, True, True, 0)
+
+        top.pack_start(right, True, True, 0)
+        panel.pack_start(top, False, False, 0)
+
+        # ── System theme ──
+        theme_card = self._card()
+        ttitle = Gtk.Label(label="System Theme")
+        ttitle.set_name("cc-card-title")
+        ttitle.set_halign(Gtk.Align.START)
+        theme_card.pack_start(ttitle, False, False, 0)
+        self.theme_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.theme_box.set_halign(Gtk.Align.CENTER)
+        theme_card.pack_start(self.theme_box, False, False, 0)
+        self._build_theme_circles()
+        panel.pack_start(theme_card, False, False, 0)
+
+        # ── Brightness ──
+        bright_card = self._card()
+        btitle = Gtk.Label(label="Brightness")
+        btitle.set_name("cc-card-title")
+        btitle.set_halign(Gtk.Align.START)
+        bright_card.pack_start(btitle, False, False, 0)
+        brow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        bicon = Gtk.Label(label="󰃟")
+        bicon.set_name("cc-icon")
+        bicon.set_valign(Gtk.Align.CENTER)
+        brow.pack_start(bicon, False, False, 0)
+        self.bright_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 1, 100, 1
+        )
+        self.bright_scale.set_draw_value(False)
+        self.bright_scale.set_value(get_brightness())
+        self._slider_lock = False
+        self.bright_scale.connect(
+            "value-changed",
+            lambda s: (set_brightness(int(s.get_value()))) if not self._slider_lock else None,
+        )
+        brow.pack_start(self.bright_scale, True, True, 0)
+        bright_card.pack_start(brow, False, False, 0)
+        panel.pack_start(bright_card, False, False, 0)
+
+        # ── Volume ──
+        vol_card = self._card()
+        vtitle = Gtk.Label(label="Volume")
+        vtitle.set_name("cc-card-title")
+        vtitle.set_halign(Gtk.Align.START)
+        vol_card.pack_start(vtitle, False, False, 0)
+        vrow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.vol_icon = Gtk.Label(label="󰕾")
+        self.vol_icon.set_name("cc-icon")
+        self.vol_icon.set_valign(Gtk.Align.CENTER)
+        vrow.pack_start(self.vol_icon, False, False, 0)
+        self.vol_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
+        self.vol_scale.set_draw_value(False)
+        self.vol_scale.set_value(get_volume())
+        self.vol_scale.connect("value-changed", lambda s: set_volume(int(s.get_value())))
+        vrow.pack_start(self.vol_scale, True, True, 0)
+        vol_card.pack_start(vrow, False, False, 0)
+        panel.pack_start(vol_card, False, False, 0)
+
+        self.add(panel)
+        self.show_all()
+
+    def _on_record(self) -> None:
+        screen_record()
+        GLib.timeout_add(300, self.refresh_states)
+
+    # -- theme circles --------------------------------------------------
+
+    def _build_theme_circles(self) -> None:
+        for child in self.theme_box.get_children():
+            self.theme_box.remove(child)
+        current = current_beast_theme()
+        for name, primary, accent in list_beast_themes():
+            ev = Gtk.EventBox()
+            ev.set_valign(Gtk.Align.START)
+            v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            circ = Gtk.Box()
+            ctx = circ.get_style_context()
+            if name == current:
+                circ.set_name("cc-circle-active")
+            else:
+                circ.set_name("cc-circle")
+                css = f"""
+                #cc-circle-{name} {{
+                    background-image: linear-gradient(135deg, {primary}, {accent});
+                }}
+                """
+                prov = Gtk.CssProvider()
+                prov.load_from_data(css.encode("utf-8"))
+                ctx.add_provider(prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+                ctx.add_class(f"cc-circle-{name}")
+            gl = Gtk.Label(label="")
+            gl.set_name("cc-icon")
+            circ.pack_start(gl, True, True, 0)
+            circ.set_size_request(46, 46)
+            v.pack_start(circ, False, False, 0)
+            lab = Gtk.Label(label=name[:9])
+            lab.set_name("cc-circle-label")
+            v.pack_start(lab, False, False, 0)
+            ev.add(v)
+
+            def make_click(theme_name: str):
+                def handler(_w, _e):
+                    spawn(f"$HOME/.local/bin/bitbeast {theme_name}")
+                    GLib.timeout_add(1200, self._on_theme_switched)
+                    return True
+                return handler
+
+            ev.connect("button-press-event", make_click(name))
+            self.theme_box.pack_start(ev, False, False, 0)
+        self.theme_box.show_all()
+
+    def _rebuild_themes(self) -> bool:
+        self._build_theme_circles()
+        return False
+
+    def _on_theme_switched(self) -> bool:
+        """Recolor the panel and re-highlight circles after a theme switch."""
+        self.theme = load_theme_colors()
+        self._build_css()
+        self._build_theme_circles()
+        return False
+
+    # -- refresh ---------------------------------------------------------
+
+    def refresh_states(self) -> bool:
+        wifi_on, wifi_name = wifi_state()
+        self.wifi_title.set_text("Wi-Fi" if wifi_on else "Wi-Fi (Off)")
+        self.wifi_sub.set_text(wifi_name)
+
+        bt_on, bt_name = bt_state()
+        self.bt_title.set_text("Bluetooth" if bt_on else "Bluetooth (Off)")
+        self.bt_sub.set_text(bt_name)
+
+        self.pw_sub.set_text(power_profile().capitalize())
+
+        dnd = dnd_state()
+        self.dnd_box.set_name("cc-big-active" if dnd else "cc-big-toggle")
+        self.dnd_outer.queue_draw()
+
+        rec = recording_active()
+        self.rec_lab.set_text("Stop\nRec" if rec else "Screen\nRecord")
+        self.rec_lab.get_style_context().remove_class("cc-rec")
+        if rec:
+            self.rec_lab.get_style_context().add_class("cc-rec")
+
+        self.bright_scale.set_value(get_brightness())
+        vol = get_volume()
+        self._slider_lock = True
+        self.vol_scale.set_value(vol)
+        self._slider_lock = False
+        self.vol_icon.set_text("󰝟" if vol == 0 else ("󰕿" if vol < 34 else ("󰖀" if vol < 67 else "󰕾")))
+        return True
+
+    # -- events -----------------------------------------------------------
+
+    def _on_key(self, _w, event) -> bool:
+        if event.keyval == Gdk.KEY_Escape:
+            self.close()
+            return True
+        return False
+
+    def handle_command(self, line: str) -> None:
+        line = line.strip().lower()
+        if line in {"toggle", "quit", "exit", "close"}:
+            self.close()
+
+    def _on_destroy(self, *_a) -> None:
+        try:
+            SOCKET_PATH.unlink()
+        except Exception:
+            pass
+        try:
+            if PID_FILE.exists() and PID_FILE.read_text().strip() == str(os.getpid()):
+                PID_FILE.unlink()
+        except Exception:
+            pass
+        Gtk.main_quit()
+
+
+def start_server(win: ControlCenter) -> None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    SOCKET_PATH.unlink(missing_ok=True)
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    server.bind(str(SOCKET_PATH))
+    server.setblocking(False)
+    PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
+
+    def on_readable(_fd, _cond):
+        while True:
+            try:
+                data, _ = server.recvfrom(256)
+            except Exception:
+                break
+            win.handle_command(data.decode("utf-8", errors="ignore"))
+        return True
+
+    GLib.io_add_watch(server.fileno(), GLib.IO_IN, on_readable)
+
+
+def main() -> None:
+    arg = sys.argv[1].lower() if len(sys.argv) > 1 else "toggle"
+    if arg in {"show", "toggle"} and send_toggle() and arg == "toggle":
+        return
+    if arg == "close":
+        send_toggle()
+        return
+
+    if not os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("DISPLAY"):
+        print("No display available for control center", file=sys.stderr)
+        return
+
+    signal.signal(signal.SIGINT, lambda *_: Gtk.main_quit())
+    signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
+    win = ControlCenter()
+    start_server(win)
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

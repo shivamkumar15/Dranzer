@@ -1,6 +1,6 @@
 /* Clean — Swiss precision: thin hairline borders, subtle inner glow, balanced whitespace */
 .modules-left, .modules-center, .modules-right {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border: 1px solid @secondary;
     border-radius: 14px;
@@ -25,7 +25,7 @@
 }
 /* Clock — recessed inset panel */
 #clock {
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     color: @accent;
     font-weight: 800;
@@ -60,7 +60,7 @@
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-color: @secondary;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.30);

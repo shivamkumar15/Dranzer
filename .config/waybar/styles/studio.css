@@ -1,0 +1,123 @@
+/* Studio — media deck: a wide left stage for cava + track, a stacked compact
+ * console on the right. Tall 40px bar, tall panels, accent seams between
+ * stacked rows feel like rack-mounted gear. (deck layout) */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg, 0.80);
+    background-image: none;
+    border: 1px solid @secondary;
+    border-left: 3px solid @primary;
+    border-radius: 12px;
+    padding: 5px 14px;
+    margin: 6px 8px;
+    color: @text;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.50),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.modules-right {
+    border-left: 1px solid @secondary;
+    border-right: 3px solid @accent;
+}
+.modules-center {
+    border-left: 1px solid @secondary;
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 0 4px;
+    padding: 0 7px;
+}
+
+/* Workspace buttons — channel keys */
+#workspaces button {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 8px;
+    margin: 2px 2px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+}
+#workspaces button.active {
+    color: @bg;
+    background: @accent;
+    background-image: none;
+    font-weight: 800;
+    border-color: @primary;
+    box-shadow: 0 0 10px rgba(255, 180, 0, 0.20);
+}
+#workspaces button:hover {
+    color: @accent;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    border-color: @secondary;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background: @glow;
+    background-image: none;
+    border-color: @accent;
+}
+
+/* Clock — master section readout */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    border-radius: 8px;
+    padding: 0 13px;
+    border: 1px solid @secondary;
+}
+
+/* Stage — the show */
+#custom-cava     { color: @cava-color; font-size: 15px; }
+#custom-media    { color: @primary; font-weight: 800; }
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @secondary; }
+
+/* Console — rack lights */
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network         { color: @primary; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @accent; }
+#cpu             { color: @glow; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — master fader cut */
+#custom-power {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-weight: 800;
+    margin: 2px 2px;
+    border: 1px solid @accent;
+    box-shadow: 0 0 12px rgba(255, 60, 0, 0.25),
+                0 3px 10px rgba(0, 0, 0, 0.55);
+}
+#battery.critical:not(.charging) {
+    background: @secondary;
+    background-image: none;
+    color: @accent;
+    animation: none;
+    border-radius: 7px;
+}

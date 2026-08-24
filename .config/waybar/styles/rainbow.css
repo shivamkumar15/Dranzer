@@ -33,7 +33,7 @@
 #backlight   { background: @accent; }
 #pulseaudio  { background: @primary; }
 #battery     { background: @glow; }
-#tray        { background: @bg-alt; color: @text; }
+#tray        { background: alpha(@bg-alt, 0.85); color: @text; }
 
 /* Workspace buttons — inverted rainbow chips */
 #workspaces button {
@@ -49,7 +49,7 @@
 }
 #workspaces button.active {
     color: @primary;
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     font-weight: 800;
     border-radius: 8px;
@@ -58,7 +58,7 @@
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }

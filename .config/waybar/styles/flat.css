@@ -1,6 +1,6 @@
 /* Flat — Zen surface: no elevation, color-only borders, contact shadows, pure typography */
 window#waybar {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     color: @text;
     border-bottom: 2px solid @glow;
@@ -51,7 +51,7 @@ window#waybar {
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-bottom-color: @secondary;
     box-shadow: none;

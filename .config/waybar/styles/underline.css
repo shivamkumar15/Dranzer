@@ -1,6 +1,6 @@
 /* Underline — Editorial typography: ruled lines, baseline emphasis, newspaper precision */
 window#waybar {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border-radius: 10px;
     border: none;
@@ -50,7 +50,7 @@ window#waybar {
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-bottom-color: @secondary;
     box-shadow: none;

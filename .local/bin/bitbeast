@@ -31,9 +31,16 @@ STATE_DIR="$CONFIG_HOME/bitbeast"
 HYPR_DIR="$CONFIG_HOME/hypr"
 WAYBAR_DIR="$CONFIG_HOME/waybar"
 KITTY_DIR="$CONFIG_HOME/kitty"
+if [ ! -d "$CONFIG_HOME/bitbeasts" ] && [ -d "$REPO_DIR/.config/kitty/themes" ]; then
+    KITTY_THEMES_DIR="$REPO_DIR/.config/kitty/themes"
+else
+    KITTY_THEMES_DIR="$KITTY_DIR/themes"
+fi
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
 FASTFETCH_DIR="$CONFIG_HOME/fastfetch"
+SWAYNC_DIR="$CONFIG_HOME/swaync"
+WEB_SELECTOR_DIR="$DATA_HOME/bitbeast/web-wallpaper-selector"
 DEFAULT_WAYBAR_STYLE="${BITBEAST_DEFAULT_WAYBAR_STYLE:-hud}"
 HANCORE_DIR="$WAYBAR_DIR/hancore-themes"
 
@@ -49,6 +56,11 @@ Usage:
   bitbeast pick-style
   bitbeast current-theme
   bitbeast current-style
+  bitbeast term <theme-name>
+  bitbeast term list
+  bitbeast term cycle
+  bitbeast term auto
+  bitbeast pick-term
   bitbeast restore-wallpaper
   bitbeast clipboard
   bitbeast keybindings
@@ -56,6 +68,7 @@ Usage:
   bitbeast lock
   bitbeast avatar <path_to_image>
   bitbeast brightness [up|down]
+  bitbeast battery-saver
   bitbeast zsh <theme-name>
   bitbeast zsh list
   bitbeast zsh cycle
@@ -76,6 +89,11 @@ EOF_USAGE
 Available Waybar styles:
 EOF_STYLES
     list_styles >&2
+    cat >&2 <<EOF_TERMS
+
+Available terminal themes:
+EOF_TERMS
+    list_term_themes >&2
     cat >&2 <<EOF_HANCORE
 
 Available HANCORE Waybar themes:
@@ -336,6 +354,28 @@ theme_color_hex() {
     fi
 }
 
+# Lighten/darken a #rrggbb color by a float factor (1.0 = unchanged).
+shade_hex() {
+    hex_color=$1
+    factor=$2
+    r=$(printf '%d' "0x${hex_color:1:2}")
+    g=$(printf '%d' "0x${hex_color:3:2}")
+    b=$(printf '%d' "0x${hex_color:5:2}")
+    r=$(awk "BEGIN{v=${r}*${factor}; if(v>255)v=255; if(v<0)v=0; printf \"%d\", v+0.5}")
+    g=$(awk "BEGIN{v=${g}*${factor}; if(v>255)v=255; if(v<0)v=0; printf \"%d\", v+0.5}")
+    b=$(awk "BEGIN{v=${b}*${factor}; if(v>255)v=255; if(v<0)v=0; printf \"%d\", v+0.5}")
+    printf '#%02x%02x%02x\n' "$r" "$g" "$b"
+}
+
+# Print "R, G, B" decimal triplet for a #rrggbb color (for rgba() in generated CSS).
+hex_rgb() {
+    hex_color=$1
+    r=$(printf '%d' "0x${hex_color:1:2}")
+    g=$(printf '%d' "0x${hex_color:3:2}")
+    b=$(printf '%d' "0x${hex_color:5:2}")
+    printf '%d, %d, %d\n' "$r" "$g" "$b"
+}
+
 build_rofi_theme() {
     theme_dir=$1
     target_path=$2
@@ -355,6 +395,7 @@ build_rofi_theme() {
 * {
     bg: ${bg}f2;
     bg-alt: ${secondary}cc;
+    secondary: ${secondary};
     primary: ${primary};
     accent: ${accent};
     text: ${text};
@@ -444,6 +485,216 @@ EOF_ROFI
 }
 
 
+build_rofi_overview() {
+    theme_dir=$1
+    target_path=$2
+    colors_file=$3
+    require_file "$colors_file"
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg_alt=$(shade_hex "$bg" 1.7)
+    muted="${text}99"
+
+    mkdir -p "$(dirname "$target_path")"
+    cat > "$target_path" <<EOF_OVERVIEW
+* {
+    bg: ${bg}cc;
+    bg-alt: ${bg_alt}cc;
+    primary: ${primary};
+    accent: ${accent};
+    text: ${text};
+    muted: ${muted};
+    border: 2px;
+    font: "JetBrainsMono Nerd Font 11";
+    background-color: transparent;
+}
+
+window {
+    fullscreen: true;
+    padding: 100px;
+    background-color: @bg;
+}
+
+mainbox {
+    children: [ inputbar, listview ];
+    spacing: 30px;
+}
+
+inputbar {
+    children: [ prompt, entry ];
+    spacing: 12px;
+    padding: 14px 18px;
+    border-radius: 999px;
+    background-color: @bg-alt;
+    text-color: @text;
+    margin: 0px 30%;
+    border: @border;
+    border-color: @accent;
+}
+
+prompt { enabled: false; }
+
+entry {
+    placeholder: "Type to search";
+    placeholder-color: @muted;
+    text-color: @text;
+    horizontal-align: 0.5;
+}
+
+listview {
+    columns: 5;
+    lines: 2;
+    spacing: 20px;
+    layout: vertical;
+    flow: horizontal;
+    fixed-columns: true;
+    border: 0px;
+    scrollbar: false;
+}
+
+element {
+    orientation: vertical;
+    padding: 10px;
+    border-radius: 16px;
+    background-color: @bg-alt;
+    border: 1px;
+    border-color: @muted;
+}
+
+element selected {
+    border-color: @accent;
+    background-color: @bg-alt;
+}
+
+element-icon {
+    size: 250px;
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    background-color: transparent;
+}
+
+element-text {
+    text-color: @text;
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    background-color: transparent;
+    padding: 10px 0px 0px 0px;
+}
+EOF_OVERVIEW
+}
+
+
+build_swaync_style() {
+    theme_dir=$1
+    target_path=$2
+    colors_file=$3
+    require_file "$colors_file"
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg_alt=$(shade_hex "$bg" 1.7)
+
+    bg_rgb=$(hex_rgb "$bg")
+    bg_alt_rgb=$(hex_rgb "$bg_alt")
+    primary_rgb=$(hex_rgb "$primary")
+    accent_rgb=$(hex_rgb "$accent")
+    text_rgb=$(hex_rgb "$text")
+
+    template=""
+    for candidate in "$REPO_DIR/.config/swaync/style.template.css" "$SWAYNC_DIR/style.template.css"; do
+        [ -f "$candidate" ] && template="$candidate" && break
+    done
+    if [ -z "$template" ]; then
+        warn "swaync style template not found; skipping."
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$target_path")"
+    sed \
+        -e "s|@@BG@@|$bg|g" \
+        -e "s|@@BG_ALT@@|$bg_alt|g" \
+        -e "s|@@PRIMARY@@|$primary|g" \
+        -e "s|@@ACCENT@@|$accent|g" \
+        -e "s|@@TEXT@@|$text|g" \
+        -e "s|@@BG_RGB@@|$bg_rgb|g" \
+        -e "s|@@BG_ALT_RGB@@|$bg_alt_rgb|g" \
+        -e "s|@@PRIMARY_RGB@@|$primary_rgb|g" \
+        -e "s|@@ACCENT_RGB@@|$accent_rgb|g" \
+        -e "s|@@TEXT_RGB@@|$text_rgb|g" \
+        "$template" > "$target_path"
+}
+
+
+# Patch the 5 canonical @define-color lines in a waybar CSS file so they always
+# match the theme's colors.conf (the single source of truth). Leaves bg-alt,
+# glow, cava-color and all rule-body CSS untouched.
+patch_waybar_colors() {
+    target_path=$1
+    colors_file=$2
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    secondary=$(theme_color_hex "$colors_file" secondary '#2c0d0f')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+
+    sed -i \
+        -e "s|@define-color bg [^;]*;|@define-color bg $bg;|" \
+        -e "s|@define-color primary [^;]*;|@define-color primary $primary;|" \
+        -e "s|@define-color secondary [^;]*;|@define-color secondary $secondary;|" \
+        -e "s|@define-color accent [^;]*;|@define-color accent $accent;|" \
+        -e "s|@define-color text [^;]*;|@define-color text $text;|" \
+        "$target_path"
+}
+
+build_web_selector() {
+    theme_dir=$1
+    target_path=$2
+    colors_file=$3
+    require_file "$colors_file"
+
+    bg=$(theme_color_hex "$colors_file" bg '#150608')
+    primary=$(theme_color_hex "$colors_file" primary '#ff2d55')
+    accent=$(theme_color_hex "$colors_file" accent '#ffd166')
+    text=$(theme_color_hex "$colors_file" text '#fff1dd')
+    bg_alt=$(shade_hex "$bg" 1.7)
+
+    bg_rgb=$(hex_rgb "$bg")
+    bg_alt_rgb=$(hex_rgb "$bg_alt")
+    primary_rgb=$(hex_rgb "$primary")
+    accent_rgb=$(hex_rgb "$accent")
+    text_rgb=$(hex_rgb "$text")
+
+    template=""
+    for candidate in "$REPO_DIR/web-wallpaper-selector/index.template.css" "$WEB_SELECTOR_DIR/index.template.css"; do
+        [ -f "$candidate" ] && template="$candidate" && break
+    done
+    if [ -z "$template" ]; then
+        warn "web wallpaper selector template not found; skipping."
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$target_path")"
+    sed \
+        -e "s|@@BG@@|$bg|g" \
+        -e "s|@@BG_ALT@@|$bg_alt|g" \
+        -e "s|@@PRIMARY@@|$primary|g" \
+        -e "s|@@ACCENT@@|$accent|g" \
+        -e "s|@@TEXT@@|$text|g" \
+        -e "s|@@BG_RGB@@|$bg_rgb|g" \
+        -e "s|@@BG_ALT_RGB@@|$bg_alt_rgb|g" \
+        -e "s|@@PRIMARY_RGB@@|$primary_rgb|g" \
+        -e "s|@@ACCENT_RGB@@|$accent_rgb|g" \
+        -e "s|@@TEXT_RGB@@|$text_rgb|g" \
+        "$template" > "$target_path"
+}
+
+
 resolve_wallpaper_path() {
     wallpaper_value=$1
 
@@ -504,6 +755,141 @@ build_kitty_theme() {
     require_file "$theme_dir/kitty.conf"
     mkdir -p "$(dirname "$target_path")"
     cp "$theme_dir/kitty.conf" "$target_path"
+    apply_terminal_theme_overlay "$target_path"
+}
+
+list_term_themes() {
+    [ -d "$KITTY_THEMES_DIR" ] || return 0
+    for file_path in "$KITTY_THEMES_DIR"/*.conf; do
+        [ -f "$file_path" ] || continue
+        basename "$file_path" .conf
+    done | LC_ALL=C sort
+}
+
+term_theme_exists() {
+    [ -f "$KITTY_THEMES_DIR/$1.conf" ]
+}
+
+current_term_theme() {
+    if [ -f "$STATE_DIR/current.term-theme" ]; then
+        sed -n '1p' "$STATE_DIR/current.term-theme"
+    else
+        printf 'auto\n'
+    fi
+}
+
+# Append the selected standalone terminal palette over the beast colors so
+# kitty keeps a custom scheme until the user switches back to auto.
+apply_terminal_theme_overlay() {
+    target_path=$1
+    term_name=$(current_term_theme)
+    [ -n "$term_name" ] && [ "$term_name" != "auto" ] || return 0
+    term_file="$KITTY_THEMES_DIR/$term_name.conf"
+    [ -f "$term_file" ] || return 0
+    printf '\n# Terminal theme overlay: %s (bitbeast term auto to reset)\n' "$term_name" >> "$target_path"
+    cat "$term_file" >> "$target_path"
+}
+
+set_term_theme() {
+    term_name=$1
+
+    mkdir -p "$STATE_DIR"
+
+    if [ "$term_name" = "auto" ]; then
+        rm -f "$STATE_DIR/current.term-theme"
+    else
+        if ! term_theme_exists "$term_name"; then
+            printf 'Unknown terminal theme: %s\n' "$term_name" >&2
+            exit 1
+        fi
+        printf '%s\n' "$term_name" > "$STATE_DIR/current.term-theme"
+    fi
+
+    # Rebuild the kitty palette from the active beast theme (+ overlay) and hot-reload
+    beast_name=$(current_theme_name)
+    [ -n "$beast_name" ] || beast_name=dranzer
+    if [ -d "$THEMES_DIR/$beast_name" ]; then
+        build_kitty_theme "$THEMES_DIR/$beast_name" "$KITTY_DIR/bitbeast.conf"
+        reload_kitty
+    fi
+
+    if [ "$term_name" = "auto" ]; then
+        printf 'Terminal theme reset to beast palette\n'
+    else
+        printf 'Terminal theme activated: %s\n' "$(current_term_theme)"
+    fi
+}
+
+cycle_term_theme() {
+    themes=$(list_term_themes)
+    [ -n "$themes" ] || {
+        printf 'No terminal themes available in %s\n' "$KITTY_THEMES_DIR" >&2
+        exit 1
+    }
+
+    current_term=$(current_term_theme)
+    next_term=
+    first_term=
+    found_current=0
+
+    for term_name in $themes; do
+        [ -n "$first_term" ] || first_term=$term_name
+
+        if [ "$found_current" -eq 1 ]; then
+            next_term=$term_name
+            break
+        fi
+
+        if [ "$term_name" = "$current_term" ]; then
+            found_current=1
+        fi
+    done
+
+    # auto (or missing) wraps to the first theme; last theme wraps to auto
+    if [ "$found_current" -eq 0 ] || [ -z "$next_term" ]; then
+        if [ "$found_current" -eq 1 ]; then
+            next_term=auto
+        else
+            next_term=$first_term
+        fi
+    fi
+
+    set_term_theme "$next_term"
+}
+
+pick_term_theme() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast pick-term\n' >&2
+        exit 1
+    fi
+
+    current_term=$(current_term_theme)
+    selection=$(
+        while IFS= read -r term_name; do
+            [ -n "$term_name" ] || continue
+            if [ "$term_name" = "$current_term" ]; then
+                printf '%s\tactive\n' "$term_name"
+            elif [ "$current_term" = "auto" ] && [ "$term_name" = "auto" ]; then
+                continue
+            else
+                printf '%s\ttheme\n' "$term_name"
+            fi
+        done <<EOF_TERM_LIST
+$(list_term_themes)
+auto	current
+EOF_TERM_LIST
+    )
+
+    [ -n "$selection" ] || {
+        printf 'No terminal themes available in %s\n' "$KITTY_THEMES_DIR" >&2
+        exit 1
+    }
+
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Terminal theme")
+    chosen_term=$(printf '%s' "$choice" | cut -f1)
+
+    [ -n "$chosen_term" ] || exit 0
+    set_term_theme "$chosen_term"
 }
 
 build_fastfetch_config() {
@@ -870,7 +1256,7 @@ apply_wallpaper() {
         return 1
     fi
 
-    # Prefer awww (or swww) for smooth animated transitions (wave, grow, wipe, etc.)
+    # Prefer awww (or swww) for smooth animated transitions
     if command -v awww >/dev/null 2>&1 || command -v swww >/dev/null 2>&1; then
         # Kill swaybg if switching backends
         pkill -x swaybg >/dev/null 2>&1 || true
@@ -1197,16 +1583,20 @@ activate_theme() {
     require_file "$theme_dir/rofi.rasi"
     require_file "$theme_dir/cava.conf"
 
-    mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR" "$FASTFETCH_DIR"
+    mkdir -p "$STATE_DIR" "$HYPR_DIR" "$WAYBAR_DIR" "$KITTY_DIR" "$ROFI_DIR" "$CAVA_DIR" "$FASTFETCH_DIR" "$SWAYNC_DIR" "$WEB_SELECTOR_DIR"
 
     wallpaper_path=$(theme_wallpaper_path "$theme_dir")
 
     cp "$theme_dir/colors.conf" "$STATE_DIR/current.conf"
     cp "$theme_dir/hyprland.conf" "$HYPR_DIR/bitbeast-theme.conf"
     cp "$theme_dir/waybar.css" "$WAYBAR_DIR/bitbeast.css"
+    patch_waybar_colors "$WAYBAR_DIR/bitbeast.css" "$theme_dir/colors.conf"
     build_kitty_theme "$theme_dir" "$KITTY_DIR/bitbeast.conf" "$wallpaper_path"
     build_fastfetch_config "$FASTFETCH_DIR/config.jsonc" "$wallpaper_path"
     build_rofi_theme "$theme_dir" "$ROFI_DIR/bitbeast.rasi" "$theme_dir/colors.conf"
+    build_rofi_overview "$theme_dir" "$ROFI_DIR/overview.rasi" "$theme_dir/colors.conf"
+    build_swaync_style "$theme_dir" "$SWAYNC_DIR/style.css" "$theme_dir/colors.conf"
+    build_web_selector "$theme_dir" "$WEB_SELECTOR_DIR/index.css" "$theme_dir/colors.conf"
     cp "$theme_dir/cava.conf" "$CAVA_DIR/config"
     printf '%s\n' "$theme_name" > "$STATE_DIR/current.theme"
 
@@ -1225,6 +1615,7 @@ activate_theme() {
     reload_kitty
     reload_cava
     reload_hyprland
+    swaync-client -rs >/dev/null 2>&1 || true
     reload_cursor "$theme_dir/colors.conf"
 
     update_zsh_theme "$theme_name" || true
@@ -1353,6 +1744,7 @@ start_volume_gesture() {
     vg="$SCRIPT_DIR/bitbeast-volume-gesture"
     [ -x "$vg" ] || vg="$HOME/.local/bin/bitbeast-volume-gesture"
     [ -x "$vg" ] || return 0
+    # Restart cleanly each session
     pkill -f 'bitbeast-volume-gesture' >/dev/null 2>&1 || true
     "$vg" >/dev/null 2>&1 &
 }
@@ -1455,8 +1847,7 @@ update_zsh_theme() {
     zshrc=$(zsh_theme_file)
 
     if [ ! -f "$zshrc" ]; then
-        printf 'Error: .zshrc not found\n' >&2
-        return 1
+        : > "$zshrc"
     fi
 
     if grep -q '^ZSH_THEME=' "$zshrc"; then
@@ -1509,6 +1900,8 @@ PS1="%F{$primary}%n%f%F{$text}@%f%F{$accent}%m%f %F{$text}%~%f "
 RPROMPT="%F{$secondary}%(3L|+)…%f"
 EOF_ZSH
     chmod +x "$HOME/.zsh/bitbeast-prompt.zsh"
+
+    [ -f "$HOME/.zshrc" ] || : > "$HOME/.zshrc"
 
     if [ -f "$HOME/.zshrc" ]; then
         if ! grep -q 'bitbeast-prompt.zsh' "$HOME/.zshrc"; then
@@ -1637,7 +2030,8 @@ restore_gradient_state() {
     fi
 
     if [ "$mode" = "enabled" ]; then
-        sed -i 's|col.active_border = .*|col.active_border = rgba(ff0000ee) rgba(ff7f00ee) rgba(ffff00ee) rgba(00ff00ee) rgba(0000ffee) rgba(4b0082ee) rgba(9400d3ee) 45deg|' "$HYPR_DIR/bitbeast-theme.conf"
+        sed -i 's|col.active_border = .*|col.active_border = rgba(ff0000ee) rgba(ff7f00ee) rgba(ffff00ee) rgba(00ff00ee) rgba(0000ffee) rgba(4b0082ee) rgba(9400d3ee) rgba(ff0000ee) 0deg|' "$HYPR_DIR/bitbeast-theme.conf"
+        sed -i 's|col.inactive_border = .*|col.inactive_border = rgba(ff0000ee) rgba(ff7f00ee) rgba(ffff00ee) rgba(00ff00ee) rgba(0000ffee) rgba(4b0082ee) rgba(9400d3ee) rgba(ff0000ee) 0deg|' "$HYPR_DIR/bitbeast-theme.conf"
         if command -v hyprctl >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
             hyprctl reload >/dev/null 2>&1 || true
         fi
@@ -1680,6 +2074,9 @@ if [ $# -eq 0 ]; then
 fi
 
 case $command_name in
+    battery-saver)
+        "$SCRIPT_DIR/bitbeast-battery-saver"
+        ;;
     gradient)
         toggle_gradient
         ;;
@@ -1710,6 +2107,38 @@ case $command_name in
                 activate_style "$2"
                 ;;
         esac
+        ;;
+
+    term)
+        if [ $# -lt 2 ]; then
+            list_term_themes
+            printf '\nCurrent: %s\n' "$(current_term_theme)"
+            exit 0
+        fi
+
+        case $2 in
+            list)
+                list_term_themes
+                printf '\nCurrent: %s\n' "$(current_term_theme)"
+                ;;
+            cycle)
+                cycle_term_theme
+                ;;
+            auto|reset|default)
+                set_term_theme "auto"
+                ;;
+            *)
+                [ $# -eq 2 ] || {
+                    usage
+                    exit 1
+                }
+                set_term_theme "$2"
+                ;;
+        esac
+        ;;
+
+    pick-term)
+        pick_term_theme
         ;;
     pick-style)
         pick_style

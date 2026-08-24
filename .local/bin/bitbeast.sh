@@ -31,6 +31,11 @@ STATE_DIR="$CONFIG_HOME/bitbeast"
 HYPR_DIR="$CONFIG_HOME/hypr"
 WAYBAR_DIR="$CONFIG_HOME/waybar"
 KITTY_DIR="$CONFIG_HOME/kitty"
+if [ ! -d "$CONFIG_HOME/bitbeasts" ] && [ -d "$REPO_DIR/.config/kitty/themes" ]; then
+    KITTY_THEMES_DIR="$REPO_DIR/.config/kitty/themes"
+else
+    KITTY_THEMES_DIR="$KITTY_DIR/themes"
+fi
 ROFI_DIR="$CONFIG_HOME/rofi"
 CAVA_DIR="$CONFIG_HOME/cava"
 FASTFETCH_DIR="$CONFIG_HOME/fastfetch"
@@ -51,6 +56,11 @@ Usage:
   bitbeast pick-style
   bitbeast current-theme
   bitbeast current-style
+  bitbeast term <theme-name>
+  bitbeast term list
+  bitbeast term cycle
+  bitbeast term auto
+  bitbeast pick-term
   bitbeast restore-wallpaper
   bitbeast clipboard
   bitbeast keybindings
@@ -79,6 +89,11 @@ EOF_USAGE
 Available Waybar styles:
 EOF_STYLES
     list_styles >&2
+    cat >&2 <<EOF_TERMS
+
+Available terminal themes:
+EOF_TERMS
+    list_term_themes >&2
     cat >&2 <<EOF_HANCORE
 
 Available HANCORE Waybar themes:
@@ -740,6 +755,141 @@ build_kitty_theme() {
     require_file "$theme_dir/kitty.conf"
     mkdir -p "$(dirname "$target_path")"
     cp "$theme_dir/kitty.conf" "$target_path"
+    apply_terminal_theme_overlay "$target_path"
+}
+
+list_term_themes() {
+    [ -d "$KITTY_THEMES_DIR" ] || return 0
+    for file_path in "$KITTY_THEMES_DIR"/*.conf; do
+        [ -f "$file_path" ] || continue
+        basename "$file_path" .conf
+    done | LC_ALL=C sort
+}
+
+term_theme_exists() {
+    [ -f "$KITTY_THEMES_DIR/$1.conf" ]
+}
+
+current_term_theme() {
+    if [ -f "$STATE_DIR/current.term-theme" ]; then
+        sed -n '1p' "$STATE_DIR/current.term-theme"
+    else
+        printf 'auto\n'
+    fi
+}
+
+# Append the selected standalone terminal palette over the beast colors so
+# kitty keeps a custom scheme until the user switches back to auto.
+apply_terminal_theme_overlay() {
+    target_path=$1
+    term_name=$(current_term_theme)
+    [ -n "$term_name" ] && [ "$term_name" != "auto" ] || return 0
+    term_file="$KITTY_THEMES_DIR/$term_name.conf"
+    [ -f "$term_file" ] || return 0
+    printf '\n# Terminal theme overlay: %s (bitbeast term auto to reset)\n' "$term_name" >> "$target_path"
+    cat "$term_file" >> "$target_path"
+}
+
+set_term_theme() {
+    term_name=$1
+
+    mkdir -p "$STATE_DIR"
+
+    if [ "$term_name" = "auto" ]; then
+        rm -f "$STATE_DIR/current.term-theme"
+    else
+        if ! term_theme_exists "$term_name"; then
+            printf 'Unknown terminal theme: %s\n' "$term_name" >&2
+            exit 1
+        fi
+        printf '%s\n' "$term_name" > "$STATE_DIR/current.term-theme"
+    fi
+
+    # Rebuild the kitty palette from the active beast theme (+ overlay) and hot-reload
+    beast_name=$(current_theme_name)
+    [ -n "$beast_name" ] || beast_name=dranzer
+    if [ -d "$THEMES_DIR/$beast_name" ]; then
+        build_kitty_theme "$THEMES_DIR/$beast_name" "$KITTY_DIR/bitbeast.conf"
+        reload_kitty
+    fi
+
+    if [ "$term_name" = "auto" ]; then
+        printf 'Terminal theme reset to beast palette\n'
+    else
+        printf 'Terminal theme activated: %s\n' "$(current_term_theme)"
+    fi
+}
+
+cycle_term_theme() {
+    themes=$(list_term_themes)
+    [ -n "$themes" ] || {
+        printf 'No terminal themes available in %s\n' "$KITTY_THEMES_DIR" >&2
+        exit 1
+    }
+
+    current_term=$(current_term_theme)
+    next_term=
+    first_term=
+    found_current=0
+
+    for term_name in $themes; do
+        [ -n "$first_term" ] || first_term=$term_name
+
+        if [ "$found_current" -eq 1 ]; then
+            next_term=$term_name
+            break
+        fi
+
+        if [ "$term_name" = "$current_term" ]; then
+            found_current=1
+        fi
+    done
+
+    # auto (or missing) wraps to the first theme; last theme wraps to auto
+    if [ "$found_current" -eq 0 ] || [ -z "$next_term" ]; then
+        if [ "$found_current" -eq 1 ]; then
+            next_term=auto
+        else
+            next_term=$first_term
+        fi
+    fi
+
+    set_term_theme "$next_term"
+}
+
+pick_term_theme() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast pick-term\n' >&2
+        exit 1
+    fi
+
+    current_term=$(current_term_theme)
+    selection=$(
+        while IFS= read -r term_name; do
+            [ -n "$term_name" ] || continue
+            if [ "$term_name" = "$current_term" ]; then
+                printf '%s\tactive\n' "$term_name"
+            elif [ "$current_term" = "auto" ] && [ "$term_name" = "auto" ]; then
+                continue
+            else
+                printf '%s\ttheme\n' "$term_name"
+            fi
+        done <<EOF_TERM_LIST
+$(list_term_themes)
+auto	current
+EOF_TERM_LIST
+    )
+
+    [ -n "$selection" ] || {
+        printf 'No terminal themes available in %s\n' "$KITTY_THEMES_DIR" >&2
+        exit 1
+    }
+
+    choice=$(printf '%s\n' "$selection" | rofi -dmenu -i -p "Terminal theme")
+    chosen_term=$(printf '%s' "$choice" | cut -f1)
+
+    [ -n "$chosen_term" ] || exit 0
+    set_term_theme "$chosen_term"
 }
 
 build_fastfetch_config() {
@@ -1957,6 +2107,38 @@ case $command_name in
                 activate_style "$2"
                 ;;
         esac
+        ;;
+
+    term)
+        if [ $# -lt 2 ]; then
+            list_term_themes
+            printf '\nCurrent: %s\n' "$(current_term_theme)"
+            exit 0
+        fi
+
+        case $2 in
+            list)
+                list_term_themes
+                printf '\nCurrent: %s\n' "$(current_term_theme)"
+                ;;
+            cycle)
+                cycle_term_theme
+                ;;
+            auto|reset|default)
+                set_term_theme "auto"
+                ;;
+            *)
+                [ $# -eq 2 ] || {
+                    usage
+                    exit 1
+                }
+                set_term_theme "$2"
+                ;;
+        esac
+        ;;
+
+    pick-term)
+        pick_term_theme
         ;;
     pick-style)
         pick_style

@@ -1,0 +1,119 @@
+/* CRT — phosphor terminal: scanlined panels, square corners, blocky workspaces.
+ * A repeating gradient lays faint scanlines over every container. */
+.modules-left, .modules-center, .modules-right {
+    background-color: alpha(@bg, 0.80);
+    background-image: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.22) 0px,
+        rgba(0, 0, 0, 0.22) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    border: 1px solid @secondary;
+    border-radius: 0;
+    padding: 4px 10px;
+    margin: 4px 6px;
+    color: @text;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.60),
+                inset 0 0 18px rgba(0, 0, 0, 0.45);
+}
+.modules-center {
+    border-color: @accent;
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 0 3px;
+    padding: 0 7px;
+}
+
+/* Workspace buttons — cursor blocks */
+#workspaces button {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 7px;
+    margin: 2px 2px;
+    border-radius: 0;
+    border: none;
+}
+#workspaces button.active {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+    font-weight: 800;
+    box-shadow: 0 0 10px @glow;
+}
+#workspaces button:hover {
+    color: @accent;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background: @accent;
+    background-image: none;
+}
+
+/* Clock — system uptime readout */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    background: rgba(0, 0, 0, 0.30);
+    background-image: none;
+    border-radius: 0;
+    padding: 0 11px;
+    border: 1px solid @secondary;
+    text-shadow: 0 0 6px @accent;
+}
+
+/* Module colors — phosphor burn-in */
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @secondary; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @primary; font-weight: 700; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network         { color: @primary; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @accent; }
+#cpu             { color: @primary; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; text-shadow: 0 0 8px @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — kill switch */
+#custom-power {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+    border-radius: 0;
+    padding: 0 10px;
+    font-weight: 800;
+    margin: 2px 2px;
+    border: 1px solid @text;
+    box-shadow: 0 0 12px @glow;
+}
+#battery.critical:not(.charging) {
+    background: @secondary;
+    background-image: none;
+    color: @accent;
+    animation: none;
+    border-radius: 0;
+    text-shadow: 0 0 6px @glow;
+}

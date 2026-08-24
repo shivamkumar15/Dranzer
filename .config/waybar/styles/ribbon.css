@@ -1,0 +1,114 @@
+/* Ribbon — one thin connected strip: groups fuse edge-to-edge into a single
+ * line across the top, separated only by hairline seams. Clock gets a soft
+ * underline glow like a stitch in the ribbon. */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg, 0.80);
+    background-image: none;
+    border: 1px solid @secondary;
+    border-radius: 10px;
+    padding: 2px 8px;
+    margin: 4px 2px;
+    color: @text;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 600;
+    margin: 0 2px;
+    padding: 0 5px;
+}
+
+/* Workspace buttons — thread markers */
+#workspaces button {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 600;
+    padding: 0 6px;
+    margin: 1px 1px;
+    border-radius: 6px;
+    border-bottom: 2px solid transparent;
+    opacity: 0.55;
+}
+#workspaces button.active {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 800;
+    opacity: 1.0;
+    border-bottom: 2px solid @primary;
+}
+#workspaces button:hover {
+    color: @accent;
+    opacity: 1.0;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background: @glow;
+    background-image: none;
+    opacity: 1.0;
+}
+
+/* Clock — the stitch */
+#clock {
+    color: @text;
+    font-weight: 800;
+    background: transparent;
+    background-image: none;
+    border-radius: 0;
+    padding: 0 10px;
+    border: none;
+    box-shadow: inset 0 -2px 0 @accent;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+}
+
+/* Module colors — quiet weave */
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @secondary; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @primary; }
+#custom-netspeed { color: @accent; }
+#network         { color: @primary; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @accent; }
+#cpu             { color: @primary; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — loose thread */
+#custom-power {
+    color: @secondary;
+    background: transparent;
+    background-image: none;
+    border-radius: 6px;
+    padding: 0 9px;
+    font-weight: 800;
+}
+#custom-power:hover {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+}
+#battery.critical:not(.charging) {
+    background: @secondary;
+    background-image: none;
+    color: @text;
+    animation: none;
+    border-radius: 5px;
+}

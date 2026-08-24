@@ -1,0 +1,48 @@
+{
+  "height": 36,
+  "spacing": 8,
+  "margin-top": 10,
+  "margin-left": 16,
+  "margin-right": 16,
+  "modules-left": [
+    "hyprland/workspaces",
+    "custom/cava",
+    "custom/media",
+    "window"
+  ],
+  "modules-center": [],
+  "modules-right": [
+    "cpu",
+    "memory",
+    "temperature",
+    "network",
+    "pulseaudio",
+    "battery",
+    "tray",
+    "clock",
+    "custom/notification",
+    "custom/power"
+  ],
+  "hyprland/workspaces": {
+    "disable-scrolling": false,
+    "all-outputs": true,
+    "sort-by-number": true,
+    "format": "{icon}",
+    "format-icons": {
+      "default": "▢",
+      "active": "▣",
+      "urgent": "✗"
+    },
+    "on-click": "activate",
+    "persistent-workspaces": {
+      "*": [1, 2, 3, 4, 5]
+    }
+  },
+  "clock": {
+    "format": "󰅐 {:%H:%M  %d/%m}",
+    "format-alt": "{:%A %d %B %Y}",
+    "interval": 60,
+    "tooltip-format": "{:%Y-%m-%d %A}",
+    "on-click": "~/.local/bin/bitbeast-power-popup"
+  }
+}

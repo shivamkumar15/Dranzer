@@ -1,0 +1,134 @@
+/* Duo — two-tone tension: the left cluster is a solid primary slab with dark
+ * text, the right cluster stays outlined and airy, center floats free. */
+.modules-left {
+    background: @primary;
+    background-image: none;
+    border: 1px solid @accent;
+    border-radius: 12px 4px 12px 4px;
+    padding: 3px 12px;
+    margin: 5px 6px;
+    color: @bg;
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.50);
+}
+.modules-center {
+    background: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    color: @text;
+}
+.modules-right {
+    background: alpha(@bg, 0.80);
+    background-image: none;
+    border: 1px solid @primary;
+    border-radius: 4px 12px 4px 12px;
+    padding: 3px 12px;
+    margin: 5px 6px;
+    color: @text;
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.50);
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 0 3px;
+    padding: 0 6px;
+}
+.modules-left #workspaces,
+.modules-left #custom-cava,
+.modules-left #custom-media,
+.modules-left #custom-hint,
+.modules-left #window {
+    color: @bg;
+}
+
+/* Workspace buttons — inverted chips on the slab */
+#workspaces button {
+    color: @bg;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 7px;
+    margin: 2px 2px;
+    border-radius: 8px;
+    border: none;
+    opacity: 0.55;
+}
+#workspaces button.active {
+    color: @primary;
+    background: alpha(@bg, 0.80);
+    background-image: none;
+    font-weight: 800;
+    opacity: 1.0;
+}
+#workspaces button:hover {
+    opacity: 1.0;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background: @glow;
+    background-image: none;
+    opacity: 1.0;
+}
+
+/* Clock — free-floating dial */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    border-radius: 10px;
+    padding: 1px 13px;
+    border: 1px solid @secondary;
+}
+
+/* Right-side stat colors */
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @accent; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @bg; font-weight: 700; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network         { color: @primary; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @accent; }
+#cpu             { color: @glow; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — outlined until touched */
+#custom-power {
+    color: @primary;
+    background: transparent;
+    background-image: none;
+    border-radius: 8px;
+    padding: 0 10px;
+    font-weight: 800;
+    border: 1px solid @primary;
+}
+#custom-power:hover {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+}
+#battery.critical:not(.charging) {
+    background: @secondary;
+    background-image: none;
+    color: @accent;
+    animation: none;
+    border-radius: 6px;
+}

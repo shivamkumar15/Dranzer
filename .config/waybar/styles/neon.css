@@ -8,7 +8,7 @@
 }
 #workspaces, #custom-cava, #custom-media, #clock, #cpu, #memory, #network,
 #battery, #pulseaudio, #custom-power {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border: 2px solid @glow;
     border-radius: 8px;
@@ -55,7 +55,7 @@
 }
 #workspaces button:hover {
     color: @text;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-color: @secondary;
     box-shadow: 0 0 6px rgba(255, 100, 0, 0.10),

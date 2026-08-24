@@ -1,6 +1,6 @@
 /* Pulse — Energy wave: thick glow borders, pulsating color bleed, rhythmic depth */
 .modules-left, .modules-center, .modules-right {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border: 2px solid @glow;
     border-radius: 14px;
@@ -55,7 +55,7 @@
 }
 #workspaces button:hover {
     color: @accent;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-color: @secondary;
     box-shadow: 0 0 6px rgba(255, 100, 0, 0.08),
@@ -74,7 +74,7 @@
 #clock {
     color: @glow;
     font-weight: 800;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-radius: 10px;
     padding: 0 12px;

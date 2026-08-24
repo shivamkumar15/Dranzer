@@ -1,0 +1,116 @@
+/* Aurora — Glassy panels under a soft polar-light gradient crown.
+ * A primary→accent→glow gradient runs along the top edge of each panel,
+ * with frosted fills and gentle outer glow. */
+.modules-left, .modules-center, .modules-right {
+    background-color: alpha(@bg, 0.80);
+    background-image: linear-gradient(90deg, transparent 0%, @primary 18%, @accent 50%, @glow 82%, transparent 100%);
+    background-size: 96% 2px;
+    background-position: center top;
+    background-repeat: no-repeat;
+    border: 1px solid @secondary;
+    border-radius: 14px;
+    padding: 4px 12px;
+    margin: 5px 6px;
+    color: @text;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.modules-center {
+    background-image: linear-gradient(90deg, transparent 0%, @glow 20%, @primary 50%, @accent 80%, transparent 100%);
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 0 3px;
+    padding: 0 6px;
+}
+
+/* Workspace buttons — drifting lights */
+#workspaces button {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 8px;
+    margin: 2px 2px;
+    border-radius: 8px;
+    border: none;
+    opacity: 0.65;
+}
+#workspaces button.active {
+    color: @bg;
+    background-image: linear-gradient(135deg, @primary, @glow);
+    font-weight: 800;
+    opacity: 1.0;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.10);
+}
+#workspaces button:hover {
+    color: @accent;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    opacity: 1.0;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background-image: linear-gradient(135deg, @accent, @primary);
+}
+
+/* Clock — the north star */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    border-radius: 9px;
+    padding: 0 12px;
+    border: 1px solid @secondary;
+}
+
+/* Module colors — cold light spectrum */
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @accent; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @primary; font-weight: 700; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network         { color: @primary; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @accent; }
+#cpu             { color: @glow; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — aurora flare */
+#custom-power {
+    color: @bg;
+    background-image: linear-gradient(135deg, @accent, @primary, @glow);
+    border-radius: 9px;
+    padding: 0 10px;
+    font-weight: 800;
+    margin: 2px 2px;
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.08),
+                0 3px 10px rgba(0, 0, 0, 0.5);
+}
+#battery.critical:not(.charging) {
+    background-image: linear-gradient(135deg, @secondary, @glow);
+    background-color: transparent;
+    color: @text;
+    animation: none;
+    border-radius: 8px;
+    box-shadow: 0 0 12px rgba(255, 60, 0, 0.25);
+}

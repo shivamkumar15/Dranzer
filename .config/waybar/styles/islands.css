@@ -1,0 +1,107 @@
+/* Islands — every module floats as its own frosted island chip.
+ * No shared panel: each stat drifts independently over the wallpaper. */
+.modules-left, .modules-center, .modules-right {
+    background: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background-color: alpha(@bg, 0.80);
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    border: 1px solid @secondary;
+    border-radius: 16px;
+    padding: 3px 13px;
+    margin: 5px 3px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.40),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+#window {
+    border-radius: 16px;
+    max-width: 340px;
+}
+
+/* Workspace buttons — pebbles */
+#workspaces button {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 6px;
+    margin: 0 1px;
+    border-radius: 10px;
+    border: none;
+    opacity: 0.55;
+}
+#workspaces button.active {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+    font-weight: 800;
+    opacity: 1.0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+#workspaces button:hover {
+    color: @accent;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    opacity: 1.0;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background: @accent;
+    background-image: none;
+}
+
+/* Clock — the lagoon */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    background-color: alpha(@bg-alt, 0.85);
+    border-color: @primary;
+}
+
+/* Stat colors — calm waters */
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @accent; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @primary; font-weight: 700; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network         { color: @primary; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @accent; }
+#cpu             { color: @glow; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — volcanic islet */
+#custom-power {
+    color: @bg;
+    background-color: @glow;
+    border-color: @accent;
+    font-weight: 800;
+    box-shadow: 0 0 14px rgba(255, 60, 0, 0.25),
+                0 4px 12px rgba(0, 0, 0, 0.5);
+}
+#battery.critical:not(.charging) {
+    background-color: @secondary;
+    color: @accent;
+    animation: none;
+}

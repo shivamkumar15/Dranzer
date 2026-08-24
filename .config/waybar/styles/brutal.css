@@ -1,0 +1,116 @@
+/* Brutal — Neo-brutalist: raw squares, thick borders, hard offset shadows.
+ * No gradients, no soft glow — just bold flat slabs that punch forward. */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg, 0.80);
+    background-image: none;
+    border: 2px solid @text;
+    border-radius: 0;
+    padding: 4px 10px;
+    margin: 6px 8px;
+    color: @text;
+    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.85);
+}
+.modules-center {
+    border-color: @accent;
+    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.85);
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 800;
+    margin: 0 3px;
+    padding: 0 7px;
+}
+
+/* Workspace buttons — concrete blocks */
+#workspaces button {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 800;
+    padding: 1px 9px;
+    margin: 3px 3px;
+    border-radius: 0;
+    border: 2px solid transparent;
+}
+#workspaces button.active {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+    border: 2px solid @text;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.85);
+}
+#workspaces button:hover {
+    color: @text;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    border: 2px solid @secondary;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background: @accent;
+    background-image: none;
+    border: 2px solid @text;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.85);
+}
+
+/* Clock — stamped slab */
+#clock {
+    color: @bg;
+    background: @accent;
+    background-image: none;
+    border-radius: 0;
+    padding: 1px 12px;
+    margin: 3px 3px;
+    border: 2px solid @text;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.85);
+}
+
+/* Module colors — primary ink */
+#window          { color: @text; font-weight: 800; }
+#custom-hint     { color: @accent; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @primary; font-weight: 800; }
+#custom-netspeed { color: @accent; font-weight: 800; }
+#network         { color: @text; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @text; }
+#cpu             { color: @primary; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @text; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; }
+#pulseaudio      { color: @text; }
+#pulseaudio.muted { color: @secondary; text-decoration: line-through; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — the red switch */
+#custom-power {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+    border-radius: 0;
+    padding: 1px 11px;
+    margin: 3px 3px;
+    font-weight: 800;
+    border: 2px solid @text;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.85);
+}
+#battery.critical:not(.charging) {
+    background: @secondary;
+    background-image: none;
+    color: @text;
+    animation: none;
+    border-radius: 0;
+    border: 2px solid @text;
+}

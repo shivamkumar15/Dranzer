@@ -1,0 +1,105 @@
+{
+  "height": 38,
+  "spacing": 0,
+  "margin-top": 8,
+  "margin-left": 14,
+  "margin-right": 14,
+  "modules-left": [
+    "custom/logo",
+    "hyprland/workspaces",
+    "custom/cava"
+  ],
+  "modules-center": [
+    "clock"
+  ],
+  "modules-right": [
+    "custom/mic",
+    "pulseaudio",
+    "network",
+    "bluetooth",
+    "battery",
+    "custom/notification",
+    "custom/settings"
+  ],
+  "custom/logo": {
+    "format": "󰣇",
+    "tooltip": false
+  },
+  "hyprland/workspaces": {
+    "disable-scrolling": false,
+    "all-outputs": true,
+    "sort-by-number": true,
+    "format": "{icon}",
+    "format-icons": {
+      "default": "●",
+      "active": "●",
+      "urgent": "✕"
+    },
+    "on-click": "activate",
+    "persistent-workspaces": {
+      "*": [1, 2, 3, 4, 5]
+    }
+  },
+  "clock": {
+    "format": "{:%I:%M %p}",
+    "format-alt": "{:%A %d %B}",
+    "interval": 60,
+    "tooltip-format": "{:%Y-%m-%d %A}",
+    "on-click": "~/.local/bin/bitbeast-control-center"
+  },
+  "custom/mic": {
+    "exec": "~/.local/bin/waybar-mic.sh",
+    "return-type": "json",
+    "format": "{}",
+    "tooltip": false,
+    "interval": 3,
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
+    "restart-interval": 5
+  },
+  "pulseaudio": {
+    "format": "{icon}",
+    "format-muted": "󰝟",
+    "format-icons": {
+      "default": ["󰕿", "󰖀", "󰕾"]
+    },
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "~/.local/bin/bitbeast-control-center"
+  },
+  "network": {
+    "format": "{icon}",
+    "format-wifi": "󰖩",
+    "format-ethernet": "󰈀",
+    "format-disconnected": "󰖪",
+    "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+    "tooltip-format-disconnected": "Disconnected",
+    "on-click": "~/.local/bin/bitbeast-control-center"
+  },
+  "bluetooth": {
+    "format": "󰂯",
+    "format-disabled": "󰂲",
+    "format-connected": "󰂱",
+    "tooltip-format": "Bluetooth on",
+    "tooltip-format-connected": "{device_alias}",
+    "tooltip-format-disabled": "Bluetooth off",
+    "on-click": "~/.local/bin/bitbeast-control-center"
+  },
+  "battery": {
+    "format": "{icon} {capacity}%",
+    "format-icons": {
+      "default": ["󰁺", "󰁼", "󰁾", "󰂀", "󰁹"]
+    },
+    "format-charging": "󰂄 {capacity}%",
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
+    "interval": 5,
+    "on-click": "~/.local/bin/bitbeast-control-center"
+  },
+  "custom/settings": {
+    "format": "󰒓",
+    "tooltip": "Control Center",
+    "on-click": "~/.local/bin/bitbeast-control-center",
+    "on-click-right": "~/.local/bin/bitbeast-power-popup"
+  }
+}

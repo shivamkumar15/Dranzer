@@ -305,6 +305,7 @@ class OsdWindow(Gtk.Window):
         t = self.theme
         primary = t.get("primary", PRIMARY)
         accent = t.get("accent", ACCENT)
+        secondary = t.get("secondary", primary)
         text = t.get("text", TEXT)
         bg = t.get("bg", BG)
         css = f"""
@@ -312,47 +313,64 @@ class OsdWindow(Gtk.Window):
             background: transparent;
         }}
         #osd-frame {{
-            background-color: {hex_to_rgba(bg, 0.88)};
-            border: 1px solid {hex_to_rgba(primary, 0.40)};
-            border-radius: 22px;
-            padding: 14px 20px;
-            box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55);
+            background-color: {hex_to_rgba(bg, 0.92)};
+            border: 1px solid {hex_to_rgba(primary, 0.30)};
+            border-radius: 26px;
+            padding: 16px 22px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.60),
+                        0 6px 18px rgba(0, 0, 0, 0.45),
+                        inset 0 1px 0 {hex_to_rgba(text, 0.06)};
+        }}
+        #osd-badge {{
+            min-width: 52px;
+            min-height: 52px;
+            border-radius: 26px;
+            background-image: linear-gradient(135deg, {hex_to_rgba(primary, 0.30)}, {hex_to_rgba(accent, 0.14)});
+            border: 1px solid {hex_to_rgba(primary, 0.55)};
+            box-shadow: inset 0 1px 0 {hex_to_rgba(text, 0.08)},
+                        0 4px 14px rgba(0, 0, 0, 0.35);
         }}
         #osd-icon {{
             font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
-            font-size: 26px;
-            color: {primary};
-            min-width: 36px;
-        }}
-        #osd-label {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 13px;
-            font-weight: 700;
+            font-size: 24px;
             color: {text};
-            min-width: 48px;
+            text-shadow: 0 0 10px {hex_to_rgba(primary, 0.85)};
+        }}
+        #osd-value {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            color: {text};
+            background-color: {hex_to_rgba(text, 0.07)};
+            border: 1px solid {hex_to_rgba(text, 0.16)};
+            border-radius: 12px;
+            padding: 5px 11px;
+            min-width: 58px;
         }}
         #osd-title {{
             font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 800;
             color: {t.get('text_dim', TEXT_DIM)};
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }}
-        progressbar trough {{
-            min-height: 10px;
+        #osd-bar trough {{
+            min-height: 8px;
             border-radius: 999px;
-            background-color: {hex_to_rgba(text, 0.12)};
+            background-color: {hex_to_rgba(text, 0.09)};
             border: none;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
         }}
-        progressbar progress {{
-            min-height: 10px;
+        #osd-bar progress {{
+            min-height: 8px;
             border-radius: 999px;
             background-image: linear-gradient(90deg, {primary}, {accent});
             border: none;
+            box-shadow: 0 0 14px {hex_to_rgba(primary, 0.50)};
         }}
-        progressbar.muted progress {{
-            background-image: none;
-            background-color: {hex_to_rgba(text, 0.28)};
+        #osd-bar.muted progress {{
+            background-image: linear-gradient(90deg, {hex_to_rgba(secondary, 0.9)}, {hex_to_rgba(text, 0.25)});
+            box-shadow: none;
         }}
         """
         provider = Gtk.CssProvider()
@@ -364,29 +382,39 @@ class OsdWindow(Gtk.Window):
         )
 
     def _build_ui(self) -> None:
-        frame = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        frame = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
         frame.set_name("osd-frame")
+
+        badge = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        badge.set_name("osd-badge")
+        badge.set_valign(Gtk.Align.CENTER)
 
         self.icon_label = Gtk.Label(label="")
         self.icon_label.set_name("osd-icon")
         self.icon_label.set_halign(Gtk.Align.CENTER)
-        frame.pack_start(self.icon_label, False, False, 0)
+        self.icon_label.set_valign(Gtk.Align.CENTER)
+        badge.pack_start(self.icon_label, True, True, 0)
+        frame.pack_start(badge, False, False, 0)
 
         mid = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        mid.set_valign(Gtk.Align.CENTER)
         self.title_label = Gtk.Label(label="")
         self.title_label.set_name("osd-title")
         self.title_label.set_halign(Gtk.Align.START)
         mid.pack_start(self.title_label, False, False, 0)
 
         self.bar = Gtk.ProgressBar()
+        self.bar.set_name("osd-bar")
         self.bar.set_fraction(0)
-        self.bar.set_size_request(220, 10)
+        self.bar.set_size_request(240, 8)
+        self.bar.set_valign(Gtk.Align.CENTER)
         mid.pack_start(self.bar, False, False, 0)
         frame.pack_start(mid, True, True, 0)
 
         self.value_label = Gtk.Label(label="0%")
-        self.value_label.set_name("osd-label")
-        self.value_label.set_halign(Gtk.Align.END)
+        self.value_label.set_name("osd-value")
+        self.value_label.set_halign(Gtk.Align.CENTER)
+        self.value_label.set_valign(Gtk.Align.CENTER)
         frame.pack_start(self.value_label, False, False, 0)
 
         self.add(frame)
@@ -398,7 +426,7 @@ class OsdWindow(Gtk.Window):
         self.muted = muted
 
         if kind == "volume":
-            self.title_label.set_text("Volume" if not muted else "Muted")
+            self.title_label.set_text("VOLUME" if not muted else "MUTED")
             self.icon_label.set_text(volume_icon(self.percent, muted))
             # 100% fills the bar; values above 100 still show as full
             if muted:
@@ -413,7 +441,7 @@ class OsdWindow(Gtk.Window):
             else:
                 ctx.remove_class("muted")
         else:
-            self.title_label.set_text("Brightness")
+            self.title_label.set_text("BRIGHTNESS")
             self.icon_label.set_text(brightness_icon(self.percent))
             self.bar.set_fraction(min(max(self.percent, 0), 100) / 100.0)
             self.value_label.set_text(f"{self.percent}%")

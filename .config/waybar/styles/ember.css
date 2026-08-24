@@ -1,6 +1,6 @@
 /* Ember — Smoldering coals: warm inner glows, heat-shimmer shadows, molten edges */
 .modules-left, .modules-center, .modules-right {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border: 1px solid @secondary;
     border-bottom: 2px solid @glow;
@@ -54,7 +54,7 @@
 }
 #workspaces button:hover {
     color: @accent;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-color: @secondary;
     box-shadow: 0 0 8px rgba(255, 60, 0, 0.15),
@@ -73,7 +73,7 @@
 #clock {
     color: @accent;
     font-weight: 800;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-radius: 8px;
     padding: 0 12px;

@@ -1,0 +1,123 @@
+/* macOS — one floating pill across the top: logo + workspace dots on the
+ * left, big centered time, status cluster on the right. Pairs with the
+ * bitbeast-control-center panel (gear icon / Super+C). */
+window#waybar {
+    background: alpha(@bg, 0.72);
+    border: 1px solid alpha(@text, 0.06);
+    border-radius: 19px;
+    color: @text;
+}
+.modules-left, .modules-center, .modules-right {
+    background: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+}
+#custom-logo {
+    color: @primary;
+    font-size: 17px;
+    font-weight: 800;
+    padding: 0 6px 0 14px;
+    margin: 0 4px;
+}
+#workspaces, #custom-cava, #clock, #custom-mic, #pulseaudio, #network,
+#bluetooth, #battery, #custom-notification, #custom-settings,
+#custom-hint, #window, #custom-media, #custom-netspeed, #backlight,
+#cpu, #memory, #temperature, #load, #disk, #custom-updates, #tray,
+#custom-power, #language {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    padding: 0 7px;
+    margin: 0 1px;
+}
+
+/* Workspace dots — active one becomes a wide pill */
+#workspaces button {
+    color: alpha(@text, 0.45);
+    background: transparent;
+    background-image: none;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0 5px;
+    margin: 0 2px;
+    border-radius: 10px;
+    border: none;
+    transition: all 0.25s ease;
+}
+#workspaces button.active {
+    color: @bg;
+    background: alpha(@text, 0.85);
+    font-weight: 800;
+    padding: 0 14px;
+    box-shadow: 0 0 10px alpha(@text, 0.25);
+}
+#workspaces button:hover {
+    color: @text;
+    background: alpha(@text, 0.15);
+}
+#workspaces button.urgent {
+    color: @bg;
+    background: @glow;
+}
+
+/* Clock — the centerpiece */
+#clock {
+    color: @text;
+    font-size: 15px;
+    font-weight: 800;
+    padding: 0 10px;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+/* Status cluster */
+#custom-cava  { color: @cava-color; padding-right: 12px; }
+#custom-mic        { color: @text; }
+#custom-mic.muted  { color: @secondary; }
+#pulseaudio        { color: @text; }
+#pulseaudio.muted  { color: @secondary; }
+#network           { color: @text; }
+#network.disconnected { color: @secondary; }
+#bluetooth         { color: @text; }
+#bluetooth.disabled { color: alpha(@text, 0.35); }
+#battery           { color: @text; font-weight: 800; }
+#battery.charging, #battery.plugged { color: @glow; }
+#battery.warning:not(.charging) { color: @accent; }
+#custom-notification { color: @text; }
+
+/* Gear — opens the control center */
+#custom-settings {
+    color: @text;
+    font-size: 15px;
+    padding: 0 14px 0 8px;
+    border-radius: 12px;
+}
+#custom-settings:hover {
+    color: @accent;
+    background: alpha(@text, 0.08);
+}
+
+/* Fallbacks for other layouts using this skin */
+#window, #custom-hint, #custom-media, #custom-netspeed { color: @text; }
+#backlight, #memory, #custom-updates, #language { color: @accent; }
+#cpu, #temperature, #load, #custom-notification { color: @text; }
+#temperature.critical { color: @glow; }
+#disk { color: @secondary; }
+#tray { color: @text; }
+#custom-power {
+    color: @bg;
+    background: @primary;
+    background-image: none;
+    border-radius: 12px;
+    padding: 0 11px;
+    font-weight: 800;
+    margin: 0 10px 0 4px;
+}
+#battery.critical:not(.charging) {
+    color: @bg;
+    background: @secondary;
+    background-image: none;
+    border-radius: 10px;
+    animation: none;
+}

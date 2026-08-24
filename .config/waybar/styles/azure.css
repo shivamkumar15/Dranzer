@@ -1,6 +1,6 @@
 /* Azure — Ice crystal: frosted surfaces, cool inner highlights, refracted light edges */
 window#waybar {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border: 1px solid @secondary;
     border-radius: 16px;
@@ -29,7 +29,7 @@ window#waybar {
 }
 /* Clock — refracted ice lens */
 #clock {
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-radius: 10px;
     padding: 0 14px;
@@ -66,7 +66,7 @@ window#waybar {
 }
 #workspaces button:hover {
     color: @accent;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-color: @secondary;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),

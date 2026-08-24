@@ -1,6 +1,6 @@
 /* HUD — Tactical display: scan-line borders, radar-green accents, data-readout precision */
 .modules-left, .modules-center, .modules-right {
-    background: @bg;
+    background: alpha(@bg, 0.80);
     background-image: none;
     border-top: 2px solid @glow;
     border-bottom: 2px solid @glow;
@@ -59,7 +59,7 @@
 }
 #workspaces button:hover {
     color: @accent;
-    background: @bg-alt;
+    background: alpha(@bg-alt, 0.85);
     background-image: none;
     border-color: @secondary;
     box-shadow: 0 0 6px rgba(255, 100, 0, 0.08),

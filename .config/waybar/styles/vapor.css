@@ -1,0 +1,120 @@
+/* Vapor — retro-future chrome: gradient borders, neon text glow, sunset haze.
+ * Panels melt from primary into accent like an endless dusk highway. */
+.modules-left, .modules-center, .modules-right {
+    background: alpha(@bg, 0.80);
+    background-image: none;
+    border: 1px solid @primary;
+    border-radius: 4px;
+    padding: 4px 12px;
+    margin: 5px 6px;
+    color: @text;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.55),
+                0 0 6px @primary,
+                inset 0 -14px 24px -18px @glow,
+                inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.modules-center {
+    border-color: @accent;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.55),
+                0 0 6px @accent,
+                inset 0 -14px 24px -18px @primary;
+}
+#workspaces, #custom-hint, #custom-cava, #window, #custom-media, #clock,
+#custom-netspeed, #network, #backlight, #cpu, #memory, #battery, #pulseaudio,
+#custom-notification, #custom-power {
+    background: transparent;
+    background-image: none;
+    color: @text;
+    font-weight: 700;
+    margin: 0 3px;
+    padding: 0 7px;
+}
+
+/* Workspace buttons — grid cells */
+#workspaces button {
+    color: @text;
+    background: transparent;
+    background-image: none;
+    font-weight: 700;
+    padding: 0 8px;
+    margin: 2px 2px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+}
+#workspaces button.active {
+    color: @bg;
+    background: @primary;
+    background-image: linear-gradient(180deg, @accent, @primary);
+    font-weight: 800;
+    border-color: @text;
+    box-shadow: 0 0 12px @glow;
+}
+#workspaces button:hover {
+    color: @accent;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    border-color: @secondary;
+}
+#workspaces button.urgent {
+    color: @bg;
+    background-image: linear-gradient(180deg, @primary, @glow);
+    border-color: @text;
+}
+
+/* Clock — midnight dashboard */
+#clock {
+    color: @accent;
+    font-weight: 800;
+    background: alpha(@bg-alt, 0.85);
+    background-image: none;
+    border-radius: 3px;
+    padding: 0 12px;
+    border: 1px solid @secondary;
+    text-shadow: 0 0 8px @accent;
+}
+
+/* Module colors — neon signage */
+#window          { color: @text; font-weight: 700; }
+#custom-hint     { color: @accent; }
+#custom-cava     { color: @cava-color; }
+#custom-media    { color: @glow; font-weight: 700; text-shadow: 0 0 6px @glow; }
+#custom-netspeed { color: @accent; font-weight: 700; }
+#network         { color: @primary; }
+#network.disconnected { color: @secondary; }
+#backlight       { color: @accent; }
+#cpu             { color: @glow; }
+#memory          { color: @accent; }
+#temperature     { color: @primary; }
+#temperature.critical { color: @glow; text-shadow: 0 0 8px @glow; }
+#load            { color: @glow; }
+#disk            { color: @secondary; }
+#custom-updates  { color: @accent; }
+#bluetooth       { color: @primary; }
+#battery         { color: @text; }
+#battery.charging, #battery.plugged { color: @glow; text-shadow: 0 0 6px @glow; }
+#pulseaudio      { color: @primary; }
+#pulseaudio.muted { color: @secondary; }
+#language        { color: @accent; font-weight: 800; }
+#custom-notification { color: @glow; }
+#tray { color: @text; }
+
+/* Power — out of time */
+#custom-power {
+    color: @bg;
+    background-image: linear-gradient(135deg, @glow, @primary);
+    border-radius: 3px;
+    padding: 0 11px;
+    font-weight: 800;
+    margin: 2px 2px;
+    border: 1px solid @text;
+    box-shadow: 0 0 14px @glow;
+}
+#battery.critical:not(.charging) {
+    background-image: none;
+    background-color: @secondary;
+    color: @accent;
+    animation: none;
+    border-radius: 3px;
+    border: 1px solid @glow;
+    box-shadow: 0 0 10px @glow;
+}
