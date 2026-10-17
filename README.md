@@ -95,17 +95,7 @@ bitbeast list
 
 ## Usage & Commands
 
-The `bitbeast` command is your main tool for managing themes.
-
-| Command | Description |
-| :--- | :--- |
-| `bitbeast <theme>` | Apply a specific theme (e.g., `bitbeast dranzer`) |
-| `bitbeast pick` | Open an interactive Rofi menu to pick a theme |
-| `bitbeast style <name>` | Switch Waybar style (e.g., `bitbeast style cyber`) |
-| `bitbeast pick-style` | Open an interactive Rofi menu to pick a Waybar style |
-| `bitbeast style cycle` | Cycle through all available Waybar styles |
-| `bitbeast list` | List all installed themes |
-| `bitbeast keybindings` | Show the premium GTK3 keyboard hints panel (or `Super + H`) |
+The `bitbeast` command is your main tool for managing theme
 
 ### Keyboard Hints Panel
 Press **`Super + H`** at any time to open the premium keyboard shortcuts panel. It features a masonry layout, live search, and dynamic grouping directly generated from your `hyprland.conf` comments.
