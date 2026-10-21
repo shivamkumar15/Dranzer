@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# cava-spiral — rotating Orion ring visualizer (SDL/OpenGL window).
+# Config is installed from the dotfiles repo to ~/.config/cava/spiral.conf.
+set -euo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cava"
+exec cava -p "$CONFIG_DIR/spiral.conf" "$@"

@@ -132,6 +132,17 @@ The configuration includes a custom Fastfetch layout with BitBeast logos. Run it
 fastfetch
 ```
 
+### Cava Visualizers
+Three cava profiles are available after installation:
+
+| Command | What it does |
+| :--- | :--- |
+| `cava` | Terminal bars colored by the active BitBeast theme (`~/.config/cava/config`) |
+| `cava-j` | Terminal bars with the purple/blue/red gradient profile (`~/.config/cava/josh.conf`) |
+| `cava-spiral` | Rotating Orion ring visualizer in an SDL/OpenGL window (`~/.config/cava/spiral.conf`) |
+
+The profile configs are installed to `~/.config/cava/`, and the GLSL shaders used by `cava-spiral` are installed to `~/.config/cava/shaders/`.
+
 ---
 
 ## Included Themes

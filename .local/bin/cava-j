@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# cava-j — cava with the "Josh" profile (purple/blue/red gradient bars).
+# Config is installed from the dotfiles repo to ~/.config/cava/josh.conf.
+set -euo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cava"
+exec cava -p "$CONFIG_DIR/josh.conf" "$@"
