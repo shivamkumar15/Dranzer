@@ -518,6 +518,10 @@ install_file "$REPO_DIR/.config/rofi/bitbeast.rasi" "$CONFIG_HOME/rofi/bitbeast.
 install_file "$REPO_DIR/.config/rofi/overview.rasi" "$CONFIG_HOME/rofi/overview.rasi"
 install_dir "$REPO_DIR/.config/swaync" "$CONFIG_HOME/swaync"
 install_dir "$REPO_DIR/.config/fastfetch" "$CONFIG_HOME/fastfetch"
+# Cava profiles: josh (gradient bars) + spiral (rotating Orion ring) and its shaders
+install_file "$REPO_DIR/.config/cava/josh.conf" "$CONFIG_HOME/cava/josh.conf"
+install_file "$REPO_DIR/.config/cava/spiral.conf" "$CONFIG_HOME/cava/spiral.conf"
+install_dir "$REPO_DIR/.config/cava/shaders" "$CONFIG_HOME/cava/shaders"
 install_dir "$REPO_DIR/web-wallpaper-selector" "$DATA_HOME/bitbeast/web-wallpaper-selector"
 # Prefer full bitbeast CLI (includes layout-aware style switching)
 if [ -f "$REPO_DIR/.local/bin/bitbeast" ]; then
@@ -549,7 +553,9 @@ install_file "$REPO_DIR/.local/bin/toggle-transparency" "$BIN_DIR/toggle-transpa
 install_file "$REPO_DIR/.local/bin/waybar-cava.sh" "$BIN_DIR/waybar-cava.sh"
 install_file "$REPO_DIR/.local/bin/waybar-netspeed.sh" "$BIN_DIR/waybar-netspeed.sh"
 install_file "$REPO_DIR/.local/bin/waybar-updates.sh" "$BIN_DIR/waybar-updates.sh"
-chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/toggle-transparency" "$BIN_DIR/waybar-cava.sh" "$BIN_DIR/waybar-netspeed.sh" "$BIN_DIR/waybar-updates.sh"
+install_file "$REPO_DIR/.local/bin/cava-j" "$BIN_DIR/cava-j"
+install_file "$REPO_DIR/.local/bin/cava-spiral" "$BIN_DIR/cava-spiral"
+chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/toggle-transparency" "$BIN_DIR/waybar-cava.sh" "$BIN_DIR/waybar-netspeed.sh" "$BIN_DIR/waybar-updates.sh" "$BIN_DIR/cava-j" "$BIN_DIR/cava-spiral"
 
 if [ -f "$REPO_DIR/.local/bin/bongocat" ]; then
     printf "Extracting BongoCat AppImage...\n"
