@@ -88,7 +88,8 @@ check_dependencies() {
             pacman:slurp|yay:slurp|paru:slurp|apt:slurp|dnf:slurp) printf 'slurp' ;;
             pacman:wl-copy|yay:wl-copy|paru:wl-copy|apt:wl-copy|dnf:wl-copy) printf 'wl-clipboard' ;;
             pacman:pavucontrol|yay:pavucontrol|paru:pavucontrol|apt:pavucontrol|dnf:pavucontrol) printf 'pavucontrol' ;;
-            pacman:network-manager-applet|yay:network-manager-applet|paru:network-manager-applet|apt:network-manager-applet|dnf:network-manager-applet) printf 'network-manager-applet' ;;
+            pacman:network-manager-applet|yay:network-manager-applet|paru:network-manager-applet|dnf:network-manager-applet) printf 'network-manager-applet' ;;
+            apt:network-manager-applet) printf 'network-manager-gnome' ;;
             pacman:blueman|yay:blueman|paru:blueman|apt:blueman|dnf:blueman) printf 'blueman' ;;
             pacman:normcap|yay:normcap|paru:normcap|apt:normcap|dnf:normcap) printf "normcap for text extraction from text" ;;
             pacman:jetbrainsmono-nerd|yay:jetbrainsmono-nerd|paru:jetbrainsmono-nerd) printf 'ttf-jetbrains-mono-nerd' ;;
@@ -155,10 +156,11 @@ check_dependencies() {
         add_missing_opt "brightnessctl" "brightnessctl or light"
     fi
 
-    for cmd in grim slurp wl-copy pavucontrol nm-applet blueman-manager; do
+    for cmd in grim slurp wl-copy pavucontrol nm-applet nm-connection-editor blueman-manager; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             case "$cmd" in
                 nm-applet) add_missing_opt "network-manager-applet" "network-manager-applet" ;;
+                nm-connection-editor) add_missing_opt "network-manager-applet" "NetworkManager connection editor" ;;
                 blueman-manager) add_missing_opt "blueman" "blueman" ;;
                 *) add_missing_opt "$cmd" "$cmd" ;;
             esac

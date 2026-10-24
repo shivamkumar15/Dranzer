@@ -221,7 +221,24 @@ def wifi_radio_on() -> bool:
 
 
 def wifi_current_name() -> str:
-    out = cmd(["nmcli", "-t", "-f", "ACTIVE,SSID", "device", "wifi"], timeout=5)
+    # The active connection profile is instant and does not depend on a scan.
+    out = cmd(
+        ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show", "--active"],
+        timeout=5,
+    )
+    for line in out.splitlines():
+        parts = _split_nmcli(line)
+        if len(parts) >= 2 and parts[1].strip() == "802-11-wireless":
+            return parts[0].strip()
+
+    # Fallback to the cached scan list (--rescan no keeps this instant too).
+    out = cmd(
+        [
+            "nmcli", "-t", "-f", "ACTIVE,SSID", "device", "wifi", "list",
+            "--rescan", "no",
+        ],
+        timeout=5,
+    )
     for line in out.splitlines():
         parts = _split_nmcli(line)
         if len(parts) >= 2 and parts[0].strip() in ("*", "yes"):
@@ -244,8 +261,14 @@ def wifi_networks(rescan: bool = False) -> list[dict]:
         return []
     if rescan:
         cmd(["nmcli", "device", "wifi", "rescan"], timeout=8)
+        # nmcli starts the rescan asynchronously; give it a moment before
+        # reading the cached list.
+        time.sleep(1.2)
     out = cmd(
-        ["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list"],
+        [
+            "nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY",
+            "device", "wifi", "list", "--rescan", "no",
+        ],
         timeout=10,
     )
     profiles = saved_wifi_profiles()
@@ -677,6 +700,7 @@ class ConnectionDetail(Gtk.Box):
         self.mode = "wifi"
         self._networks: list[dict] = []
         self._devices: list[dict] = []
+        self._empty_label: Gtk.Label | None = None
         self._wifi_sig = None
         self._bt_sig = None
         self._sync_switch = False
@@ -831,6 +855,10 @@ class ConnectionDetail(Gtk.Box):
         self._refresh_activity()
 
         if mode == "wifi":
+            if "networks" in self.cc.state:
+                self._networks = (
+                    self.cc.state["networks"] if self.cc.state.get("wifi_on") else []
+                )
             self.title.set_text("Wi-Fi")
             self.section_title.set_text("Networks")
             self.footer_icon.set_text(I_PLUS)
@@ -840,6 +868,10 @@ class ConnectionDetail(Gtk.Box):
             self.refresh_btn.set_tooltip_text("Scan for networks")
             self._rebuild_list(self._networks, self._wifi_row)
         else:
+            if "devices" in self.cc.state:
+                self._devices = (
+                    self.cc.state["devices"] if self.cc.state.get("bt_on") else []
+                )
             self.title.set_text("Bluetooth")
             self.section_title.set_text("Devices")
             self.footer.hide()
@@ -868,9 +900,17 @@ class ConnectionDetail(Gtk.Box):
     def _sync_from_state(self) -> None:
         st = self.cc.state
         if self.mode == "wifi":
+            if "wifi_on" not in st:
+                self.status_title.set_text("Wi-Fi")
+                self.status_sub.set_text("Checking status…")
+                self.disconnect_btn.hide()
+                self.power_switch.set_sensitive(False)
+                self._refresh_empty_text()
+                return
             available = st.get("wifi_available", True)
             powered = bool(st.get("wifi_on"))
             name = st.get("wifi_name", "")
+            self.power_switch.set_sensitive(available)
             if not self._action_text:
                 self._set_switch(powered)
             if not available:
@@ -890,10 +930,18 @@ class ConnectionDetail(Gtk.Box):
                 self.status_sub.set_text("Turn on Wi-Fi to see networks")
                 self.disconnect_btn.hide()
         else:
+            if "bt_on" not in st:
+                self.status_title.set_text("Bluetooth")
+                self.status_sub.set_text("Checking status…")
+                self.disconnect_btn.hide()
+                self.power_switch.set_sensitive(False)
+                self._refresh_empty_text()
+                return
             available = st.get("bt_available", True)
             powered = bool(st.get("bt_on"))
             names = st.get("bt_names") or []
             self.disconnect_btn.hide()
+            self.power_switch.set_sensitive(available)
             if not self._action_text:
                 self._set_switch(powered)
             if not available:
@@ -911,6 +959,7 @@ class ConnectionDetail(Gtk.Box):
             else:
                 self.status_title.set_text("Bluetooth is off")
                 self.status_sub.set_text("Turn on Bluetooth to see devices")
+        self._refresh_empty_text()
 
     def _set_switch(self, active: bool) -> None:
         self._sync_switch = True
@@ -943,6 +992,7 @@ class ConnectionDetail(Gtk.Box):
         if not text:
             self.activity_spinner.stop()
             self.activity.hide()
+            self._refresh_empty_text()
             return
 
         self.activity_label.set_text(text)
@@ -958,6 +1008,7 @@ class ConnectionDetail(Gtk.Box):
             self.activity_spinner.stop()
             self.activity_spinner.hide()
         self.activity.show_all()
+        self._refresh_empty_text()
 
     def _set_action(self, text: str | None) -> None:
         self._action_text = text
@@ -982,6 +1033,9 @@ class ConnectionDetail(Gtk.Box):
     def _show_list_page(self) -> None:
         self.stack.set_visible_child_name("list")
         self.cc.set_detail_keyboard(False)
+
+    def auth_open(self) -> bool:
+        return self.stack.get_visible_child_name() == "auth"
 
     def _update_wifi_list(self, networks: list[dict]) -> None:
         sig = tuple(
@@ -1017,6 +1071,28 @@ class ConnectionDetail(Gtk.Box):
         self._devices = devices
         self._rebuild_list(devices, self._bt_row)
 
+    def _empty_text(self) -> str:
+        st = self.cc.state
+        if self.mode == "wifi":
+            if "wifi_on" not in st:
+                return "Loading networks…"
+            if not st.get("wifi_on"):
+                return "Wi-Fi is off\nTurn it on to see nearby networks"
+            if self._scanning:
+                return "Looking for nearby networks…"
+            return "No networks found\nTry scanning again"
+        if "bt_on" not in st:
+            return "Loading devices…"
+        if not st.get("bt_on"):
+            return "Bluetooth is off\nTurn it on to see your devices"
+        if self._scanning:
+            return "Looking for nearby devices…"
+        return "No devices found\nPut a device in pairing mode and scan"
+
+    def _refresh_empty_text(self) -> None:
+        if self._empty_label is not None:
+            self._empty_label.set_text(self._empty_text())
+
     def _rebuild_list(self, items: list[dict], row_factory) -> None:
         adjustment = self.scrolled.get_vadjustment()
         if self._reset_scroll:
@@ -1025,23 +1101,14 @@ class ConnectionDetail(Gtk.Box):
         else:
             scroll_pos = adjustment.get_value()
         clear_box(self.list_box)
+        self._empty_label = None
 
         if not items:
-            if self.mode == "wifi":
-                if not self.cc.state.get("wifi_on"):
-                    text = "Wi-Fi is off\nTurn it on to see nearby networks"
-                else:
-                    text = "No networks found\nTry scanning again"
-            else:
-                if not self.cc.state.get("bt_on"):
-                    text = "Bluetooth is off\nTurn it on to see your devices"
-                else:
-                    text = "No devices found\nPut a device in pairing mode and scan"
-            empty_label = Gtk.Label(label=text)
-            empty_label.set_name("cc-empty")
-            empty_label.set_line_wrap(True)
-            empty_label.set_justify(Gtk.Justification.CENTER)
-            self.list_box.pack_start(empty_label, False, False, 10)
+            self._empty_label = Gtk.Label(label=self._empty_text())
+            self._empty_label.set_name("cc-empty")
+            self._empty_label.set_line_wrap(True)
+            self._empty_label.set_justify(Gtk.Justification.CENTER)
+            self.list_box.pack_start(self._empty_label, False, False, 10)
             self.list_box.show_all()
         else:
             for item in items:
@@ -1099,12 +1166,13 @@ class ConnectionDetail(Gtk.Box):
         h.pack_end(right, False, False, 4)
 
         ev.add(h)
-        ev.connect("button-press-event", self._wifi_row_clicked, net)
+        if not net["in_use"]:
+            ev.connect("button-press-event", self._wifi_row_clicked, net)
+            set_hand_cursor(ev)
         ev.set_tooltip_text(
             f"{net['ssid']} — {_security_label(net['security'])}"
             + (" (connected)" if net["in_use"] else "")
         )
-        set_hand_cursor(ev)
         return ev
 
     def _bt_row(self, device: dict) -> Gtk.EventBox:
@@ -1162,7 +1230,6 @@ class ConnectionDetail(Gtk.Box):
         if self._action_text:
             return True
         if net["in_use"]:
-            self._disconnect_wifi()
             return True
         if net["enterprise"] and not net["saved"]:
             self._show_enterprise(net["ssid"])
@@ -1544,6 +1611,7 @@ class ControlCenter(Gtk.Window):
         self.state: dict = {}
         self._refresh_running = False
         self._detail_mode: str | None = None
+        self._pending_detail: str | None = initial_panel
         self.detail: ConnectionDetail | None = None
         self._bright_dragging = False
         self._vol_dragging = False
@@ -1559,16 +1627,20 @@ class ControlCenter(Gtk.Window):
 
         self._build_css()
         self._build_ui()
-        self.refresh_states()
 
         self.connect("key-press-event", self._on_key)
         self.connect("delete-event", self._on_delete)
         self.connect("destroy", self._on_destroy)
 
-        GLib.timeout_add(2500, self.refresh_states)
-
+        # When launched from the Waybar Wi-Fi/Bluetooth icons, build the detail
+        # card before the window is mapped so it appears at its full width on
+        # the first frame instead of growing out of a squeezed layout.
         if initial_panel:
-            GLib.timeout_add(120, lambda: self.open_detail(initial_panel) or False)
+            self.open_detail(initial_panel)
+
+        self.show_all()
+        self.refresh_states()
+        GLib.timeout_add(2500, self.refresh_states)
 
     # -- CSS ----------------------------------------------------------
 
@@ -2065,7 +2137,6 @@ class ControlCenter(Gtk.Window):
 
         self.root.pack_start(panel, False, False, 0)
         self.add(self.root)
-        self.show_all()
 
     def _bright_press(self, *_a) -> bool:
         self._bright_dragging = True
@@ -2159,6 +2230,7 @@ class ControlCenter(Gtk.Window):
         debug(f"open_detail {mode}")
         if mode not in ("wifi", "bluetooth"):
             return
+        self._pending_detail = None
         if self._detail_mode == mode and self.detail is not None:
             return
 
@@ -2222,7 +2294,7 @@ class ControlCenter(Gtk.Window):
         if self._refresh_running:
             return True
         self._refresh_running = True
-        mode = self._detail_mode
+        mode = self._detail_mode or self._pending_detail
 
         def work():
             try:
@@ -2287,7 +2359,10 @@ class ControlCenter(Gtk.Window):
             self.bt_sub.set_text("Off")
         else:
             self.bt_title.set_text("Bluetooth")
-            self.bt_sub.set_text(bt_names[0] if bt_names else "On")
+            if len(bt_names) > 1:
+                self.bt_sub.set_text(f"{len(bt_names)} devices")
+            else:
+                self.bt_sub.set_text(bt_names[0] if bt_names else "On")
 
         self.pw_sub.set_text(str(state.get("power", "balanced")).capitalize())
 
@@ -2318,7 +2393,13 @@ class ControlCenter(Gtk.Window):
     def _on_key(self, _w, event) -> bool:
         debug(f"key press {event.keyval}")
         if event.keyval == Gdk.KEY_Escape:
-            if self._detail_mode:
+            if (
+                self.detail is not None
+                and self.detail.get_visible()
+                and self.detail.auth_open()
+            ):
+                self.detail._cancel_auth()
+            elif self._detail_mode:
                 self.close_detail()
             else:
                 self.close()
