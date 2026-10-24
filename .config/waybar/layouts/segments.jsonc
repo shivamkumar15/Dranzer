@@ -42,6 +42,6 @@
     "format-ethernet": "󰈀",
     "format-disconnected": "󰤮",
     "tooltip-format": "{essid}",
-    "on-click": "nm-connection-editor"
+    "on-click": "~/.local/bin/bitbeast-control-center show wifi"
   }
 }

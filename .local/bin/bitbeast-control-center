@@ -3,22 +3,31 @@
 BitBeast Control Center — macOS-style quick settings panel for Hyprland.
 
 Usage:
-  bitbeast-control-center          # toggle (open if closed, close if open)
-  bitbeast-control-center show     # open only
+  bitbeast-control-center                 # toggle panel
+  bitbeast-control-center show            # open panel
+  bitbeast-control-center show wifi       # open Wi-Fi details
+  bitbeast-control-center show bluetooth  # open Bluetooth details
+  bitbeast-control-center close           # close panel
 
 Cards:
   Wi-Fi / Bluetooth / Power Mode rows, Do Not Disturb, Screenshot, Screen
   Record, System Theme circles (beast themes), Brightness + Volume sliders.
+
+The Wi-Fi and Bluetooth rows open a macOS-style detail popover with a network
+picker, password entry, Bluetooth scanning, pairing and battery information.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import shutil
 import signal
 import socket
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import gi
@@ -26,7 +35,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
+gi.require_version("Pango", "1.0")
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell, Pango  # noqa: E402
 
 CACHE_DIR = Path.home() / ".cache" / "bitbeast"
 SOCKET_PATH = CACHE_DIR / "cc.sock"
@@ -35,12 +45,67 @@ PID_FILE = CACHE_DIR / "cc.pid"
 CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 BEASTS_DIR = CONFIG_HOME / "bitbeasts"
 
+DEBUG_LOG = os.environ.get("BITBEAST_CC_DEBUG", "")
+
+
+def debug(message: str) -> None:
+    if not DEBUG_LOG:
+        return
+    try:
+        with open(DEBUG_LOG, "a", encoding="utf-8") as fh:
+            fh.write(f"{time.strftime('%H:%M:%S')} [{os.getpid()}] {message}\n")
+    except Exception:
+        pass
+
 # Fallback palette (Dranzer)
 BG = "#150608"
 PRIMARY = "#ff2d55"
 ACCENT = "#ffd166"
 TEXT = "#fff1dd"
 SECONDARY = "#2c0d0f"
+
+# Nerd Font glyphs
+I_WIFI = "󰖩"
+I_WIFI_OFF = "󰖪"
+I_LOCK = "󰌾"
+I_CHECK = "󰄬"
+I_CHEVRON_RIGHT = "󰅂"
+I_CHEVRON_LEFT = "󰅁"
+I_REFRESH = "󰑐"
+I_PLUS = "󰐕"
+I_BLUETOOTH = "󰂯"
+I_BLUETOOTH_CONNECTED = "󰂱"
+I_BLUETOOTH_OFF = "󰂲"
+I_HEADPHONES = "󰋋"
+I_KEYBOARD = "󰌌"
+I_MOUSE = "󰍽"
+I_PHONE = "󰏲"
+I_SPEAKER = "󰓃"
+I_GAMEPAD = "󰊴"
+I_LAPTOP = "󰌢"
+I_MONITOR = "󰍹"
+I_WATCH = "󰖟"
+I_POWER = "󰓅"
+
+BT_ICON_MAP = {
+    "audio-headset": I_HEADPHONES,
+    "audio-headphones": I_HEADPHONES,
+    "audio-card": I_SPEAKER,
+    "input-keyboard": I_KEYBOARD,
+    "input-mouse": I_MOUSE,
+    "phone": I_PHONE,
+    "input-gaming": I_GAMEPAD,
+    "computer": I_LAPTOP,
+    "video-display": I_MONITOR,
+    "watch": I_WATCH,
+}
+
+WIFI_SIGNAL_ICONS = (
+    (75, "󰤨"),
+    (50, "󰤥"),
+    (25, "󰤢"),
+    (0, "󰤟"),
+)
 
 
 def cmd(args: list[str], timeout: float = 3.0) -> str:
@@ -50,6 +115,26 @@ def cmd(args: list[str], timeout: float = 3.0) -> str:
         ).decode(errors="ignore").strip()
     except Exception:
         return ""
+
+
+def run_cmd(args: list[str], timeout: float = 20.0) -> tuple[int, str]:
+    """Run a command and return (returncode, combined output)."""
+    try:
+        p = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            errors="ignore",
+        )
+        out = "\n".join(part.strip() for part in (p.stdout, p.stderr) if part.strip())
+        return p.returncode, out.strip()
+    except subprocess.TimeoutExpired:
+        return 124, "The request timed out"
+    except FileNotFoundError:
+        return 127, "Command not found"
+    except Exception as exc:
+        return 1, str(exc)
 
 
 def spawn(args: str) -> None:
@@ -82,40 +167,370 @@ def hex_to_rgba(hex_color: str, alpha: float) -> str:
     return f"rgba({r}, {g}, {b}, {alpha})"
 
 
-# ── System state helpers ─────────────────────────────────────────────
+def _split_nmcli(line: str) -> list[str]:
+    """Split an nmcli terse line on unescaped colons and unescape values."""
+    fields: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for ch in line:
+        if escaped:
+            current.append(ch)
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        elif ch == ":":
+            fields.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    if escaped:
+        current.append("\\")
+    fields.append("".join(current))
+    return fields
 
-def wifi_state() -> tuple[bool, str]:
-    if "disabled" in cmd(["nmcli", "radio", "wifi"]):
-        return False, "Off"
-    out = cmd(["nmcli", "-t", "-f", "ACTIVE,SSID", "device", "wifi"])
+
+def _security_label(security: str) -> str:
+    sec = security.strip()
+    if sec in ("", "--"):
+        return "Open"
+    if "802.1X" in sec:
+        return "Enterprise"
+    if "WEP" in sec:
+        return "WEP"
+    return "Secured"
+
+
+def wifi_signal_icon(signal: int) -> str:
+    for threshold, icon in WIFI_SIGNAL_ICONS:
+        if signal >= threshold:
+            return icon
+    return WIFI_SIGNAL_ICONS[-1][1]
+
+
+# ── Wi-Fi helpers ────────────────────────────────────────────────────
+
+def wifi_available() -> bool:
+    return shutil.which("nmcli") is not None
+
+
+def wifi_radio_on() -> bool:
+    if not wifi_available():
+        return False
+    return cmd(["nmcli", "-t", "-f", "WIFI", "radio"]).lower() != "disabled"
+
+
+def wifi_current_name() -> str:
+    out = cmd(["nmcli", "-t", "-f", "ACTIVE,SSID", "device", "wifi"], timeout=5)
     for line in out.splitlines():
-        if line.startswith("yes:"):
-            return True, line.split(":", 1)[1] or "Connected"
-    return True, "Not connected"
+        parts = _split_nmcli(line)
+        if len(parts) >= 2 and parts[0].strip() in ("*", "yes"):
+            return parts[1].strip()
+    return ""
 
 
-def wifi_toggle() -> None:
-    on, _ = wifi_state()
-    run = "off" if on else "on"
-    spawn(f"nmcli radio wifi {run}")
+def saved_wifi_profiles() -> set[str]:
+    out = cmd(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"], timeout=5)
+    names: set[str] = set()
+    for line in out.splitlines():
+        parts = _split_nmcli(line)
+        if len(parts) >= 2 and parts[1].strip() == "802-11-wireless":
+            names.add(parts[0].strip())
+    return names
 
 
-def bt_state() -> tuple[bool, str]:
-    out = cmd(["bluetoothctl", "show"])
-    powered = "Powered: yes" in out
-    if not powered:
-        return False, "Off"
-    devs = cmd(["bluetoothctl", "devices", "Connected"])
-    if devs:
-        parts = devs.splitlines()[0].split(" ", 2)
-        return True, parts[2] if len(parts) > 2 else "Connected"
-    return True, "Not connected"
+def wifi_networks(rescan: bool = False) -> list[dict]:
+    if not wifi_available():
+        return []
+    if rescan:
+        cmd(["nmcli", "device", "wifi", "rescan"], timeout=8)
+    out = cmd(
+        ["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list"],
+        timeout=10,
+    )
+    profiles = saved_wifi_profiles()
+    by_ssid: dict[str, dict] = {}
+    for line in out.splitlines():
+        parts = _split_nmcli(line)
+        if len(parts) < 4:
+            continue
+        in_use = parts[0].strip() in ("*", "yes")
+        ssid = parts[1].strip()
+        if not ssid:
+            continue
+        try:
+            signal = int(parts[2].strip())
+        except ValueError:
+            signal = 0
+        security = parts[3].strip()
+        net = {
+            "ssid": ssid,
+            "signal": signal,
+            "security": security,
+            "secure": security not in ("", "--"),
+            "enterprise": "802.1X" in security,
+            "in_use": in_use,
+            "saved": ssid in profiles,
+        }
+        previous = by_ssid.get(ssid)
+        if previous is None:
+            by_ssid[ssid] = net
+            continue
+        # Prefer the active AP, otherwise the strongest one.
+        if net["in_use"] and not previous["in_use"]:
+            by_ssid[ssid] = net
+        elif net["signal"] > previous["signal"] and not previous["in_use"]:
+            by_ssid[ssid] = net
+        by_ssid[ssid]["saved"] = previous["saved"] or net["saved"]
+
+    networks = list(by_ssid.values())
+    networks.sort(
+        key=lambda n: (
+            not n["in_use"],
+            not n["saved"],
+            -int(n["signal"]),
+            n["ssid"].lower(),
+        )
+    )
+    return networks
 
 
-def bt_toggle() -> None:
-    powered = "Powered: yes" in cmd(["bluetoothctl", "show"])
-    spawn(f"bluetoothctl power {'off' if powered else 'on'}")
+def _clean_error(output: str, fallback: str) -> str:
+    text = output.strip()
+    if not text:
+        return fallback
+    for prefix in ("Error: ", "error: "):
+        if text.startswith(prefix):
+            text = text[len(prefix):]
+    # nmcli can return several lines; the last one is usually the useful one.
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines[-1] if lines else fallback
 
+
+def wifi_connect(ssid: str, password: str = "", saved: bool = False,
+                 hidden: bool = False) -> tuple[bool, str]:
+    if not wifi_available():
+        return False, "NetworkManager is not available"
+
+    if saved and not password:
+        rc, out = run_cmd(["nmcli", "connection", "up", "id", ssid], timeout=30)
+        if rc == 0:
+            return True, ""
+        # A saved profile whose name differs from the SSID can still work via
+        # the device-level connect below.
+
+    args = ["nmcli", "device", "wifi", "connect", ssid]
+    if password:
+        args += ["password", password]
+    if hidden:
+        args += ["hidden", "yes"]
+    rc, out = run_cmd(args, timeout=45)
+    if rc == 0:
+        return True, ""
+    return False, _clean_error(out, "Could not connect to this network")
+
+
+def wifi_disconnect() -> tuple[bool, str]:
+    name = wifi_current_name()
+    if not name:
+        return True, ""
+    rc, out = run_cmd(["nmcli", "connection", "down", "id", name], timeout=20)
+    if rc == 0:
+        return True, ""
+    return False, _clean_error(out, "Could not disconnect")
+
+
+# ── Bluetooth helpers ────────────────────────────────────────────────
+
+def bt_available() -> bool:
+    return shutil.which("bluetoothctl") is not None
+
+
+def bt_powered() -> bool:
+    if not bt_available():
+        return False
+    return "Powered: yes" in cmd(["bluetoothctl", "show"], timeout=5)
+
+
+def _parse_bt_devices(output: str) -> list[dict]:
+    devices = []
+    for line in output.splitlines():
+        parts = line.strip().split(" ", 2)
+        if len(parts) >= 3 and parts[0].lower() == "device":
+            devices.append({"mac": parts[1], "name": parts[2].strip() or parts[1]})
+    return devices
+
+
+def bt_connected_names() -> list[str]:
+    if not bt_available():
+        return []
+    out = cmd(["bluetoothctl", "devices", "Connected"], timeout=5)
+    return [d["name"] for d in _parse_bt_devices(out)]
+
+
+def bt_device_icon(name: str) -> str:
+    n = name.lower()
+    if any(k in n for k in ("headphone", "headset", "airpod", "buds", "earbud", "wh-", "wf-")):
+        return I_HEADPHONES
+    if "keyboard" in n or "keychron" in n:
+        return I_KEYBOARD
+    if "mouse" in n or "trackpad" in n:
+        return I_MOUSE
+    if "phone" in n or "iphone" in n or "galaxy" in n or "pixel" in n:
+        return I_PHONE
+    if "speaker" in n or "soundbar" in n or "jbl" in n or "bose" in n:
+        return I_SPEAKER
+    if "gamepad" in n or "controller" in n or "dualsense" in n or "xbox" in n:
+        return I_GAMEPAD
+    if "laptop" in n or "macbook" in n or "notebook" in n:
+        return I_LAPTOP
+    if "watch" in n:
+        return I_WATCH
+    if "tv" in n or "monitor" in n:
+        return I_MONITOR
+    return I_BLUETOOTH
+
+
+def bt_devices() -> list[dict]:
+    if not bt_available():
+        return []
+    known = _parse_bt_devices(cmd(["bluetoothctl", "devices"], timeout=8))
+    connected = {
+        d["mac"] for d in _parse_bt_devices(
+            cmd(["bluetoothctl", "devices", "Connected"], timeout=8)
+        )
+    }
+    paired = {
+        d["mac"] for d in _parse_bt_devices(
+            cmd(["bluetoothctl", "devices", "Paired"], timeout=8)
+        )
+    }
+
+    devices = []
+    for device in known:
+        mac = device["mac"]
+        device["connected"] = mac in connected
+        device["paired"] = mac in paired or mac in connected
+        # BLE advertisements often have no name. Bluetoothctl falls back to the
+        # MAC address, which would fill the panel with meaningless rows.
+        compact_name = device["name"].replace(":", "").replace("-", "").lower()
+        compact_mac = mac.replace(":", "").replace("-", "").lower()
+        if not device["connected"] and not device["paired"] and compact_name == compact_mac:
+            continue
+
+        device["icon"] = bt_device_icon(device["name"])
+        device["battery"] = None
+        if device["connected"] or device["paired"]:
+            info = cmd(["bluetoothctl", "info", mac], timeout=5)
+            icon = re.search(r"^\s*Icon:\s*(\S+)", info, re.M)
+            if icon and icon.group(1) in BT_ICON_MAP:
+                device["icon"] = BT_ICON_MAP[icon.group(1)]
+            if device["connected"]:
+                m = re.search(
+                    r"Battery Percentage:\s*(?:0x[0-9a-fA-F]+\s*)?"
+                    r"(?:\(0x[0-9a-fA-F]+\)\s*)?(\d+)",
+                    info,
+                )
+                if m:
+                    device["battery"] = int(m.group(1))
+        devices.append(device)
+
+    devices.sort(
+        key=lambda d: (
+            not d["connected"],
+            not d["paired"],
+            d["name"].lower(),
+        )
+    )
+    return devices
+
+
+def bt_scan(duration: int = 8) -> tuple[bool, str]:
+    if not bt_available():
+        return False, "BlueZ is not available"
+    rc, out = run_cmd(
+        ["bluetoothctl", "--timeout", str(duration), "scan", "on"],
+        timeout=duration + 5,
+    )
+    if rc == 0:
+        return True, ""
+    return False, _clean_error(out, "Could not scan for Bluetooth devices")
+
+
+def _bt_failed(output: str) -> bool:
+    lowered = output.lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "failed to connect",
+            "not available",
+            "no default controller",
+            "does not exist",
+            "not ready",
+        )
+    )
+
+
+def bt_connect(mac: str, paired: bool) -> tuple[bool, str]:
+    if not bt_available():
+        return False, "BlueZ is not available"
+
+    output = ""
+    if not paired:
+        rc, out = run_cmd(
+            ["bluetoothctl", "--timeout", "25", "pair", mac], timeout=35
+        )
+        output += out
+        if rc != 0 and "alreadyexists" not in out.lower() and _bt_failed(out):
+            return False, _clean_error(out, "Pairing failed")
+
+    rc, out = run_cmd(
+        ["bluetoothctl", "--timeout", "20", "trust", mac], timeout=25
+    )
+    output += "\n" + out
+
+    rc, out = run_cmd(
+        ["bluetoothctl", "--timeout", "25", "connect", mac], timeout=35
+    )
+    output += "\n" + out
+    if rc != 0 or _bt_failed(out):
+        return False, _clean_error(out, "Could not connect to this device")
+    return True, ""
+
+
+def bt_disconnect(mac: str) -> tuple[bool, str]:
+    if not bt_available():
+        return False, "BlueZ is not available"
+    rc, out = run_cmd(
+        ["bluetoothctl", "--timeout", "15", "disconnect", mac], timeout=25
+    )
+    if rc != 0 or _bt_failed(out):
+        return False, _clean_error(out, "Could not disconnect")
+    return True, ""
+
+
+def bt_set_power(on: bool) -> tuple[bool, str]:
+    if not bt_available():
+        return False, "BlueZ is not available"
+    if on:
+        spawn("rfkill unblock bluetooth")
+    rc, out = run_cmd(
+        ["bluetoothctl", "power", "on" if on else "off"], timeout=15
+    )
+    if rc != 0:
+        return False, _clean_error(out, "Could not change Bluetooth power")
+    return True, ""
+
+
+def wifi_set_power(on: bool) -> tuple[bool, str]:
+    if not wifi_available():
+        return False, "NetworkManager is not available"
+    rc, out = run_cmd(["nmcli", "radio", "wifi", "on" if on else "off"], timeout=15)
+    if rc != 0:
+        return False, _clean_error(out, "Could not change Wi-Fi power")
+    return True, ""
+
+
+# ── Other system helpers ─────────────────────────────────────────────
 
 POWER_PROFILES = ["balanced", "performance", "power-saver"]
 
@@ -201,9 +616,11 @@ def list_beast_themes() -> list[tuple[str, str, str]]:
             if not conf.is_file():
                 continue
             text = conf.read_text(encoding="utf-8", errors="ignore")
+
             def pick(key: str, fallback: str) -> str:
                 m = re.search(rf"^\$\s*{key}\s*=\s*rgb\(([0-9a-fA-F]{{6}})\)", text, re.M)
                 return f"#{m.group(1).lower()}" if m else fallback
+
             themes.append((d.name, pick("primary", "#888888"), pick("accent", "#ffffff")))
     return themes
 
@@ -215,23 +632,877 @@ def current_beast_theme() -> str:
 
 # ── Single-instance IPC ──────────────────────────────────────────────
 
-def send_toggle() -> bool:
+def send_command(message: str) -> bool:
     if not SOCKET_PATH.exists():
         return False
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as s:
-            s.settimeout(0.2)
-            s.sendto(b"toggle\n", str(SOCKET_PATH))
+            s.settimeout(0.25)
+            s.sendto((message + "\n").encode(), str(SOCKET_PATH))
             return True
     except Exception:
         SOCKET_PATH.unlink(missing_ok=True)
         return False
 
 
-# ── UI ───────────────────────────────────────────────────────────────
+# ── UI helpers ───────────────────────────────────────────────────────
+
+def set_hand_cursor(widget: Gtk.Widget) -> None:
+    def on_realize(w):
+        try:
+            w.get_window().set_cursor(
+                Gdk.Cursor.new_from_name(w.get_display(), "pointer")
+            )
+        except Exception:
+            pass
+
+    widget.connect("realize", on_realize)
+
+
+def clear_box(box: Gtk.Box) -> None:
+    for child in box.get_children():
+        box.remove(child)
+        child.destroy()
+
+
+class ConnectionDetail(Gtk.Box):
+    """macOS-style Wi-Fi / Bluetooth popover shown left of the main panel."""
+
+    def __init__(self, cc: "ControlCenter") -> None:
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        self.set_name("cc-panel")
+        self.set_size_request(372, -1)
+        self.cc = cc
+        self.mode = "wifi"
+        self._networks: list[dict] = []
+        self._devices: list[dict] = []
+        self._wifi_sig = None
+        self._bt_sig = None
+        self._sync_switch = False
+        self._action_text: str | None = None
+        self._scanning = False
+        self._error_text: str | None = None
+        self._error_token = 0
+        self._auth_ssid = ""
+        self._auth_security = ""
+        self._auth_hidden = False
+        self._auth_busy = False
+        self._initial_scan_done = False
+        self._build()
+
+    # -- construction -------------------------------------------------
+
+    def _build(self) -> None:
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        header.set_valign(Gtk.Align.CENTER)
+
+        back = Gtk.EventBox()
+        back.set_name("cc-icon-btn")
+        back_label = Gtk.Label(label=I_CHEVRON_LEFT)
+        back_label.set_name("cc-icon")
+        back_label.set_valign(Gtk.Align.CENTER)
+        back.add(back_label)
+        back.connect("button-press-event", lambda *_: self.cc.close_detail() or True)
+        back.set_tooltip_text("Back")
+        set_hand_cursor(back)
+        header.pack_start(back, False, False, 0)
+
+        self.title = Gtk.Label(label="Wi-Fi")
+        self.title.set_name("cc-detail-title")
+        self.title.set_xalign(0.0)
+        header.pack_start(self.title, True, True, 0)
+
+        self.power_switch = Gtk.Switch()
+        self.power_switch.set_valign(Gtk.Align.CENTER)
+        self.power_switch.connect("notify::active", self._on_switch)
+        header.pack_end(self.power_switch, False, False, 0)
+
+        self.pack_start(header, False, False, 0)
+
+        # Status card -------------------------------------------------
+        self.status_card = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.status_card.set_name("cc-status-card")
+        status_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        self.status_title = Gtk.Label(label="Wi-Fi is on")
+        self.status_title.set_name("cc-detail-status")
+        self.status_title.set_xalign(0.0)
+        self.status_sub = Gtk.Label(label="Not connected")
+        self.status_sub.set_name("cc-sub")
+        self.status_sub.set_xalign(0.0)
+        self.status_sub.set_ellipsize(Pango.EllipsizeMode.END)
+        status_text.pack_start(self.status_title, False, False, 0)
+        status_text.pack_start(self.status_sub, False, False, 0)
+        self.status_card.pack_start(status_text, True, True, 0)
+
+        self.disconnect_btn = Gtk.Button(label="Disconnect")
+        self.disconnect_btn.set_name("cc-pill")
+        self.disconnect_btn.set_relief(Gtk.ReliefStyle.NONE)
+        self.disconnect_btn.set_valign(Gtk.Align.CENTER)
+        self.disconnect_btn.set_no_show_all(True)
+        self.disconnect_btn.connect("clicked", lambda *_: self._disconnect_wifi())
+        self.status_card.pack_end(self.disconnect_btn, False, False, 0)
+
+        self.pack_start(self.status_card, False, False, 0)
+
+        # Activity row ------------------------------------------------
+        self.activity = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.activity.set_no_show_all(True)
+        self.activity_spinner = Gtk.Spinner()
+        self.activity_spinner.set_valign(Gtk.Align.CENTER)
+        self.activity_spinner.set_no_show_all(True)
+        self.activity_label = Gtk.Label(label="")
+        self.activity_label.set_name("cc-sub")
+        self.activity_label.set_xalign(0.0)
+        self.activity_label.set_ellipsize(Pango.EllipsizeMode.END)
+        self.activity.pack_start(self.activity_spinner, False, False, 0)
+        self.activity.pack_start(self.activity_label, True, True, 0)
+        self.pack_start(self.activity, False, False, 0)
+
+        # Stack: list / auth -----------------------------------------
+        self.stack = Gtk.Stack()
+        self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.stack.set_transition_duration(170)
+
+        self.list_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        section = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.section_title = Gtk.Label(label="Networks")
+        self.section_title.set_name("cc-section-title")
+        self.section_title.set_xalign(0.0)
+        section.pack_start(self.section_title, True, True, 0)
+
+        self.refresh_btn = Gtk.EventBox()
+        self.refresh_btn.set_name("cc-icon-btn")
+        refresh_label = Gtk.Label(label=I_REFRESH)
+        refresh_label.set_name("cc-icon")
+        self.refresh_btn.add(refresh_label)
+        self.refresh_btn.connect("button-press-event", lambda *_: self._on_refresh() or True)
+        set_hand_cursor(self.refresh_btn)
+        section.pack_end(self.refresh_btn, False, False, 0)
+        self.list_page.pack_start(section, False, False, 0)
+
+        self.scrolled = Gtk.ScrolledWindow()
+        self.scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.scrolled.set_min_content_height(360)
+        self.scrolled.set_max_content_height(360)
+        self.scrolled.set_propagate_natural_height(False)
+        self.scrolled.set_overlay_scrolling(True)
+        self.list_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        self.scrolled.add(self.list_box)
+        self.list_page.pack_start(self.scrolled, True, True, 0)
+
+        self.footer = Gtk.EventBox()
+        self.footer.set_name("cc-net-row")
+        self.footer.set_no_show_all(True)
+        footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.footer_icon = Gtk.Label(label=I_PLUS)
+        self.footer_icon.set_name("cc-net-icon")
+        self.footer_label = Gtk.Label(label="Other Network…")
+        self.footer_label.set_name("cc-net-name")
+        self.footer_label.set_xalign(0.0)
+        footer_box.pack_start(self.footer_icon, False, False, 0)
+        footer_box.pack_start(self.footer_label, True, True, 0)
+        self.footer.add(footer_box)
+        self.footer.connect("button-press-event", lambda *_: self._show_auth("", "", True) or True)
+        set_hand_cursor(self.footer)
+        self.list_page.pack_start(self.footer, False, False, 0)
+
+        self.auth_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+
+        self.stack.add_named(self.list_page, "list")
+        self.stack.add_named(self.auth_page, "auth")
+        self.pack_start(self.stack, True, True, 0)
+
+    # -- mode / state -------------------------------------------------
+
+    def set_mode(self, mode: str) -> None:
+        debug(f"set_mode {mode}")
+        self.mode = mode
+        self._error_text = None
+        self._error_token += 1
+        self._action_text = None
+        self._initial_scan_done = False
+        self._show_list_page()
+        self._refresh_activity()
+
+        if mode == "wifi":
+            self.title.set_text("Wi-Fi")
+            self.section_title.set_text("Networks")
+            self.footer_icon.set_text(I_PLUS)
+            self.footer_label.set_text("Other Network…")
+            self.footer.show()
+            self.refresh_btn.set_tooltip_text("Scan for networks")
+        else:
+            self.title.set_text("Bluetooth")
+            self.section_title.set_text("Devices")
+            self.footer.hide()
+            self.refresh_btn.set_tooltip_text("Scan for devices")
+
+        self._sync_from_state()
+
+    def apply_state(self, state: dict) -> None:
+        self.cc.state = state
+        self._sync_from_state()
+        if "networks" in state and self.mode == "wifi":
+            self._update_wifi_list(state["networks"] if state.get("wifi_on") else [])
+        if "devices" in state and self.mode == "bluetooth":
+            self._update_bt_list(state["devices"] if state.get("bt_on") else [])
+
+        if not self._initial_scan_done and not self._scanning and not self._action_text:
+            if self.mode == "wifi" and state.get("wifi_on"):
+                self._initial_scan_done = True
+                GLib.timeout_add(250, self._start_wifi_rescan)
+            elif self.mode == "bluetooth" and state.get("bt_on"):
+                self._initial_scan_done = True
+                GLib.timeout_add(250, self._start_bt_scan)
+
+    def _sync_from_state(self) -> None:
+        st = self.cc.state
+        if self.mode == "wifi":
+            available = st.get("wifi_available", True)
+            powered = bool(st.get("wifi_on"))
+            name = st.get("wifi_name", "")
+            if not self._action_text:
+                self._set_switch(powered)
+            if not available:
+                self.status_title.set_text("Wi-Fi unavailable")
+                self.status_sub.set_text("NetworkManager is not running")
+                self.disconnect_btn.hide()
+            elif powered:
+                self.status_title.set_text("Wi-Fi is on")
+                if name:
+                    self.status_sub.set_text(f"Connected to {name}")
+                    self.disconnect_btn.show()
+                else:
+                    self.status_sub.set_text("Not connected")
+                    self.disconnect_btn.hide()
+            else:
+                self.status_title.set_text("Wi-Fi is off")
+                self.status_sub.set_text("Turn on Wi-Fi to see networks")
+                self.disconnect_btn.hide()
+        else:
+            available = st.get("bt_available", True)
+            powered = bool(st.get("bt_on"))
+            names = st.get("bt_names") or []
+            self.disconnect_btn.hide()
+            if not self._action_text:
+                self._set_switch(powered)
+            if not available:
+                self.status_title.set_text("Bluetooth unavailable")
+                self.status_sub.set_text("BlueZ is not installed")
+            elif powered:
+                self.status_title.set_text("Bluetooth is on")
+                if names:
+                    if len(names) == 1:
+                        self.status_sub.set_text(f"Connected to {names[0]}")
+                    else:
+                        self.status_sub.set_text(f"Connected to {len(names)} devices")
+                else:
+                    self.status_sub.set_text("Not connected")
+            else:
+                self.status_title.set_text("Bluetooth is off")
+                self.status_sub.set_text("Turn on Bluetooth to see devices")
+
+    def _set_switch(self, active: bool) -> None:
+        self._sync_switch = True
+        try:
+            self.power_switch.set_active(active)
+        finally:
+            self._sync_switch = False
+
+    def _on_switch(self, switch: Gtk.Switch, _param) -> None:
+        if self._sync_switch or self._action_text:
+            return
+        self._set_radio(bool(switch.get_active()))
+
+    # -- activity -----------------------------------------------------
+
+    def _refresh_activity(self) -> None:
+        text = None
+        spinning = False
+        error = False
+        if self._action_text:
+            text = self._action_text
+            spinning = True
+        elif self._error_text:
+            text = self._error_text
+            error = True
+        elif self._scanning:
+            text = "Scanning for Bluetooth devices…" if self.mode == "bluetooth" else "Scanning for networks…"
+            spinning = True
+
+        if not text:
+            self.activity_spinner.stop()
+            self.activity.hide()
+            return
+
+        self.activity_label.set_text(text)
+        ctx = self.activity_label.get_style_context()
+        if error:
+            ctx.add_class("cc-error")
+        else:
+            ctx.remove_class("cc-error")
+        if spinning:
+            self.activity_spinner.start()
+            self.activity_spinner.show()
+        else:
+            self.activity_spinner.stop()
+            self.activity_spinner.hide()
+        self.activity.show_all()
+
+    def _set_action(self, text: str | None) -> None:
+        self._action_text = text
+        self._refresh_activity()
+
+    def _flash_error(self, text: str) -> None:
+        self._error_text = text
+        self._error_token += 1
+        token = self._error_token
+        self._refresh_activity()
+
+        def clear():
+            if token == self._error_token:
+                self._error_text = None
+                self._refresh_activity()
+            return False
+
+        GLib.timeout_add(6500, clear)
+
+    # -- list rendering ----------------------------------------------
+
+    def _show_list_page(self) -> None:
+        self.stack.set_visible_child_name("list")
+        self.cc.set_detail_keyboard(False)
+
+    def _update_wifi_list(self, networks: list[dict]) -> None:
+        sig = tuple(
+            (
+                n["ssid"],
+                n["signal"] // 10,
+                n["security"],
+                n["in_use"],
+                n["saved"],
+            )
+            for n in networks
+        )
+        if sig == self._wifi_sig:
+            return
+        self._wifi_sig = sig
+        self._networks = networks
+        self._rebuild_list(networks, self._wifi_row)
+
+    def _update_bt_list(self, devices: list[dict]) -> None:
+        sig = tuple(
+            (
+                d["mac"],
+                d["connected"],
+                d["paired"],
+                d["battery"],
+                d["name"],
+            )
+            for d in devices
+        )
+        if sig == self._bt_sig:
+            return
+        self._bt_sig = sig
+        self._devices = devices
+        self._rebuild_list(devices, self._bt_row)
+
+    def _rebuild_list(self, items: list[dict], row_factory) -> None:
+        adjustment = self.scrolled.get_vadjustment()
+        scroll_pos = adjustment.get_value()
+        clear_box(self.list_box)
+
+        if not items:
+            if self.mode == "wifi":
+                if not self.cc.state.get("wifi_on"):
+                    text = "Wi-Fi is off\nTurn it on to see nearby networks"
+                else:
+                    text = "No networks found\nTry scanning again"
+            else:
+                if not self.cc.state.get("bt_on"):
+                    text = "Bluetooth is off\nTurn it on to see your devices"
+                else:
+                    text = "No devices found\nPut a device in pairing mode and scan"
+            empty_label = Gtk.Label(label=text)
+            empty_label.set_name("cc-empty")
+            empty_label.set_line_wrap(True)
+            empty_label.set_justify(Gtk.Justification.CENTER)
+            self.list_box.pack_start(empty_label, False, False, 10)
+            self.list_box.show_all()
+        else:
+            for item in items:
+                self.list_box.pack_start(row_factory(item), False, False, 0)
+            self.list_box.show_all()
+
+        def restore():
+            try:
+                adjustment.set_value(min(scroll_pos, adjustment.get_upper() - adjustment.get_page_size()))
+            except Exception:
+                pass
+            return False
+
+        GLib.idle_add(restore)
+
+    def _wifi_row(self, net: dict) -> Gtk.EventBox:
+        ev = Gtk.EventBox()
+        ev.set_name("cc-net-row-active" if net["in_use"] else "cc-net-row")
+        h = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        icon = Gtk.Label(label=wifi_signal_icon(int(net["signal"])))
+        icon.set_name("cc-net-icon")
+        if net["in_use"]:
+            icon.get_style_context().add_class("cc-net-icon-active")
+        icon.set_valign(Gtk.Align.CENTER)
+        h.pack_start(icon, False, False, 0)
+
+        mid = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        mid.set_valign(Gtk.Align.CENTER)
+        name = Gtk.Label(label=net["ssid"])
+        name.set_name("cc-net-name")
+        name.set_xalign(0.0)
+        name.set_ellipsize(Pango.EllipsizeMode.END)
+        name.set_max_width_chars(28)
+        mid.pack_start(name, False, False, 0)
+
+        if net["in_use"]:
+            sub_text = "Connected"
+        elif net["saved"]:
+            sub_text = "Saved"
+        else:
+            sub_text = _security_label(net["security"])
+        sub_text += f" · {net['signal']}%"
+        sub = Gtk.Label(label=sub_text)
+        sub.set_name("cc-net-sub")
+        sub.set_xalign(0.0)
+        mid.pack_start(sub, False, False, 0)
+        h.pack_start(mid, True, True, 0)
+
+        right = Gtk.Label(
+            label=I_CHECK if net["in_use"] else (I_LOCK if net["secure"] else "")
+        )
+        right.set_name("cc-net-side")
+        right.set_valign(Gtk.Align.CENTER)
+        h.pack_end(right, False, False, 4)
+
+        ev.add(h)
+        ev.connect("button-press-event", self._wifi_row_clicked, net)
+        ev.set_tooltip_text(
+            f"{net['ssid']} — {_security_label(net['security'])}"
+            + (" (connected)" if net["in_use"] else "")
+        )
+        set_hand_cursor(ev)
+        return ev
+
+    def _bt_row(self, device: dict) -> Gtk.EventBox:
+        ev = Gtk.EventBox()
+        ev.set_name("cc-net-row-active" if device["connected"] else "cc-net-row")
+        h = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
+        icon = Gtk.Label(label=device["icon"])
+        icon.set_name("cc-net-icon")
+        if device["connected"]:
+            icon.get_style_context().add_class("cc-net-icon-active")
+        icon.set_valign(Gtk.Align.CENTER)
+        h.pack_start(icon, False, False, 0)
+
+        mid = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        mid.set_valign(Gtk.Align.CENTER)
+        name = Gtk.Label(label=device["name"])
+        name.set_name("cc-net-name")
+        name.set_xalign(0.0)
+        name.set_ellipsize(Pango.EllipsizeMode.END)
+        name.set_max_width_chars(28)
+        mid.pack_start(name, False, False, 0)
+
+        if device["connected"]:
+            sub_text = "Connected"
+            if device["battery"] is not None:
+                sub_text += f" · {device['battery']}%"
+        elif device["paired"]:
+            sub_text = "Paired"
+        else:
+            sub_text = "Nearby"
+        sub = Gtk.Label(label=sub_text)
+        sub.set_name("cc-net-sub")
+        sub.set_xalign(0.0)
+        mid.pack_start(sub, False, False, 0)
+        h.pack_start(mid, True, True, 0)
+
+        right = Gtk.Label(label=I_CHECK if device["connected"] else "")
+        right.set_name("cc-net-side")
+        right.set_valign(Gtk.Align.CENTER)
+        h.pack_end(right, False, False, 4)
+
+        ev.add(h)
+        ev.connect("button-press-event", self._bt_row_clicked, device)
+        ev.set_tooltip_text(
+            f"{device['name']} — click to "
+            + ("disconnect" if device["connected"] else "connect")
+        )
+        set_hand_cursor(ev)
+        return ev
+
+    # -- clicks -------------------------------------------------------
+
+    def _wifi_row_clicked(self, _widget, _event, net: dict) -> bool:
+        if self._action_text:
+            return True
+        if net["in_use"]:
+            self._disconnect_wifi()
+            return True
+        if net["enterprise"] and not net["saved"]:
+            self._show_enterprise(net["ssid"])
+        elif net["secure"] and not net["saved"]:
+            self._show_auth(net["ssid"], net["security"])
+        else:
+            self._connect_wifi(net["ssid"], saved=net["saved"])
+        return True
+
+    def _bt_row_clicked(self, _widget, _event, device: dict) -> bool:
+        if self._action_text:
+            return True
+        self._toggle_bt_device(device)
+        return True
+
+    # -- actions ------------------------------------------------------
+
+    def _set_radio(self, on: bool) -> None:
+        mode = self.mode
+        label = "Wi-Fi" if mode == "wifi" else "Bluetooth"
+        self._set_action(f"Turning {label} {'on' if on else 'off'}…")
+
+        def work():
+            if mode == "wifi":
+                result = wifi_set_power(on)
+            else:
+                result = bt_set_power(on)
+            GLib.idle_add(done, result)
+
+        def done(result):
+            ok, message = result
+            self._set_action(None)
+            if not ok:
+                self._flash_error(message)
+                self._sync_from_state()
+            self.cc.refresh_states()
+            return False
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _connect_wifi(self, ssid: str, password: str = "", saved: bool = False,
+                      hidden: bool = False) -> None:
+        self._set_action(f"Connecting to {ssid or 'network'}…")
+
+        def work():
+            result = wifi_connect(ssid, password=password, saved=saved, hidden=hidden)
+            GLib.idle_add(done, result)
+
+        def done(result):
+            ok, message = result
+            self._set_action(None)
+            self._set_auth_busy(False)
+            if ok:
+                self._show_list_page()
+                self.cc.refresh_states()
+            else:
+                if self.stack.get_visible_child_name() == "auth":
+                    self._set_auth_error(message)
+                else:
+                    self._flash_error(message)
+                self.cc.refresh_states()
+            return False
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _disconnect_wifi(self) -> None:
+        if self._action_text:
+            return
+        self._set_action("Disconnecting…")
+
+        def work():
+            result = wifi_disconnect()
+            GLib.idle_add(done, result)
+
+        def done(result):
+            ok, message = result
+            self._set_action(None)
+            if not ok:
+                self._flash_error(message)
+            self.cc.refresh_states()
+            return False
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _toggle_bt_device(self, device: dict) -> None:
+        connected = device["connected"]
+        name = device["name"]
+        self._set_action(
+            ("Disconnecting from " if connected else "Connecting to ") + name + "…"
+        )
+
+        def work():
+            if connected:
+                result = bt_disconnect(device["mac"])
+            else:
+                result = bt_connect(device["mac"], device["paired"])
+            GLib.idle_add(done, result)
+
+        def done(result):
+            ok, message = result
+            self._set_action(None)
+            if not ok:
+                self._flash_error(message)
+            self.cc.refresh_states()
+            return False
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _start_wifi_rescan(self) -> bool:
+        if self._scanning or self._action_text:
+            return False
+        if not self.cc.state.get("wifi_on", self.power_switch.get_active()):
+            return False
+        self._scanning = True
+        self._refresh_activity()
+
+        def work():
+            networks = wifi_networks(rescan=True)
+            GLib.idle_add(done, networks)
+
+        def done(networks):
+            self._scanning = False
+            self._refresh_activity()
+            self._update_wifi_list(networks)
+            return False
+
+        threading.Thread(target=work, daemon=True).start()
+        return False
+
+    def _start_bt_scan(self) -> bool:
+        if self._scanning or self._action_text:
+            return False
+        if os.environ.get("BITBEAST_CC_NO_SCAN"):
+            return False
+        if not self.cc.state.get("bt_on", self.power_switch.get_active()):
+            return False
+        debug("bt scan start")
+        self._scanning = True
+        self._refresh_activity()
+
+        def work():
+            bt_scan(8)
+            devices = bt_devices()
+            debug(f"bt scan done ({len(devices)} devices)")
+            GLib.idle_add(done, devices)
+
+        def done(devices):
+            self._scanning = False
+            self._refresh_activity()
+            self._update_bt_list(devices)
+            self.cc.refresh_states()
+            return False
+
+        threading.Thread(target=work, daemon=True).start()
+        return False
+
+    def _on_refresh(self) -> bool:
+        if self.mode == "wifi":
+            self._start_wifi_rescan()
+        else:
+            self._start_bt_scan()
+        return True
+
+    # -- join form ----------------------------------------------------
+
+    def _show_auth(self, ssid: str, security: str, hidden: bool = False) -> None:
+        self._auth_ssid = ssid
+        self._auth_security = security
+        self._auth_hidden = hidden
+        self._auth_busy = False
+        self._error_text = None
+        self._error_token += 1
+        clear_box(self.auth_page)
+
+        title = Gtk.Label(
+            label=f"Join “{ssid}”" if ssid else "Join Other Network"
+        )
+        title.set_name("cc-detail-title")
+        title.set_xalign(0.0)
+        title.set_line_wrap(True)
+        self.auth_page.pack_start(title, False, False, 0)
+
+        subtitle = Gtk.Label(
+            label=(
+                "Enter the network name and password."
+                if hidden
+                else f"{_security_label(security)} network"
+            )
+        )
+        subtitle.set_name("cc-sub")
+        subtitle.set_xalign(0.0)
+        subtitle.set_line_wrap(True)
+        self.auth_page.pack_start(subtitle, False, False, 0)
+
+        self._auth_ssid_entry = None
+        if hidden:
+            self._auth_ssid_entry = Gtk.Entry()
+            self._auth_ssid_entry.set_placeholder_text("Network name (SSID)")
+            self._auth_ssid_entry.set_activates_default(False)
+            self.auth_page.pack_start(self._auth_ssid_entry, False, False, 0)
+
+        self._auth_password_entry = Gtk.Entry()
+        self._auth_password_entry.set_placeholder_text(
+            "Password (leave blank if open)" if hidden else "Password"
+        )
+        self._auth_password_entry.set_visibility(False)
+        self._auth_password_entry.set_invisible_char("●")
+        self._auth_password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+        self._auth_password_entry.connect("activate", lambda *_: self._submit_auth())
+        self.auth_page.pack_start(self._auth_password_entry, False, False, 0)
+
+        self._auth_error = Gtk.Label(label="")
+        self._auth_error.set_name("cc-error")
+        self._auth_error.set_xalign(0.0)
+        self._auth_error.set_line_wrap(True)
+        self._auth_error.set_no_show_all(True)
+        self.auth_page.pack_start(self._auth_error, False, False, 0)
+
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        cancel = Gtk.Button(label="Cancel")
+        cancel.set_name("cc-pill")
+        cancel.set_relief(Gtk.ReliefStyle.NONE)
+        cancel.connect("clicked", lambda *_: self._cancel_auth())
+        actions.pack_end(cancel, False, False, 0)
+
+        self._auth_join = Gtk.Button(label="Join")
+        self._auth_join.set_name("cc-primary")
+        self._auth_join.set_relief(Gtk.ReliefStyle.NONE)
+        self._auth_join.connect("clicked", lambda *_: self._submit_auth())
+        actions.pack_end(self._auth_join, False, False, 0)
+
+        self._auth_spinner = Gtk.Spinner()
+        self._auth_spinner.set_no_show_all(True)
+        actions.pack_end(self._auth_spinner, False, False, 0)
+        self.auth_page.pack_end(actions, False, False, 0)
+
+        self.auth_page.show_all()
+        self._auth_error.hide()
+        self._auth_spinner.hide()
+        self.stack.set_visible_child_name("auth")
+        self.cc.set_detail_keyboard(True)
+        if self._auth_ssid_entry is not None:
+            self._auth_ssid_entry.grab_focus()
+        else:
+            self._auth_password_entry.grab_focus()
+
+    def _show_enterprise(self, ssid: str) -> None:
+        clear_box(self.auth_page)
+        title = Gtk.Label(label=f"Join “{ssid}”")
+        title.set_name("cc-detail-title")
+        title.set_xalign(0.0)
+        title.set_line_wrap(True)
+        self.auth_page.pack_start(title, False, False, 0)
+
+        info = Gtk.Label(
+            label=(
+                "This network uses enterprise (802.1X) authentication, which "
+                "needs a username or certificate.\n\n"
+                "Open the network editor to enter those credentials, then "
+                "reconnect here."
+            )
+        )
+        info.set_name("cc-sub")
+        info.set_xalign(0.0)
+        info.set_line_wrap(True)
+        self.auth_page.pack_start(info, False, False, 0)
+
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        cancel = Gtk.Button(label="Cancel")
+        cancel.set_name("cc-pill")
+        cancel.set_relief(Gtk.ReliefStyle.NONE)
+        cancel.connect("clicked", lambda *_: self._cancel_auth())
+        actions.pack_end(cancel, False, False, 0)
+
+        editor = Gtk.Button(label="Open Network Editor")
+        editor.set_name("cc-primary")
+        editor.set_relief(Gtk.ReliefStyle.NONE)
+        editor.connect(
+            "clicked",
+            lambda *_: (
+                spawn("nm-connection-editor"),
+                self._show_list_page(),
+            ),
+        )
+        actions.pack_end(editor, False, False, 0)
+        self.auth_page.pack_end(actions, False, False, 0)
+
+        self.auth_page.show_all()
+        self.stack.set_visible_child_name("auth")
+        self.cc.set_detail_keyboard(True)
+
+    def _set_auth_error(self, message: str) -> None:
+        self._auth_error.set_text(message)
+        self._auth_error.show()
+
+    def _cancel_auth(self) -> None:
+        self._set_auth_busy(False)
+        self._show_list_page()
+
+    def _set_auth_busy(self, busy: bool) -> None:
+        self._auth_busy = busy
+        join = getattr(self, "_auth_join", None)
+        spinner = getattr(self, "_auth_spinner", None)
+        if join is not None:
+            join.set_sensitive(not busy)
+        if spinner is not None:
+            if busy:
+                spinner.show()
+                spinner.start()
+            else:
+                spinner.stop()
+                spinner.hide()
+
+    def _submit_auth(self) -> None:
+        if self._auth_busy:
+            return
+        ssid = self._auth_ssid
+        if self._auth_hidden:
+            ssid = self._auth_ssid_entry.get_text().strip()
+            if not ssid:
+                self._set_auth_error("Enter the network name")
+                return
+        password = self._auth_password_entry.get_text()
+        if self._auth_security and not password and not self._auth_hidden:
+            self._set_auth_error("Enter the password")
+            return
+
+        self._auth_error.hide()
+        self._set_auth_busy(True)
+        saved = False
+        if not self._auth_hidden:
+            saved = ssid in saved_wifi_profiles() and not password
+        self._connect_wifi(
+            ssid,
+            password=password,
+            saved=saved,
+            hidden=self._auth_hidden,
+        )
+        # The action callback re-enables the form on failure.
+
+    # -- misc ---------------------------------------------------------
+
+    def focus_first(self) -> None:
+        if self.stack.get_visible_child_name() == "auth":
+            if self._auth_ssid_entry is not None:
+                self._auth_ssid_entry.grab_focus()
+            else:
+                self._auth_password_entry.grab_focus()
+        else:
+            self.power_switch.grab_focus()
+
 
 class ControlCenter(Gtk.Window):
-    def __init__(self) -> None:
+    def __init__(self, initial_panel: str | None = None) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.set_app_paintable(True)
         self.set_decorated(False)
@@ -242,7 +1513,12 @@ class ControlCenter(Gtk.Window):
         self.set_keep_above(True)
 
         self.theme = load_theme_colors()
-        self._rec_flash = False
+        self.state: dict = {}
+        self._refresh_running = False
+        self._detail_mode: str | None = None
+        self.detail: ConnectionDetail | None = None
+        self._bright_dragging = False
+        self._vol_dragging = False
 
         GtkLayerShell.init_for_window(self)
         GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
@@ -258,9 +1534,13 @@ class ControlCenter(Gtk.Window):
         self.refresh_states()
 
         self.connect("key-press-event", self._on_key)
+        self.connect("delete-event", self._on_delete)
         self.connect("destroy", self._on_destroy)
 
         GLib.timeout_add(2500, self.refresh_states)
+
+        if initial_panel:
+            GLib.timeout_add(120, lambda: self.open_detail(initial_panel) or False)
 
     # -- CSS ----------------------------------------------------------
 
@@ -296,6 +1576,13 @@ class ControlCenter(Gtk.Window):
             margin: 2px 0;
         }}
         #cc-row:hover {{ background-color: {hex_to_rgba(text, 0.06)}; }}
+        #cc-row-active {{
+            border-radius: 12px;
+            padding: 6px 8px;
+            margin: 2px 0;
+            background-color: {hex_to_rgba(primary, 0.13)};
+            border: 1px solid {hex_to_rgba(primary, 0.22)};
+        }}
         #cc-icon-box {{
             min-width: 40px;
             min-height: 40px;
@@ -309,6 +1596,11 @@ class ControlCenter(Gtk.Window):
             font-size: 19px;
             color: {text};
         }}
+        #cc-icon-btn {{
+            border-radius: 9px;
+            padding: 4px 6px;
+        }}
+        #cc-icon-btn:hover {{ background-color: {hex_to_rgba(text, 0.09)}; }}
         #cc-title {{
             font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
             font-size: 13px;
@@ -365,6 +1657,147 @@ class ControlCenter(Gtk.Window):
             color: {primary};
             font-weight: 800;
         }}
+        #cc-detail-title {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: {text};
+        }}
+        #cc-detail-status {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: {text};
+        }}
+        #cc-status-card {{
+            background-color: {hex_to_rgba(text, 0.045)};
+            border: 1px solid {hex_to_rgba(text, 0.07)};
+            border-radius: 14px;
+            padding: 11px 13px;
+        }}
+        #cc-section-title {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            color: {hex_to_rgba(text, 0.48)};
+            letter-spacing: 0.6px;
+        }}
+        #cc-net-row {{
+            border-radius: 12px;
+            padding: 8px 10px;
+            margin: 1px 0;
+        }}
+        #cc-net-row:hover {{ background-color: {hex_to_rgba(text, 0.07)}; }}
+        #cc-net-row-active {{
+            border-radius: 12px;
+            padding: 8px 10px;
+            margin: 1px 0;
+            background-color: {hex_to_rgba(primary, 0.13)};
+            border: 1px solid {hex_to_rgba(primary, 0.20)};
+        }}
+        #cc-net-row-active:hover {{ background-color: {hex_to_rgba(primary, 0.19)}; }}
+        #cc-net-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 18px;
+            color: {hex_to_rgba(text, 0.72)};
+            min-width: 24px;
+        }}
+        #cc-net-icon-active {{ color: {primary}; }}
+        #cc-net-name {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: {text};
+        }}
+        #cc-net-sub {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 10.5px;
+            color: {hex_to_rgba(text, 0.50)};
+        }}
+        #cc-net-side {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 15px;
+            color: {primary};
+        }}
+        #cc-empty {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 11.5px;
+            color: {hex_to_rgba(text, 0.45)};
+            padding: 26px 10px;
+        }}
+        #cc-error {{ color: #ff6b7a; font-size: 11px; }}
+        button {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+        }}
+        #cc-pill {{
+            border-radius: 999px;
+            padding: 5px 12px;
+            background-color: {hex_to_rgba(text, 0.08)};
+            border: 1px solid {hex_to_rgba(text, 0.10)};
+            color: {text};
+            box-shadow: none;
+        }}
+        #cc-pill:hover {{
+            background-color: {hex_to_rgba(primary, 0.20)};
+            border-color: {hex_to_rgba(primary, 0.40)};
+        }}
+        #cc-primary {{
+            border-radius: 10px;
+            padding: 8px 20px;
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.95)}, {hex_to_rgba(accent, 0.85)});
+            border: 1px solid {hex_to_rgba(primary, 0.55)};
+            color: #ffffff;
+            box-shadow: 0 4px 14px {hex_to_rgba(bg, 0.45)};
+        }}
+        #cc-primary:hover {{
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 1.0)}, {hex_to_rgba(accent, 0.95)});
+        }}
+        #cc-primary:disabled {{ opacity: 0.55; }}
+        entry {{
+            background-color: {hex_to_rgba(text, 0.07)};
+            border: 1px solid {hex_to_rgba(text, 0.12)};
+            border-radius: 10px;
+            padding: 9px 11px;
+            color: {text};
+            caret-color: {primary};
+        }}
+        entry:focus {{
+            border-color: {hex_to_rgba(primary, 0.65)};
+            background-color: {hex_to_rgba(text, 0.09)};
+        }}
+        switch {{
+            min-width: 42px;
+            min-height: 24px;
+            border-radius: 999px;
+            background-color: {hex_to_rgba(text, 0.16)};
+            border: 1px solid {hex_to_rgba(text, 0.10)};
+        }}
+        switch:checked {{
+            background-color: {primary};
+            border-color: {hex_to_rgba(primary, 0.75)};
+        }}
+        switch slider {{
+            min-width: 18px;
+            min-height: 18px;
+            border-radius: 999px;
+            background-color: {text};
+            margin: 2px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+        }}
+        spinner {{ color: {primary}; }}
+        scrolledwindow {{ background: transparent; border: none; }}
+        scrollbar {{ background: transparent; border: none; }}
+        scrollbar slider {{
+            background-color: {hex_to_rgba(text, 0.18)};
+            border-radius: 999px;
+            min-width: 4px;
+            min-height: 28px;
+        }}
+        scrollbar slider:hover {{ background-color: {hex_to_rgba(primary, 0.45)}; }}
         scale trough {{
             min-height: 7px;
             border-radius: 999px;
@@ -416,7 +1849,7 @@ class ControlCenter(Gtk.Window):
         box.set_name("cc-card")
         return box
 
-    def _row(self, icon: str, title: str, on_click) -> tuple[Gtk.EventBox, Gtk.Label, Gtk.Label, Gtk.Label]:
+    def _row(self, icon: str, title: str, on_click):
         ev = Gtk.EventBox()
         ev.set_name("cc-row")
         h = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -440,10 +1873,11 @@ class ControlCenter(Gtk.Window):
         slab = Gtk.Label(label="…")
         slab.set_name("cc-sub")
         slab.set_halign(Gtk.Align.START)
+        slab.set_ellipsize(Pango.EllipsizeMode.END)
         mid.pack_start(slab, False, False, 0)
         h.pack_start(mid, True, True, 0)
 
-        chev = Gtk.Label(label="")
+        chev = Gtk.Label(label=I_CHEVRON_RIGHT)
         chev.set_name("cc-chev")
         chev.set_valign(Gtk.Align.CENTER)
         h.pack_start(chev, False, False, 0)
@@ -451,9 +1885,10 @@ class ControlCenter(Gtk.Window):
         ev.add(h)
         if on_click:
             ev.connect("button-press-event", lambda w, e: on_click() or True)
+        set_hand_cursor(ev)
         return ev, tlab, slab, chev
 
-    def _tile(self, icon: str, label: str, on_click) -> tuple[Gtk.EventBox, Gtk.Label]:
+    def _tile(self, icon: str, label: str, on_click):
         ev = Gtk.EventBox()
         ev.set_name("cc-tile")
         v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -466,11 +1901,14 @@ class ControlCenter(Gtk.Window):
         v.pack_start(lab, False, False, 0)
         ev.add(v)
         ev.connect("button-press-event", lambda w, e: on_click() or True)
+        set_hand_cursor(ev)
         return ev, lab
 
     # -- build ----------------------------------------------------------
 
     def _build_ui(self) -> None:
+        self.root = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+
         panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         panel.set_name("cc-panel")
         panel.set_size_request(470, -1)
@@ -480,16 +1918,14 @@ class ControlCenter(Gtk.Window):
 
         conn = self._card()
         self.wifi_row, self.wifi_title, self.wifi_sub, self.wifi_chev = self._row(
-            "", "Wi-Fi", wifi_toggle
+            I_WIFI, "Wi-Fi", lambda: self.toggle_detail("wifi")
         )
         self.bt_row, self.bt_title, self.bt_sub, self.bt_chev = self._row(
-            "", "Bluetooth", bt_toggle
+            I_BLUETOOTH, "Bluetooth", lambda: self.toggle_detail("bluetooth")
         )
         self.pw_row, self.pw_title, self.pw_sub, self.pw_chev = self._row(
-            "", "Power Mode", power_cycle
+            I_POWER, "Power Mode", power_cycle
         )
-        self.wifi_chev.set_text("󰅂")
-        self.bt_chev.set_text("󰅂")
         for r in (self.wifi_row, self.bt_row, self.pw_row):
             conn.pack_start(r, False, False, 0)
         top.pack_start(conn, True, True, 0)
@@ -499,7 +1935,7 @@ class ControlCenter(Gtk.Window):
         dnd_outer = Gtk.EventBox()
         self.dnd_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.dnd_box.set_name("cc-big-toggle")
-        dlab = Gtk.Label(label="")
+        dlab = Gtk.Label(label="󰂛")
         dlab.set_name("cc-icon")
         dlab.set_valign(Gtk.Align.CENTER)
         self.dnd_box.pack_start(dlab, False, False, 4)
@@ -513,14 +1949,14 @@ class ControlCenter(Gtk.Window):
         self.dnd_box.pack_start(dtext, True, True, 0)
         dnd_outer.add(self.dnd_box)
         dnd_outer.connect("button-press-event", lambda w, e: dnd_toggle() or True)
+        set_hand_cursor(dnd_outer)
         right.pack_start(dnd_outer, False, False, 0)
         self.dnd_outer = dnd_outer
 
         cap = self._card(vertical=False)
         cap.set_homogeneous(True)
-        self.shot_lab = None
-        shot_ev, _ = self._tile("", "Screen\nshot", screenshot)
-        self.rec_ev, self.rec_lab = self._tile("", "Screen\nRecord", self._on_record)
+        shot_ev, _ = self._tile("󰄀", "Screen\nshot", screenshot)
+        self.rec_ev, self.rec_lab = self._tile("󰑊", "Screen\nRecord", self._on_record)
         cap.pack_start(shot_ev, True, True, 0)
         cap.pack_start(self.rec_ev, True, True, 0)
         right.pack_start(cap, True, True, 0)
@@ -556,10 +1992,12 @@ class ControlCenter(Gtk.Window):
         )
         self.bright_scale.set_draw_value(False)
         self.bright_scale.set_value(get_brightness())
-        self._slider_lock = False
+        self.bright_scale.connect("button-press-event", self._bright_press)
+        self.bright_scale.connect("button-release-event", self._bright_release)
         self.bright_scale.connect(
             "value-changed",
-            lambda s: (set_brightness(int(s.get_value()))) if not self._slider_lock else None,
+            lambda s: set_brightness(int(s.get_value()))
+            if not self._bright_dragging else None,
         )
         brow.pack_start(self.bright_scale, True, True, 0)
         bright_card.pack_start(brow, False, False, 0)
@@ -579,13 +2017,38 @@ class ControlCenter(Gtk.Window):
         self.vol_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
         self.vol_scale.set_draw_value(False)
         self.vol_scale.set_value(get_volume())
-        self.vol_scale.connect("value-changed", lambda s: set_volume(int(s.get_value())))
+        self.vol_scale.connect("button-press-event", self._vol_press)
+        self.vol_scale.connect("button-release-event", self._vol_release)
+        self.vol_scale.connect(
+            "value-changed",
+            lambda s: set_volume(int(s.get_value()))
+            if not self._vol_dragging else None,
+        )
         vrow.pack_start(self.vol_scale, True, True, 0)
         vol_card.pack_start(vrow, False, False, 0)
         panel.pack_start(vol_card, False, False, 0)
 
-        self.add(panel)
+        self.root.pack_start(panel, False, False, 0)
+        self.add(self.root)
         self.show_all()
+
+    def _bright_press(self, *_a) -> bool:
+        self._bright_dragging = True
+        return False
+
+    def _bright_release(self, *_a) -> bool:
+        self._bright_dragging = False
+        set_brightness(int(self.bright_scale.get_value()))
+        return False
+
+    def _vol_press(self, *_a) -> bool:
+        self._vol_dragging = True
+        return False
+
+    def _vol_release(self, *_a) -> bool:
+        self._vol_dragging = False
+        set_volume(int(self.vol_scale.get_value()))
+        return False
 
     def _on_record(self) -> None:
         screen_record()
@@ -634,6 +2097,7 @@ class ControlCenter(Gtk.Window):
                 return handler
 
             ev.connect("button-press-event", make_click(name))
+            set_hand_cursor(ev)
             self.theme_box.pack_start(ev, False, False, 0)
         self.theme_box.show_all()
 
@@ -648,51 +2112,212 @@ class ControlCenter(Gtk.Window):
         self._build_theme_circles()
         return False
 
+    # -- detail panel ---------------------------------------------------
+
+    def toggle_detail(self, mode: str) -> None:
+        if self._detail_mode == mode and self.detail is not None:
+            self.close_detail()
+        else:
+            self.open_detail(mode)
+
+    def open_detail(self, mode: str) -> None:
+        debug(f"open_detail {mode}")
+        if mode not in ("wifi", "bluetooth"):
+            return
+        if self._detail_mode == mode and self.detail is not None:
+            return
+
+        if self.detail is None:
+            self.detail = ConnectionDetail(self)
+            self.root.pack_start(self.detail, False, False, 0)
+            self.root.reorder_child(self.detail, 0)
+
+        self._detail_mode = mode
+        self.detail.set_mode(mode)
+        self.detail.show_all()
+        self._highlight_rows()
+        self.queue_resize()
+        self.refresh_states()
+        GLib.timeout_add(80, self._resize_to_content)
+
+    def close_detail(self) -> None:
+        if self.detail is None:
+            return
+        self._detail_mode = None
+        self.detail.hide()
+        self.set_detail_keyboard(False)
+        self._highlight_rows()
+        self.queue_resize()
+        GLib.timeout_add(80, self._resize_to_content)
+
+    def _resize_to_content(self) -> bool:
+        # Layer-shell surfaces are not user-resizable; queueing a resize makes
+        # GTK recompute the natural width after the detail card is shown/hidden.
+        self.queue_resize()
+        return False
+
+    def set_detail_keyboard(self, exclusive: bool) -> None:
+        try:
+            GtkLayerShell.set_keyboard_mode(
+                self,
+                GtkLayerShell.KeyboardMode.EXCLUSIVE
+                if exclusive
+                else GtkLayerShell.KeyboardMode.ON_DEMAND,
+            )
+        except Exception:
+            pass
+
+    def _highlight_rows(self) -> None:
+        self.wifi_row.set_name(
+            "cc-row-active" if self._detail_mode == "wifi" else "cc-row"
+        )
+        self.bt_row.set_name(
+            "cc-row-active" if self._detail_mode == "bluetooth" else "cc-row"
+        )
+        self.wifi_chev.set_text(
+            I_CHEVRON_LEFT if self._detail_mode == "wifi" else I_CHEVRON_RIGHT
+        )
+        self.bt_chev.set_text(
+            I_CHEVRON_LEFT if self._detail_mode == "bluetooth" else I_CHEVRON_RIGHT
+        )
+
     # -- refresh ---------------------------------------------------------
 
     def refresh_states(self) -> bool:
-        wifi_on, wifi_name = wifi_state()
-        self.wifi_title.set_text("Wi-Fi" if wifi_on else "Wi-Fi (Off)")
-        self.wifi_sub.set_text(wifi_name)
+        if self._refresh_running:
+            return True
+        self._refresh_running = True
+        mode = self._detail_mode
 
-        bt_on, bt_name = bt_state()
-        self.bt_title.set_text("Bluetooth" if bt_on else "Bluetooth (Off)")
-        self.bt_sub.set_text(bt_name)
+        def work():
+            try:
+                state = {
+                    "wifi_available": wifi_available(),
+                    "wifi_on": wifi_radio_on(),
+                    "wifi_name": wifi_current_name(),
+                    "bt_available": bt_available(),
+                    "bt_on": bt_powered(),
+                    "bt_names": bt_connected_names(),
+                    "power": power_profile(),
+                    "dnd": dnd_state(),
+                    "recording": recording_active(),
+                    "brightness": get_brightness(),
+                    "volume": get_volume(),
+                }
+                if state["wifi_on"]:
+                    state["wifi_name"] = state["wifi_name"] or ""
+                if mode == "wifi":
+                    state["networks"] = (
+                        wifi_networks(rescan=False) if state["wifi_on"] else []
+                    )
+                elif mode == "bluetooth":
+                    state["devices"] = bt_devices() if state["bt_on"] else []
+                return state
+            except Exception:
+                return {}
 
-        self.pw_sub.set_text(power_profile().capitalize())
+        def done(state):
+            self._refresh_running = False
+            if state:
+                self._apply_state(state)
+            return False
 
-        dnd = dnd_state()
+        threading.Thread(
+            target=lambda: GLib.idle_add(done, work()), daemon=True
+        ).start()
+        return True
+
+    def _apply_state(self, state: dict) -> None:
+        self.state = state
+
+        wifi_on = bool(state.get("wifi_on"))
+        wifi_available = state.get("wifi_available", True)
+        wifi_name = state.get("wifi_name", "")
+        if not wifi_available:
+            self.wifi_sub.set_text("NetworkManager unavailable")
+        elif not wifi_on:
+            self.wifi_title.set_text("Wi-Fi")
+            self.wifi_sub.set_text("Off")
+        else:
+            self.wifi_title.set_text("Wi-Fi")
+            self.wifi_sub.set_text(wifi_name or "Not connected")
+
+        bt_on = bool(state.get("bt_on"))
+        bt_available_ = state.get("bt_available", True)
+        bt_names = state.get("bt_names") or []
+        if not bt_available_:
+            self.bt_sub.set_text("BlueZ unavailable")
+        elif not bt_on:
+            self.bt_title.set_text("Bluetooth")
+            self.bt_sub.set_text("Off")
+        else:
+            self.bt_title.set_text("Bluetooth")
+            self.bt_sub.set_text(bt_names[0] if bt_names else "On")
+
+        self.pw_sub.set_text(str(state.get("power", "balanced")).capitalize())
+
+        dnd = bool(state.get("dnd"))
         self.dnd_box.set_name("cc-big-active" if dnd else "cc-big-toggle")
         self.dnd_outer.queue_draw()
 
-        rec = recording_active()
+        rec = bool(state.get("recording"))
         self.rec_lab.set_text("Stop\nRec" if rec else "Screen\nRecord")
         self.rec_lab.get_style_context().remove_class("cc-rec")
         if rec:
             self.rec_lab.get_style_context().add_class("cc-rec")
 
-        self.bright_scale.set_value(get_brightness())
-        vol = get_volume()
-        self._slider_lock = True
-        self.vol_scale.set_value(vol)
-        self._slider_lock = False
-        self.vol_icon.set_text("󰝟" if vol == 0 else ("󰕿" if vol < 34 else ("󰖀" if vol < 67 else "󰕾")))
-        return True
+        if not self._bright_dragging:
+            self.bright_scale.set_value(int(state.get("brightness", 50)))
+        vol = int(state.get("volume", 0))
+        if not self._vol_dragging:
+            self.vol_scale.set_value(vol)
+        self.vol_icon.set_text(
+            "󰝟" if vol == 0 else ("󰕿" if vol < 34 else ("󰖀" if vol < 67 else "󰕾"))
+        )
+
+        if self.detail is not None and self.detail.get_visible():
+            self.detail.apply_state(state)
 
     # -- events -----------------------------------------------------------
 
     def _on_key(self, _w, event) -> bool:
+        debug(f"key press {event.keyval}")
         if event.keyval == Gdk.KEY_Escape:
-            self.close()
+            if self._detail_mode:
+                self.close_detail()
+            else:
+                self.close()
             return True
         return False
 
+    def _on_delete(self, *_a) -> bool:
+        debug("delete-event")
+        return False
+
+    def close(self) -> None:
+        debug("close() called")
+        super().close()
+
     def handle_command(self, line: str) -> None:
         line = line.strip().lower()
-        if line in {"toggle", "quit", "exit", "close"}:
+        debug(f"command: {line!r}")
+        if not line:
+            return
+        if line in {"quit", "exit", "close"}:
             self.close()
+        elif line in {"toggle"}:
+            self.close()
+        elif line in {"open", "show"}:
+            pass
+        elif line in {"open wifi", "show wifi", "wifi"}:
+            self.open_detail("wifi")
+        elif line in {"open bluetooth", "show bluetooth", "bluetooth", "bt"}:
+            self.open_detail("bluetooth")
+        elif line in {"close details", "close detail"}:
+            self.close_detail()
 
     def _on_destroy(self, *_a) -> None:
+        debug("window destroy")
         try:
             SOCKET_PATH.unlink()
         except Exception:
@@ -716,7 +2341,7 @@ def start_server(win: ControlCenter) -> None:
     def on_readable(_fd, _cond):
         while True:
             try:
-                data, _ = server.recvfrom(256)
+                data, _ = server.recvfrom(512)
             except Exception:
                 break
             win.handle_command(data.decode("utf-8", errors="ignore"))
@@ -725,23 +2350,54 @@ def start_server(win: ControlCenter) -> None:
     GLib.io_add_watch(server.fileno(), GLib.IO_IN, on_readable)
 
 
+def usage() -> None:
+    print(
+        "Usage: bitbeast-control-center [show|toggle|close] "
+        "[wifi|bluetooth]"
+    )
+
+
 def main() -> None:
-    arg = sys.argv[1].lower() if len(sys.argv) > 1 else "toggle"
-    if arg in {"show", "toggle"} and send_toggle() and arg == "toggle":
+    args = [a.lower() for a in sys.argv[1:]]
+    if any(a in {"-h", "--help"} for a in args):
+        usage()
         return
-    if arg == "close":
-        send_toggle()
+
+    action = "toggle"
+    panel: str | None = None
+    for arg in args:
+        if arg in {"show", "toggle", "close"}:
+            action = arg
+        elif arg in {"wifi", "wi-fi"}:
+            panel = "wifi"
+        elif arg in {"bluetooth", "bt"}:
+            panel = "bluetooth"
+
+    if action == "close":
+        send_command("close")
+        return
+
+    message = action
+    if panel:
+        message = f"open {panel}"
+    if send_command(message):
         return
 
     if not os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("DISPLAY"):
         print("No display available for control center", file=sys.stderr)
         return
 
-    signal.signal(signal.SIGINT, lambda *_: Gtk.main_quit())
-    signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
-    win = ControlCenter()
+    def on_signal(signum, _frame):
+        debug(f"signal {signum}")
+        Gtk.main_quit()
+
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+    debug("starting main loop")
+    win = ControlCenter(initial_panel=panel)
     start_server(win)
     Gtk.main()
+    debug("main loop ended")
 
 
 if __name__ == "__main__":

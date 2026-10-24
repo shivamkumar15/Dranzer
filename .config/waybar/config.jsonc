@@ -98,7 +98,7 @@
     "format-ethernet": "󰈀 {ifname}",
     "format-disconnected": "󰤮 off",
     "tooltip-format": "{ifname}: {ipaddr}/{cidr}",
-    "on-click": "nm-connection-editor"
+    "on-click": "~/.local/bin/bitbeast-control-center show wifi"
   },
 
   "backlight": {
@@ -158,7 +158,7 @@
     "format-on": "",
     "format-connected": "󰂱",
     "format-no-controller": "",
-    "on-click": "blueman-manager",
+    "on-click": "~/.local/bin/bitbeast-control-center show bluetooth",
     "on-click-right": "bluetoothctl power toggle"
   },
 

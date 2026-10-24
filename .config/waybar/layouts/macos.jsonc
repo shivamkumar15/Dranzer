@@ -72,7 +72,7 @@
     "format-disconnected": "󰖪",
     "tooltip-format-wifi": "{essid} ({signalStrength}%)",
     "tooltip-format-disconnected": "Disconnected",
-    "on-click": "~/.local/bin/bitbeast-control-center"
+    "on-click": "~/.local/bin/bitbeast-control-center show wifi"
   },
   "bluetooth": {
     "format": "󰂯",
@@ -81,7 +81,7 @@
     "tooltip-format": "Bluetooth on",
     "tooltip-format-connected": "{device_alias}",
     "tooltip-format-disabled": "Bluetooth off",
-    "on-click": "~/.local/bin/bitbeast-control-center"
+    "on-click": "~/.local/bin/bitbeast-control-center show bluetooth"
   },
   "battery": {
     "format": "{icon} {capacity}%",

@@ -36,7 +36,7 @@
     "format-ethernet": "󰈀",
     "format-disconnected": "󰤮",
     "tooltip-format": "{essid} · {ipaddr}",
-    "on-click": "nm-connection-editor"
+    "on-click": "~/.local/bin/bitbeast-control-center show wifi"
   },
   "battery": {
     "states": { "warning": 30, "critical": 15 },
