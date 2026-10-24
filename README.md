@@ -30,6 +30,7 @@ The installer automatically detects and installs missing dependencies for `pacma
 - **Notifications**: `swaync`
 - **Wallpapers**: `swww` (Recommended), `awww`, or `swaybg`
 - **System Info**: `fastfetch`
+- **Networking**: `NetworkManager` (`nmcli`) and `bluez` (`bluetoothctl`)
 - **Other**: `git`, `bash`, `playerctl`, `cava`, `pipewire`, `wireplumber`
 
 
