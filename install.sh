@@ -75,8 +75,15 @@ check_dependencies() {
             pacman:brightnessctl|yay:brightnessctl|paru:brightnessctl|apt:brightnessctl|dnf:brightnessctl) printf 'brightnessctl' ;;
             pacman:light|yay:light|paru:light|apt:light|dnf:light) printf 'light' ;;
             pacman:mov-cli|yay:mov-cli|paru:mov-cli|apt:mov-cli|dnf:mov-cli) printf 'mov-cli for youtube in terminal' ;;
-            pacman:python-gobject|yay:python-gobject|paru:python-gobject|apt:python3-gi|dnf:python3-gobject) printf 'python-gobject' ;;
-            pacman:gtk-layer-shell|yay:gtk-layer-shell|paru:gtk-layer-shell|apt:libgtk-layer-shell0|dnf:gtk-layer-shell) printf 'gtk-layer-shell' ;;
+            pacman:python-gobject|yay:python-gobject|paru:python-gobject) printf 'python-gobject' ;;
+            apt:python-gobject) printf 'python3-gi' ;;
+            dnf:python-gobject) printf 'python3-gobject' ;;
+            pacman:gtk-layer-shell|yay:gtk-layer-shell|paru:gtk-layer-shell|dnf:gtk-layer-shell) printf 'gtk-layer-shell' ;;
+            apt:gtk-layer-shell) printf 'gir1.2-gtklayershell-0.1' ;;
+            pacman:networkmanager|yay:networkmanager|paru:networkmanager) printf 'networkmanager' ;;
+            apt:networkmanager) printf 'network-manager' ;;
+            dnf:networkmanager) printf 'NetworkManager' ;;
+            pacman:bluez|yay:bluez|paru:bluez|apt:bluez|dnf:bluez) printf 'bluez' ;;
             pacman:grim|yay:grim|paru:grim|apt:grim|dnf:grim) printf 'grim' ;;
             pacman:slurp|yay:slurp|paru:slurp|apt:slurp|dnf:slurp) printf 'slurp' ;;
             pacman:wl-copy|yay:wl-copy|paru:wl-copy|apt:wl-copy|dnf:wl-copy) printf 'wl-clipboard' ;;
@@ -128,6 +135,14 @@ check_dependencies() {
         fi
     done
 
+    if ! python3 -c "import gi" >/dev/null 2>&1; then
+        add_missing_req "python-gobject" "python-gobject (PyGObject)"
+    fi
+
+    if ! python3 -c "import gi; gi.require_version('GtkLayerShell', '0.1'); from gi.repository import GtkLayerShell" >/dev/null 2>&1; then
+        add_missing_req "gtk-layer-shell" "gtk-layer-shell"
+    fi
+
     if [ ! -f "/usr/lib/xdg-desktop-portal-hyprland" ] && ! command -v xdg-desktop-portal-hyprland >/dev/null 2>&1; then
         add_missing_req "xdg-desktop-portal-hyprland" "xdg-desktop-portal-hyprland"
     fi
@@ -149,6 +164,13 @@ check_dependencies() {
             esac
         fi
     done
+
+    if ! command -v nmcli >/dev/null 2>&1; then
+        add_missing_opt "networkmanager" "NetworkManager (nmcli)"
+    fi
+    if ! command -v bluetoothctl >/dev/null 2>&1; then
+        add_missing_opt "bluez" "BlueZ (bluetoothctl)"
+    fi
 
     if command -v fc-list >/dev/null 2>&1; then
         if ! fc-list | grep -qi 'jetbrainsmono nerd'; then

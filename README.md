@@ -100,6 +100,13 @@ The `bitbeast` command is your main tool for managing theme
 ### Keyboard Hints Panel
 Press **`Super + H`** at any time to open the premium keyboard shortcuts panel. It features a masonry layout, live search, and dynamic grouping directly generated from your `hyprland.conf` comments.
 
+### Control Center (Wi-Fi + Bluetooth)
+Press **`Super + C`** to open the macOS-style control center. The Wi-Fi and Bluetooth rows now open a full detail popover:
+
+- **Wi-Fi** — live network list with signal strength, lock badges, saved/connected state, Rescan, `Other Network…` (including hidden SSIDs), inline password entry, Disconnect, and enterprise-network handoff.
+- **Bluetooth** — power switch, connected/paired/nearby devices, device-type icons, battery percentage, pairing/connecting, disconnecting, and manual scan.
+- The Waybar Wi-Fi and Bluetooth icons open the matching panel directly (`bitbeast-control-center show wifi` / `show bluetooth`), while `Super + C` still toggles the whole panel.
+
 ### Waybar Styles
 The system ships with **18** Waybar styles. Each style has **high-contrast theme colors** (readable text) and a matching **module layout**.
 

@@ -216,7 +216,8 @@ def wifi_available() -> bool:
 def wifi_radio_on() -> bool:
     if not wifi_available():
         return False
-    return cmd(["nmcli", "-t", "-f", "WIFI", "radio"]).lower() != "disabled"
+    out = cmd(["nmcli", "-t", "-f", "WIFI", "radio"]).strip().lower()
+    return out == "enabled"
 
 
 def wifi_current_name() -> str:
@@ -688,6 +689,7 @@ class ConnectionDetail(Gtk.Box):
         self._auth_hidden = False
         self._auth_busy = False
         self._initial_scan_done = False
+        self._reset_scroll = True
         self._build()
 
     # -- construction -------------------------------------------------
@@ -804,6 +806,7 @@ class ConnectionDetail(Gtk.Box):
         self.footer.add(footer_box)
         self.footer.connect("button-press-event", lambda *_: self._show_auth("", "", True) or True)
         set_hand_cursor(self.footer)
+        self.footer_box = footer_box
         self.list_page.pack_start(self.footer, False, False, 0)
 
         self.auth_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -821,6 +824,9 @@ class ConnectionDetail(Gtk.Box):
         self._error_token += 1
         self._action_text = None
         self._initial_scan_done = False
+        self._wifi_sig = None
+        self._bt_sig = None
+        self._reset_scroll = True
         self._show_list_page()
         self._refresh_activity()
 
@@ -829,15 +835,19 @@ class ConnectionDetail(Gtk.Box):
             self.section_title.set_text("Networks")
             self.footer_icon.set_text(I_PLUS)
             self.footer_label.set_text("Other Network…")
+            self.footer_box.show_all()
             self.footer.show()
             self.refresh_btn.set_tooltip_text("Scan for networks")
+            self._rebuild_list(self._networks, self._wifi_row)
         else:
             self.title.set_text("Bluetooth")
             self.section_title.set_text("Devices")
             self.footer.hide()
             self.refresh_btn.set_tooltip_text("Scan for devices")
+            self._rebuild_list(self._devices, self._bt_row)
 
         self._sync_from_state()
+        self.list_page.queue_resize()
 
     def apply_state(self, state: dict) -> None:
         self.cc.state = state
@@ -1009,7 +1019,11 @@ class ConnectionDetail(Gtk.Box):
 
     def _rebuild_list(self, items: list[dict], row_factory) -> None:
         adjustment = self.scrolled.get_vadjustment()
-        scroll_pos = adjustment.get_value()
+        if self._reset_scroll:
+            scroll_pos = 0
+            self._reset_scroll = False
+        else:
+            scroll_pos = adjustment.get_value()
         clear_box(self.list_box)
 
         if not items:
@@ -1169,6 +1183,8 @@ class ConnectionDetail(Gtk.Box):
     def _set_radio(self, on: bool) -> None:
         mode = self.mode
         label = "Wi-Fi" if mode == "wifi" else "Bluetooth"
+        if on:
+            self._initial_scan_done = False
         self._set_action(f"Turning {label} {'on' if on else 'off'}…")
 
         def work():
@@ -1260,6 +1276,8 @@ class ConnectionDetail(Gtk.Box):
     def _start_wifi_rescan(self) -> bool:
         if self._scanning or self._action_text:
             return False
+        if os.environ.get("BITBEAST_CC_NO_SCAN"):
+            return False
         if not self.cc.state.get("wifi_on", self.power_switch.get_active()):
             return False
         self._scanning = True
@@ -1345,11 +1363,21 @@ class ConnectionDetail(Gtk.Box):
 
         self._auth_ssid_entry = None
         if hidden:
+            ssid_label = Gtk.Label(label="Network Name")
+            ssid_label.set_name("cc-field-label")
+            ssid_label.set_xalign(0.0)
+            self.auth_page.pack_start(ssid_label, False, False, 0)
             self._auth_ssid_entry = Gtk.Entry()
             self._auth_ssid_entry.set_placeholder_text("Network name (SSID)")
             self._auth_ssid_entry.set_activates_default(False)
             self.auth_page.pack_start(self._auth_ssid_entry, False, False, 0)
 
+        password_label = Gtk.Label(
+            label="Password" if not hidden else "Password (optional for open networks)"
+        )
+        password_label.set_name("cc-field-label")
+        password_label.set_xalign(0.0)
+        self.auth_page.pack_start(password_label, False, False, 0)
         self._auth_password_entry = Gtk.Entry()
         self._auth_password_entry.set_placeholder_text(
             "Password (leave blank if open)" if hidden else "Password"
@@ -1668,6 +1696,13 @@ class ControlCenter(Gtk.Window):
             font-size: 13px;
             font-weight: 800;
             color: {text};
+        }}
+        #cc-field-label {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: {hex_to_rgba(text, 0.55)};
+            margin-top: 2px;
         }}
         #cc-status-card {{
             background-color: {hex_to_rgba(text, 0.045)};
