@@ -560,7 +560,6 @@ install_file "$REPO_DIR/.local/bin/bitbeast-media-popup" "$BIN_DIR/bitbeast-medi
 install_file "$REPO_DIR/.local/bin/bitbeast-hints-popup" "$BIN_DIR/bitbeast-hints-popup"
 install_file "$REPO_DIR/.local/bin/bitbeast-notification" "$BIN_DIR/bitbeast-notification"
 install_file "$REPO_DIR/.local/bin/bitbeast-notification-popdown" "$BIN_DIR/bitbeast-notification-popdown"
-install_file "$REPO_DIR/.local/bin/bitbeast-power-popup" "$BIN_DIR/bitbeast-power-popup"
 install_file "$REPO_DIR/.local/bin/bitbeast-osd" "$BIN_DIR/bitbeast-osd"
 install_file "$REPO_DIR/.local/bin/bitbeast-control-center" "$BIN_DIR/bitbeast-control-center"
 install_file "$REPO_DIR/.local/bin/waybar-mic.sh" "$BIN_DIR/waybar-mic.sh"
