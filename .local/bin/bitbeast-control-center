@@ -9,9 +9,14 @@ Usage:
   bitbeast-control-center show bluetooth  # open Bluetooth details
   bitbeast-control-center close           # close panel
 
-Cards:
+Left column:
   Wi-Fi / Bluetooth / Power Mode rows, Do Not Disturb, Screenshot, Screen
   Record, System Theme circles (beast themes), Brightness + Volume sliders.
+
+Right column (merged from the old power popup):
+  Clock with live CPU / RAM / Disk / Battery chips, Notifications, Now Playing
+  media transport, Airplane mode + Network Settings toggles, and session
+  actions (Suspend / Logout / Restart / Shutdown).
 
 The Wi-Fi and Bluetooth rows open a macOS-style detail popover with a network
 picker, password entry, Bluetooth scanning, pairing and battery information.
@@ -86,6 +91,19 @@ I_LAPTOP = "󰌢"
 I_MONITOR = "󰍹"
 I_WATCH = "󰖟"
 I_POWER = "󰓅"
+I_BELL = "󰂚"
+I_AIRPLANE = "󰀝"
+I_SETTINGS = "󰒓"
+I_PREV = "󰒮"
+I_NEXT = "󰒭"
+I_PLAY = "󰐊"
+I_PAUSE = "󰏤"
+I_MUTE = "󰝟"
+I_VOLUME = "󰕾"
+I_SUSPEND = "󰤄"
+I_LOGOUT = "󰍃"
+I_RESTART = "󰜉"
+I_SHUTDOWN = "⏻"
 
 BT_ICON_MAP = {
     "audio-headset": I_HEADPHONES,
@@ -652,6 +670,171 @@ def list_beast_themes() -> list[tuple[str, str, str]]:
 def current_beast_theme() -> str:
     f = CONFIG_HOME / "bitbeast" / "current.theme"
     return f.read_text().strip() if f.is_file() else ""
+
+
+# ── Power panel helpers (merged from the old power popup) ───────────
+
+SESSION_SCRIPT = Path.home() / ".local" / "bin" / "bitbeast-session"
+
+MEDIA_PLAYER_HINTS = (
+    "spotify",
+    "chrome",
+    "chromium",
+    "firefox",
+    "mpv",
+    "vlc",
+    "rhythmbox",
+    "cmus",
+)
+
+
+def get_player() -> str | None:
+    players = [line.strip() for line in cmd(["playerctl", "-l"]).splitlines()]
+    players = [p for p in players if p]
+    if not players:
+        return None
+    for player in players:
+        if any(hint in player.lower() for hint in MEDIA_PLAYER_HINTS):
+            return player
+    return players[0]
+
+
+def fmt_time(seconds) -> str:
+    try:
+        total = int(float(seconds))
+    except (TypeError, ValueError):
+        return "0:00"
+    return f"{total // 60}:{total % 60:02d}"
+
+
+def media_state(player: str) -> dict:
+    def meta(key: str) -> str:
+        return cmd(["playerctl", "-p", player, "metadata", key])
+
+    try:
+        duration = int(meta("mpris:length")) / 1_000_000
+    except ValueError:
+        duration = 0.0
+    try:
+        position = float(cmd(["playerctl", "-p", player, "position"]))
+    except ValueError:
+        position = 0.0
+
+    return {
+        "player": player,
+        "status": cmd(["playerctl", "-p", player, "status"]),
+        "title": (meta("title") or "Unknown Track")[:52],
+        "artist": (meta("artist") or meta("album") or "Unknown Artist")[:40],
+        "position": position,
+        "duration": duration,
+        "fraction": min(position / duration, 1.0) if duration > 0 else 0.0,
+    }
+
+
+def media_action(action: str) -> None:
+    player = get_player()
+    if player:
+        spawn(f"playerctl -p '{player}' {action}")
+
+
+def volume_muted() -> bool:
+    out = cmd(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    return "MUTED" in out.upper()
+
+
+def toggle_volume_mute() -> None:
+    spawn("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
+
+
+def notification_count() -> int:
+    try:
+        return int(cmd(["swaync-client", "--count"]))
+    except ValueError:
+        return 0
+
+
+def notification_summary() -> str:
+    if dnd_state():
+        return "Do Not Disturb on"
+    count = notification_count()
+    if count == 0:
+        return "No new notifications"
+    return f"{count} new notification" + ("" if count == 1 else "s")
+
+
+def battery_status() -> tuple[int, bool] | None:
+    """(percent, charging) for the first battery found, or None."""
+    for bat in sorted(Path("/sys/class/power_supply").glob("BAT*")):
+        try:
+            percent = int((bat / "capacity").read_text(encoding="utf-8").strip())
+            status = (bat / "status").read_text(encoding="utf-8").strip().lower()
+        except Exception:
+            continue
+        return percent, status in ("charging", "full")
+    return None
+
+
+def cpu_usage_percent(previous):
+    """(usage, sample) where sample is fed back in on the next call."""
+    try:
+        line = Path("/proc/stat").read_text(encoding="utf-8").splitlines()[0]
+        fields = [int(value) for value in line.split()[1:]]
+    except Exception:
+        return 0.0, previous
+
+    idle = fields[3] + fields[4]
+    total = sum(fields)
+    if previous is None:
+        return 0.0, (idle, total)
+
+    prev_idle, prev_total = previous
+    delta_total = total - prev_total
+    if delta_total <= 0:
+        return 0.0, (idle, total)
+    usage = 100.0 * (1.0 - ((idle - prev_idle) / delta_total))
+    return max(0.0, min(usage, 100.0)), (idle, total)
+
+
+def ram_usage_percent() -> int:
+    values = {}
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            key, raw = line.split(":", 1)
+            values[key] = int(raw.strip().split()[0])
+    except Exception:
+        return 0
+    total = values.get("MemTotal", 0)
+    if total <= 0:
+        return 0
+    return int(((total - values.get("MemAvailable", 0)) / total) * 100)
+
+
+def disk_usage_percent() -> int:
+    try:
+        usage = shutil.disk_usage("/")
+    except OSError:
+        return 0
+    return int((usage.used / usage.total) * 100)
+
+
+def airplane_enabled() -> bool:
+    radios = cmd(["nmcli", "radio", "all"]).lower()
+    return "disabled" in radios and "enabled" not in radios
+
+
+def toggle_airplane() -> None:
+    if airplane_enabled():
+        spawn("nmcli radio all on")
+        bt_set_power(True)
+    else:
+        spawn("nmcli radio all off")
+        bt_set_power(False)
+
+
+def session_action(action: str) -> None:
+    if not SESSION_SCRIPT.is_file():
+        return
+    spawn(f"'{SESSION_SCRIPT}' {action}")
 
 
 # ── Single-instance IPC ──────────────────────────────────────────────
@@ -1615,6 +1798,8 @@ class ControlCenter(Gtk.Window):
         self.detail: ConnectionDetail | None = None
         self._bright_dragging = False
         self._vol_dragging = False
+        self._live_running = False
+        self._prev_cpu = None
 
         GtkLayerShell.init_for_window(self)
         GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
@@ -1640,7 +1825,9 @@ class ControlCenter(Gtk.Window):
 
         self.show_all()
         self.refresh_states()
+        self.refresh_live()
         GLib.timeout_add(2500, self.refresh_states)
+        GLib.timeout_add(1500, self.refresh_live)
 
     # -- CSS ----------------------------------------------------------
 
@@ -1926,6 +2113,98 @@ class ControlCenter(Gtk.Window):
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
             margin: -7px 0;
         }}
+        #cc-clock {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 30px;
+            font-weight: 900;
+            color: {text};
+            letter-spacing: 1px;
+        }}
+        #cc-chip {{
+            background-color: {hex_to_rgba(text, 0.06)};
+            border: 1px solid {hex_to_rgba(text, 0.08)};
+            border-radius: 999px;
+            padding: 4px 8px;
+        }}
+        #cc-chip-label {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            color: {hex_to_rgba(text, 0.72)};
+        }}
+        #cc-tile-active {{
+            border-radius: 14px;
+            padding: 10px 6px;
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.45)}, {hex_to_rgba(accent, 0.25)});
+            border: 1px solid {hex_to_rgba(primary, 0.55)};
+        }}
+        #cc-progress trough {{
+            min-height: 6px;
+            border-radius: 999px;
+            background-color: {hex_to_rgba(text, 0.12)};
+            border: none;
+        }}
+        #cc-progress progress {{
+            min-height: 6px;
+            border-radius: 999px;
+            background-image: linear-gradient(90deg, {primary}, {accent});
+        }}
+        #cc-transport {{
+            min-width: 44px;
+            min-height: 44px;
+            border-radius: 22px;
+            background-color: {hex_to_rgba(text, 0.06)};
+            border: 1px solid {hex_to_rgba(text, 0.08)};
+        }}
+        #cc-transport:hover {{ background-color: {hex_to_rgba(text, 0.13)}; }}
+        #cc-play-btn {{
+            min-width: 54px;
+            min-height: 54px;
+            border-radius: 27px;
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.95)}, {hex_to_rgba(accent, 0.85)});
+            border: 1px solid {hex_to_rgba(primary, 0.55)};
+            box-shadow: 0 4px 16px {hex_to_rgba(primary, 0.30)};
+        }}
+        #cc-play-btn:hover {{
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 1.0)}, {hex_to_rgba(accent, 0.95)});
+        }}
+        #cc-mute-btn {{
+            min-width: 34px;
+            min-height: 34px;
+            border-radius: 11px;
+            background-color: {hex_to_rgba(text, 0.08)};
+            border: 1px solid {hex_to_rgba(text, 0.10)};
+            margin-left: 6px;
+        }}
+        #cc-mute-btn:hover {{ background-color: {hex_to_rgba(primary, 0.25)}; }}
+        #cc-session-btn {{
+            border-radius: 14px;
+            padding: 12px 10px;
+            background-color: {hex_to_rgba(text, 0.05)};
+            border: 1px solid {hex_to_rgba(text, 0.08)};
+        }}
+        #cc-session-btn:hover {{ background-color: {hex_to_rgba(text, 0.12)}; }}
+        #cc-session-danger {{
+            border-radius: 14px;
+            padding: 12px 10px;
+            background-color: {hex_to_rgba(primary, 0.16)};
+            border: 1px solid {hex_to_rgba(primary, 0.32)};
+        }}
+        #cc-session-danger:hover {{ background-color: {hex_to_rgba(primary, 0.28)}; }}
+        #cc-danger-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 18px;
+            color: {primary};
+        }}
+        #cc-danger-label {{
+            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: {primary};
+        }}
         """
 
     def _build_css(self) -> None:
@@ -2010,6 +2289,193 @@ class ControlCenter(Gtk.Window):
         ev.connect("button-press-event", lambda w, e: on_click() or True)
         set_hand_cursor(ev)
         return ev, lab
+
+    def _icon_button(self, icon: str, name: str, on_click, tooltip: str = ""):
+        ev = Gtk.EventBox()
+        ev.set_name(name)
+        if tooltip:
+            ev.set_tooltip_text(tooltip)
+        lab = Gtk.Label(label=icon)
+        lab.set_name("cc-icon")
+        lab.set_halign(Gtk.Align.CENTER)
+        lab.set_valign(Gtk.Align.CENTER)
+        ev.add(lab)
+        ev.connect("button-press-event", lambda w, e: on_click() or True)
+        set_hand_cursor(ev)
+        return ev, lab
+
+    # -- right column: clock, notifications, media, toggles, session ----
+
+    def _build_clock_card(self) -> Gtk.Box:
+        card = self._card()
+
+        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.clock_label = Gtk.Label(label=time.strftime("%H:%M"))
+        self.clock_label.set_name("cc-clock")
+        self.clock_label.set_halign(Gtk.Align.START)
+        head.pack_start(self.clock_label, True, True, 0)
+        self.date_label = Gtk.Label(label=time.strftime("%A, %b %d"))
+        self.date_label.set_name("cc-sub")
+        self.date_label.set_halign(Gtk.Align.END)
+        self.date_label.set_valign(Gtk.Align.END)
+        head.pack_end(self.date_label, False, False, 0)
+        card.pack_start(head, False, False, 0)
+
+        stats = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        stats.set_homogeneous(True)
+        self.stat_labels: dict[str, Gtk.Label] = {}
+        for key in ("CPU", "RAM", "Disk", "BAT"):
+            chip = Gtk.Box()
+            chip.set_name("cc-chip")
+            lab = Gtk.Label(label=f"{key} —")
+            lab.set_name("cc-chip-label")
+            chip.pack_start(lab, True, True, 0)
+            self.stat_labels[key] = lab
+            stats.pack_start(chip, True, True, 0)
+        card.pack_start(stats, False, False, 0)
+        return card
+
+    def _build_notifications_card(self) -> Gtk.Box:
+        card = self._card()
+        row, _title, self.notify_sub, _chev = self._row(
+            I_BELL, "Notifications", self._open_notifications
+        )
+        card.pack_start(row, False, False, 0)
+        return card
+
+    def _build_media_card(self) -> Gtk.Box:
+        card = self._card()
+
+        title = Gtk.Label(label="Now Playing")
+        title.set_name("cc-card-title")
+        title.set_halign(Gtk.Align.START)
+        card.pack_start(title, False, False, 0)
+
+        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        art = Gtk.Image()
+        art.set_from_icon_name("audio-x-generic", Gtk.IconSize.DIALOG)
+        art.set_valign(Gtk.Align.CENTER)
+        head.pack_start(art, False, False, 0)
+
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        info.set_valign(Gtk.Align.CENTER)
+        self.media_title = Gtk.Label(label="No active media")
+        self.media_title.set_name("cc-title")
+        self.media_title.set_halign(Gtk.Align.START)
+        self.media_title.set_ellipsize(Pango.EllipsizeMode.END)
+        self.media_artist = Gtk.Label(label="Start a player to see controls")
+        self.media_artist.set_name("cc-sub")
+        self.media_artist.set_halign(Gtk.Align.START)
+        self.media_artist.set_ellipsize(Pango.EllipsizeMode.END)
+        info.pack_start(self.media_title, False, False, 0)
+        info.pack_start(self.media_artist, False, False, 0)
+        head.pack_start(info, True, True, 0)
+        card.pack_start(head, False, False, 0)
+
+        self.media_progress = Gtk.ProgressBar()
+        self.media_progress.set_name("cc-progress")
+        card.pack_start(self.media_progress, False, False, 0)
+
+        times = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.media_pos = Gtk.Label(label="0:00")
+        self.media_pos.set_name("cc-sub")
+        self.media_pos.set_halign(Gtk.Align.START)
+        self.media_dur = Gtk.Label(label="0:00")
+        self.media_dur.set_name("cc-sub")
+        self.media_dur.set_halign(Gtk.Align.END)
+        times.pack_start(self.media_pos, True, True, 0)
+        times.pack_end(self.media_dur, False, False, 0)
+        card.pack_start(times, False, False, 0)
+
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        controls.set_halign(Gtk.Align.CENTER)
+        prev_ev, _pl = self._icon_button(
+            I_PREV, "cc-transport", lambda: media_action("previous"), "Previous"
+        )
+        self.play_ev, self.play_label = self._icon_button(
+            I_PLAY, "cc-play-btn", lambda: media_action("play-pause"), "Play / Pause"
+        )
+        next_ev, _nl = self._icon_button(
+            I_NEXT, "cc-transport", lambda: media_action("next"), "Next"
+        )
+        for widget in (prev_ev, self.play_ev, next_ev):
+            controls.pack_start(widget, False, False, 0)
+        card.pack_start(controls, False, False, 0)
+        return card
+
+    def _build_quick_card(self) -> Gtk.Box:
+        card = self._card()
+
+        title = Gtk.Label(label="Quick Toggles")
+        title.set_name("cc-card-title")
+        title.set_halign(Gtk.Align.START)
+        card.pack_start(title, False, False, 0)
+
+        tiles = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        tiles.set_homogeneous(True)
+        self.airplane_tile, self.airplane_label = self._tile(
+            I_AIRPLANE, "Airplane\nMode", self._on_airplane
+        )
+        net_tile, _nlab = self._tile(
+            I_SETTINGS, "Network\nSettings", self._open_network_settings
+        )
+        tiles.pack_start(self.airplane_tile, True, True, 0)
+        tiles.pack_start(net_tile, True, True, 0)
+        card.pack_start(tiles, False, False, 0)
+        return card
+
+    def _session_button(self, icon: str, label: str, action: str, danger: bool = False):
+        ev = Gtk.EventBox()
+        ev.set_name("cc-session-danger" if danger else "cc-session-btn")
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        box.set_halign(Gtk.Align.CENTER)
+        ilab = Gtk.Label(label=icon)
+        ilab.set_name("cc-danger-icon" if danger else "cc-icon")
+        ilab.set_valign(Gtk.Align.CENTER)
+        tlab = Gtk.Label(label=label)
+        tlab.set_name("cc-danger-label" if danger else "cc-title")
+        tlab.set_valign(Gtk.Align.CENTER)
+        box.pack_start(ilab, False, False, 0)
+        box.pack_start(tlab, False, False, 0)
+        ev.add(box)
+        ev.connect(
+            "button-press-event", lambda w, e: self._session_action(action) or True
+        )
+        set_hand_cursor(ev)
+        return ev
+
+    def _build_session_card(self) -> Gtk.Box:
+        card = self._card()
+
+        title = Gtk.Label(label="Session")
+        title.set_name("cc-card-title")
+        title.set_halign(Gtk.Align.START)
+        card.pack_start(title, False, False, 0)
+
+        grid = Gtk.Grid()
+        grid.set_row_spacing(10)
+        grid.set_column_spacing(10)
+        grid.set_column_homogeneous(True)
+        grid.attach(self._session_button(I_SUSPEND, "Suspend", "suspend"), 0, 0, 1, 1)
+        grid.attach(self._session_button(I_LOGOUT, "Logout", "logout"), 1, 0, 1, 1)
+        grid.attach(self._session_button(I_RESTART, "Restart", "reboot"), 0, 1, 1, 1)
+        grid.attach(
+            self._session_button(I_SHUTDOWN, "Shutdown", "shutdown", danger=True),
+            1, 1, 1, 1,
+        )
+        card.pack_start(grid, False, False, 0)
+        return card
+
+    def _build_side(self) -> Gtk.Box:
+        side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        side.set_name("cc-panel")
+        side.set_size_request(376, -1)
+        side.pack_start(self._build_clock_card(), False, False, 0)
+        side.pack_start(self._build_notifications_card(), False, False, 0)
+        side.pack_start(self._build_media_card(), False, False, 0)
+        side.pack_start(self._build_quick_card(), False, False, 0)
+        side.pack_start(self._build_session_card(), False, False, 0)
+        return side
 
     # -- build ----------------------------------------------------------
 
@@ -2117,7 +2583,7 @@ class ControlCenter(Gtk.Window):
         vtitle.set_halign(Gtk.Align.START)
         vol_card.pack_start(vtitle, False, False, 0)
         vrow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        self.vol_icon = Gtk.Label(label="󰕾")
+        self.vol_icon = Gtk.Label(label=I_VOLUME)
         self.vol_icon.set_name("cc-icon")
         self.vol_icon.set_valign(Gtk.Align.CENTER)
         vrow.pack_start(self.vol_icon, False, False, 0)
@@ -2132,11 +2598,41 @@ class ControlCenter(Gtk.Window):
             if not self._vol_dragging else None,
         )
         vrow.pack_start(self.vol_scale, True, True, 0)
+
+        self.mute_ev, self.mute_label = self._icon_button(
+            I_VOLUME, "cc-mute-btn", self._on_mute, "Mute / Unmute"
+        )
+        vrow.pack_end(self.mute_ev, False, False, 0)
+
         vol_card.pack_start(vrow, False, False, 0)
         panel.pack_start(vol_card, False, False, 0)
 
         self.root.pack_start(panel, False, False, 0)
+        self.side = self._build_side()
+        self.root.pack_start(self.side, False, False, 0)
         self.add(self.root)
+
+    def _on_mute(self) -> None:
+        toggle_volume_mute()
+        GLib.timeout_add(250, self.refresh_live)
+        GLib.timeout_add(400, self.refresh_states)
+
+    def _on_airplane(self) -> None:
+        toggle_airplane()
+        GLib.timeout_add(600, self.refresh_live)
+        GLib.timeout_add(900, self.refresh_states)
+
+    def _open_notifications(self) -> None:
+        spawn("swaync-client --toggle-panel")
+        self.close()
+
+    def _open_network_settings(self) -> None:
+        spawn("kitty -e nmtui")
+        self.close()
+
+    def _session_action(self, action: str) -> None:
+        session_action(action)
+        self.close()
 
     def _bright_press(self, *_a) -> bool:
         self._bright_dragging = True
@@ -2290,6 +2786,83 @@ class ControlCenter(Gtk.Window):
 
     # -- refresh ---------------------------------------------------------
 
+    def refresh_live(self) -> bool:
+        """Clock, media, notifications, toggles and system stats (1.5s)."""
+        if self._live_running:
+            return True
+        self._live_running = True
+
+        def work():
+            try:
+                cpu, self._prev_cpu = cpu_usage_percent(self._prev_cpu)
+                battery = battery_status()
+                if battery is None:
+                    bat_text = "BAT —"
+                else:
+                    percent, charging = battery
+                    bat_text = f"{'⚡' if charging else 'BAT'} {percent}%"
+
+                player = get_player()
+                return {
+                    "clock": time.strftime("%H:%M"),
+                    "date": time.strftime("%A, %b %d"),
+                    "notify": notification_summary(),
+                    "airplane": airplane_enabled(),
+                    "stats": {
+                        "CPU": f"CPU {int(round(cpu))}%",
+                        "RAM": f"RAM {ram_usage_percent()}%",
+                        "Disk": f"Disk {disk_usage_percent()}%",
+                        "BAT": bat_text,
+                    },
+                    "media": media_state(player) if player else None,
+                }
+            except Exception:
+                return {}
+
+        def done(state):
+            self._live_running = False
+            if state:
+                self._apply_live(state)
+            return False
+
+        threading.Thread(
+            target=lambda: GLib.idle_add(done, work()), daemon=True
+        ).start()
+        return True
+
+    def _apply_live(self, state: dict) -> None:
+        self.clock_label.set_text(state.get("clock", ""))
+        self.date_label.set_text(state.get("date", ""))
+        self.notify_sub.set_text(state.get("notify", ""))
+        self.airplane_tile.set_name(
+            "cc-tile-active" if state.get("airplane") else "cc-tile"
+        )
+        stats = state.get("stats") or {}
+        for key, label in self.stat_labels.items():
+            label.set_text(stats.get(key, f"{key} —"))
+        self._apply_media(state.get("media"))
+
+    def _apply_media(self, media: dict | None) -> None:
+        if not media:
+            self.media_title.set_text("No active media")
+            self.media_artist.set_text("Start a player to see controls")
+            self.media_progress.set_fraction(0.0)
+            self.media_pos.set_text("0:00")
+            self.media_dur.set_text("0:00")
+            self.play_label.set_text(I_PLAY)
+            return
+
+        self.media_title.set_text(media.get("title", "Unknown Track"))
+        self.media_artist.set_text(
+            f"{media.get('artist', '')} · {media.get('player', '')}".strip(" ·")
+        )
+        self.media_progress.set_fraction(float(media.get("fraction", 0.0)))
+        self.media_pos.set_text(fmt_time(media.get("position", 0)))
+        self.media_dur.set_text(fmt_time(media.get("duration", 0)))
+        self.play_label.set_text(
+            I_PAUSE if media.get("status") == "Playing" else I_PLAY
+        )
+
     def refresh_states(self) -> bool:
         if self._refresh_running:
             return True
@@ -2310,6 +2883,7 @@ class ControlCenter(Gtk.Window):
                     "recording": recording_active(),
                     "brightness": get_brightness(),
                     "volume": get_volume(),
+                    "muted": volume_muted(),
                 }
                 if state["wifi_on"]:
                     state["wifi_name"] = state["wifi_name"] or ""
@@ -2381,9 +2955,11 @@ class ControlCenter(Gtk.Window):
         vol = int(state.get("volume", 0))
         if not self._vol_dragging:
             self.vol_scale.set_value(vol)
+        muted = bool(state.get("muted", vol == 0))
         self.vol_icon.set_text(
-            "󰝟" if vol == 0 else ("󰕿" if vol < 34 else ("󰖀" if vol < 67 else "󰕾"))
+            I_MUTE if muted else ("󰕿" if vol < 34 else ("󰖀" if vol < 67 else I_VOLUME))
         )
+        self.mute_label.set_text(I_MUTE if muted else I_VOLUME)
 
         if self.detail is not None and self.detail.get_visible():
             self.detail.apply_state(state)

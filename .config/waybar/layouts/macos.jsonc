@@ -100,6 +100,6 @@
     "format": "󰒓",
     "tooltip": "Control Center",
     "on-click": "~/.local/bin/bitbeast-control-center",
-    "on-click-right": "~/.local/bin/bitbeast-power-popup"
+    "on-click-right": "~/.local/bin/bitbeast-control-center"
   }
 }

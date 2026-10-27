@@ -35,7 +35,7 @@
     "format-alt": "{:%A, %d %B %Y}",
     "interval": 1,
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
-    "on-click": "~/.local/bin/bitbeast-power-popup"
+    "on-click": "~/.local/bin/bitbeast-control-center"
   },
   "hyprland/window": {
     "format": "{}",

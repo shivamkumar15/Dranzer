@@ -82,7 +82,7 @@
     "format-alt": "{:%A, %d %B %Y  %H:%M:%S}",
     "interval": 1,
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
-    "on-click": "~/.local/bin/bitbeast-power-popup"
+    "on-click": "~/.local/bin/bitbeast-control-center"
   },
 
   "custom/netspeed": {
@@ -229,6 +229,6 @@
   "custom/power": {
     "format": "⏻",
     "tooltip": "Session / power menu",
-    "on-click": "~/.local/bin/bitbeast-power-popup"
+    "on-click": "~/.local/bin/bitbeast-control-center"
   }
 }

@@ -25,7 +25,7 @@
     "format-alt": "{:%A %d %B}",
     "interval": 1,
     "tooltip-format": "{:%Y-%m-%d}",
-    "on-click": "~/.local/bin/bitbeast-power-popup"
+    "on-click": "~/.local/bin/bitbeast-control-center"
   },
   "custom/cava": {
     "exec": "~/.local/bin/waybar-cava.sh 14 12",

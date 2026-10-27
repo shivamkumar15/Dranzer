@@ -35,6 +35,6 @@
     "format-alt": "{:%A %d %B}",
     "interval": 60,
     "tooltip-format": "{:%Y-%m-%d %A}",
-    "on-click": "~/.local/bin/bitbeast-power-popup"
+    "on-click": "~/.local/bin/bitbeast-control-center"
   }
 }
