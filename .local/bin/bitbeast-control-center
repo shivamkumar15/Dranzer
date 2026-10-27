@@ -20,6 +20,10 @@ Right column (merged from the old power popup):
 
 The Wi-Fi and Bluetooth rows open a macOS-style detail popover with a network
 picker, password entry, Bluetooth scanning, pairing and battery information.
+
+Clicking anywhere outside the panel — or pressing Escape — dismisses it: it
+cancels an open password prompt first, then closes the detail popover, then
+removes the panel itself.
 """
 
 from __future__ import annotations
@@ -1779,6 +1783,47 @@ class ConnectionDetail(Gtk.Box):
             self.power_switch.grab_focus()
 
 
+class ClickAwayBackdrop(Gtk.Window):
+    """Invisible full-output surface that catches clicks outside the panel.
+
+    It is mapped immediately before the panel so it stays underneath it in the
+    layer-shell TOP layer; pressing anywhere on it runs the same dismissal the
+    Escape key does. It takes no keyboard focus.
+    """
+
+    def __init__(self, cc: "ControlCenter") -> None:
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.cc = cc
+        self.set_app_paintable(True)
+        self.set_decorated(False)
+        self.set_accept_focus(False)
+        self.set_resizable(False)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
+        for edge in (
+            GtkLayerShell.Edge.TOP,
+            GtkLayerShell.Edge.BOTTOM,
+            GtkLayerShell.Edge.LEFT,
+            GtkLayerShell.Edge.RIGHT,
+        ):
+            GtkLayerShell.set_anchor(self, edge, True)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
+        # Deliberately not "bitbeast-cc*": the user's layerrule for that
+        # namespace would blur this full-screen surface.
+        GtkLayerShell.set_namespace(self, "bitbeast-backdrop")
+
+        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.connect("button-press-event", self._on_press)
+
+    def _on_press(self, *_a) -> bool:
+        debug("backdrop press")
+        self.cc.dismiss()
+        return True
+
+
 class ControlCenter(Gtk.Window):
     def __init__(self, initial_panel: str | None = None) -> None:
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
@@ -1822,6 +1867,10 @@ class ControlCenter(Gtk.Window):
         # the first frame instead of growing out of a squeezed layout.
         if initial_panel:
             self.open_detail(initial_panel)
+
+        # The click-away catcher is mapped first so the panel renders above it.
+        self.backdrop = ClickAwayBackdrop(self)
+        self.backdrop.show_all()
 
         self.show_all()
         self.refresh_states()
@@ -2969,18 +3018,26 @@ class ControlCenter(Gtk.Window):
     def _on_key(self, _w, event) -> bool:
         debug(f"key press {event.keyval}")
         if event.keyval == Gdk.KEY_Escape:
-            if (
-                self.detail is not None
-                and self.detail.get_visible()
-                and self.detail.auth_open()
-            ):
-                self.detail._cancel_auth()
-            elif self._detail_mode:
-                self.close_detail()
-            else:
-                self.close()
+            self.dismiss()
             return True
         return False
+
+    def dismiss(self) -> None:
+        """Escape behaviour, shared with the click-away backdrop.
+
+        Cancel an open password prompt, else close the Wi-Fi/Bluetooth detail
+        popover, else remove the panel itself.
+        """
+        if (
+            self.detail is not None
+            and self.detail.get_visible()
+            and self.detail.auth_open()
+        ):
+            self.detail._cancel_auth()
+        elif self._detail_mode:
+            self.close_detail()
+        else:
+            self.close()
 
     def _on_delete(self, *_a) -> bool:
         debug("delete-event")
