@@ -126,7 +126,6 @@ def describe_exec(command):
     if "kitty" in cmd or "$terminal" in cmd: return "Terminal"
     if "rofi" in cmd or "$menu" in cmd: return "App Launcher"
     if "chrome" in cmd or "$browser" in cmd: return "Browser"
-    if "bongocat" in cmd: return "Toggle Bongo Cat"
     if "dolphin" in cmd: return "File Manager"
     if "yazi" in cmd: return "Terminal File Manager"
     if "bitbeast pick" in cmd: return "Choose Wallpaper"

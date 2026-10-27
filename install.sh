@@ -580,27 +580,6 @@ install_file "$REPO_DIR/.local/bin/cava-j" "$BIN_DIR/cava-j"
 install_file "$REPO_DIR/.local/bin/cava-spiral" "$BIN_DIR/cava-spiral"
 chmod +x "$BIN_DIR"/bitbeast* "$BIN_DIR/circular_cava.py" "$BIN_DIR/toggle-transparency" "$BIN_DIR/waybar-cava.sh" "$BIN_DIR/waybar-netspeed.sh" "$BIN_DIR/waybar-updates.sh" "$BIN_DIR/cava-j" "$BIN_DIR/cava-spiral"
 
-if [ -f "$REPO_DIR/.local/bin/bongocat" ]; then
-    printf "Extracting BongoCat AppImage...\n"
-    mkdir -p "$DATA_HOME/bongocat"
-    rm -rf "$DATA_HOME/bongocat/squashfs-root"
-    cd "$DATA_HOME/bongocat"
-    "$REPO_DIR/.local/bin/bongocat" --appimage-extract >/dev/null 2>&1
-    rm -f "$BIN_DIR/bongocat"
-    cat > "$BIN_DIR/bongocat" << EOF
-#!/usr/bin/env bash
-set -e
-
-export WEBKIT_DISABLE_DMABUF_RENDERER=1
-export WEBKIT_DISABLE_COMPOSITING_MODE=1
-export GDK_BACKEND=x11
-export LIBGL_ALWAYS_SOFTWARE=1
-exec "$DATA_HOME/bongocat/squashfs-root/AppRun" "\$@"
-EOF
-    chmod +x "$BIN_DIR/bongocat"
-    cd - >/dev/null
-fi
-
 if [ "$APPLY_RUNTIME" -eq 1 ]; then
     "$BIN_DIR/bitbeast" "$THEME_NAME"
 else
