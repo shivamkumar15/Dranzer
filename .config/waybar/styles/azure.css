@@ -31,11 +31,9 @@ window#waybar {
 #clock {
     background: alpha(@bg-alt, 0.85);
     background-image: none;
-    border-radius: 10px;
     padding: 0 14px;
     color: @accent;
     font-weight: 800;
-    border: 1px solid @secondary;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55),
                 inset 0 1px 0 rgba(255, 255, 255, 0.07),
                 inset 0 -1px 0 rgba(0, 0, 0, 0.15);
@@ -100,7 +98,7 @@ window#waybar {
 #temperature     { color: @accent; }
 #temperature.critical { color: @glow; }
 #load            { color: @primary; }
-#disk            { color: @accent; }
+#disk            { color: @glow; }
 #custom-updates  { color: @accent; }
 #bluetooth       { color: @primary; }
 #battery         { color: @accent; }
