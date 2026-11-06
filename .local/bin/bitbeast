@@ -75,6 +75,7 @@ Usage:
   bitbeast zsh pick
   bitbeast auto-theme
   bitbeast gradient
+  bitbeast touchpad
   bitbeast hancore <version>
   bitbeast hancore list
   bitbeast hancore cycle
@@ -1679,6 +1680,36 @@ EOF_LIST
     fi
 }
 
+pick_touchpad() {
+    if ! command -v rofi >/dev/null 2>&1; then
+        printf 'rofi is required for bitbeast touchpad\n' >&2
+        exit 1
+    fi
+
+    touchpad_conf="$HYPR_DIR/touchpad.conf"
+    device_name=$(sed -n 's/^[[:space:]]*name[[:space:]]*=[[:space:]]*//p' "$touchpad_conf" 2>/dev/null | tail -n 1)
+    device_name=${device_name:-elan0001:00-04f3:31ad-touchpad}
+
+    current=$(sed -n 's/^[[:space:]]*sensitivity[[:space:]]*=[[:space:]]*//p' "$touchpad_conf" 2>/dev/null | tail -n 1)
+    current=${current:-0}
+    # The old BitBeast config used 2, outside libinput's [-1, 1] range.
+    current=$(awk -v v="$current" 'BEGIN { if (v > 1) v = 1; if (v < -1) v = -1; printf "%.1f", v }')
+
+    choice=$(printf '%s\n' -1.0 -0.75 -0.5 -0.25 0.0 0.25 0.5 0.75 1.0 | rofi -dmenu -i -p "Touchpad Sensitivity" -theme-str 'window { width: 320px; }' -select "$current")
+    [ -n "$choice" ] || exit 0
+
+    mkdir -p "$HYPR_DIR"
+    cat > "$touchpad_conf" <<EOF
+device {
+    name = $device_name
+    sensitivity = $choice
+}
+EOF
+
+    printf 'Touchpad sensitivity set to %s\n' "$choice"
+    reload_hyprland
+}
+
 cycle_style() {
     styles=$(list_styles)
     [ -n "$styles" ] || {
@@ -2079,6 +2110,9 @@ case $command_name in
         ;;
     gradient)
         toggle_gradient
+        ;;
+    touchpad)
+        pick_touchpad
         ;;
     list)
         list_themes

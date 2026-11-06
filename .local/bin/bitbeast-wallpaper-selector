@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-import sys
 import os
+import sys
 import signal
+
+# Some Wayland/WebKitGTK combinations render a transparent webview as a blank
+# black surface unless compositing is disabled for the web process.
+os.environ.setdefault("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
+
 import gi
 
 gi.require_version('Gtk', '3.0')
@@ -23,14 +28,21 @@ def main():
     win = Gtk.Window()
     win.connect("destroy", Gtk.main_quit)
 
-    GtkLayerShell.init_for_window(win)
-    GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
-    GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+    layer_shell = GtkLayerShell.is_supported()
+    if layer_shell:
+        GtkLayerShell.init_for_window(win)
+        GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.EXCLUSIVE)
 
-    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.TOP, True)
-    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
-    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.LEFT, True)
-    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
+        GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.TOP, True)
+        GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.LEFT, True)
+        GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
+    else:
+        # GNOME and other compositors without wlr-layer-shell still get a
+        # usable fullscreen picker instead of a blank/crashed surface.
+        win.set_decorated(False)
+        win.fullscreen()
 
     screen = win.get_screen()
     visual = screen.get_rgba_visual()
@@ -41,6 +53,14 @@ def main():
 
     webview = WebKit2.WebView()
     webview.set_background_color(Gdk.RGBA(0, 0, 0, 0))
+
+    settings = webview.get_settings()
+    # The picker lives in .../bitbeast/web-wallpaper-selector while the images
+    # live in .../bitbeast/wallpapers. WebKitGTK blocks that cross-directory
+    # file:// load by default on some versions.
+    settings.set_allow_file_access_from_file_urls(True)
+    settings.set_allow_universal_access_from_file_urls(True)
+
     webview.connect("notify::title", on_title_changed)
 
     xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
@@ -52,6 +72,7 @@ def main():
 
     win.add(webview)
     win.show_all()
+    webview.grab_focus()
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     Gtk.main()

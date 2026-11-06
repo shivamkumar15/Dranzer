@@ -522,6 +522,7 @@ if [ -f "$CONFIG_HOME/hypr/hyprland.lua" ]; then
     backup_path "$CONFIG_HOME/hypr/hyprland.lua"
 fi
 install_file "$REPO_DIR/.config/hypr/hyprland.conf" "$CONFIG_HOME/hypr/hyprland.conf"
+install_file "$REPO_DIR/.config/hypr/hyprland.lua" "$CONFIG_HOME/hypr/hyprland.lua"
 install_file "$REPO_DIR/.config/hypr/hyprlock.conf" "$CONFIG_HOME/hypr/hyprlock.conf"
 if [ ! -f "$CONFIG_HOME/hypr/touchpad.conf" ]; then
     cp "$REPO_DIR/.config/hypr/touchpad.conf" "$CONFIG_HOME/hypr/touchpad.conf"
@@ -547,6 +548,7 @@ install_file "$REPO_DIR/.config/cava/josh.conf" "$CONFIG_HOME/cava/josh.conf"
 install_file "$REPO_DIR/.config/cava/spiral.conf" "$CONFIG_HOME/cava/spiral.conf"
 install_dir "$REPO_DIR/.config/cava/shaders" "$CONFIG_HOME/cava/shaders"
 install_dir "$REPO_DIR/web-wallpaper-selector" "$DATA_HOME/bitbeast/web-wallpaper-selector"
+install_file "$REPO_DIR/hyprspace_keyboard_hover.patch" "$DATA_HOME/bitbeast/hyprspace_keyboard_hover.patch"
 # Prefer full bitbeast CLI (includes layout-aware style switching)
 if [ -f "$REPO_DIR/.local/bin/bitbeast" ]; then
     install_file "$REPO_DIR/.local/bin/bitbeast" "$BIN_DIR/bitbeast"

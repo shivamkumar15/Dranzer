@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
 # Build & install the Hyprspace workspace-overview plugin for the running Hyprland.
-# Applies Dranzer's patch (hover highlight + keyboard arrow navigation).
+# Applies Dranzer's patch (hover highlight + keyboard arrow navigation) when it
+# is compatible with the current Hyprspace source.
 #
 # Usage: bitbeast-hyprspace [build|load|all]   (default: all)
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PATCH="$REPO_DIR/hyprspace_keyboard_hover.patch"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hyprland-plugins"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/bitbeast"
 SRC_DIR="$PLUGINS_DIR/Hyprspace-src"
 ACTION="${1:-all}"
+
+find_patch() {
+    for candidate in "${BITBEAST_HYPRSPACE_PATCH:-}" \
+                     "$REPO_DIR/hyprspace_keyboard_hover.patch" \
+                     "$DATA_DIR/hyprspace_keyboard_hover.patch"; do
+        if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
 
 need() { command -v "$1" >/dev/null || { echo "[bitbeast-hyprspace] missing dependency: $1"; exit 1; }; }
 need git
@@ -18,30 +32,39 @@ need pkg-config
 pkg-config --exists hyprland || { echo "[bitbeast-hyprspace] Hyprland headers not found (pkg-config hyprland)"; exit 1; }
 
 clone_src() {
+    mkdir -p "$PLUGINS_DIR"
     if [ ! -d "$SRC_DIR/.git" ]; then
-        mkdir -p "$PLUGINS_DIR"
+        rm -rf "$SRC_DIR"
         git clone https://github.com/KZDKM/Hyprspace.git "$SRC_DIR"
     fi
-    # PR #238: V2 API — compatible with Hyprland 0.55+
-    git -C "$SRC_DIR" fetch origin pull/238/head:pr238 2>/dev/null || true
-    git -C "$SRC_DIR" checkout pr238
+    # Upstream main tracks the current Hyprland plugin API (0.57+).
+    git -C "$SRC_DIR" fetch origin main
+    git -C "$SRC_DIR" checkout -B main origin/main
+    git -C "$SRC_DIR" reset --hard origin/main
+    git -C "$SRC_DIR" clean -fdx >/dev/null
 }
 
 apply_patch() {
-    [ -f "$PATCH" ] || { echo "[bitbeast-hyprspace] patch not found: $PATCH"; exit 1; }
-    if git -C "$SRC_DIR" apply --check "$PATCH" 2>/dev/null; then
-        git -C "$SRC_DIR" apply "$PATCH"
-        echo "[bitbeast-hyprspace] applied hyprspace_keyboard_hover.patch"
+    local patch
+    if ! patch=$(find_patch); then
+        echo "[bitbeast-hyprspace] custom hover/keyboard patch not installed — building stock Hyprspace"
+        return 0
+    fi
+
+    if git -C "$SRC_DIR" apply --check "$patch" 2>/dev/null; then
+        git -C "$SRC_DIR" apply "$patch"
+        echo "[bitbeast-hyprspace] applied $(basename "$patch")"
     else
-        echo "[bitbeast-hyprspace] patch already applied (or conflicts) — skipping"
+        echo "[bitbeast-hyprspace] $(basename "$patch") does not apply to this Hyprspace version — building stock plugin"
     fi
 }
 
 do_build() {
     clone_src
     apply_patch
-    make -C "$SRC_DIR" clean all
-    cp "$SRC_DIR/Hyprspace.so" "$PLUGINS_DIR/"
+    rm -f "$SRC_DIR/Hyprspace.so"
+    make -C "$SRC_DIR"
+    install -m 755 "$SRC_DIR/Hyprspace.so" "$PLUGINS_DIR/Hyprspace.so"
     echo "[bitbeast-hyprspace] built and installed -> $PLUGINS_DIR/Hyprspace.so"
 }
 
