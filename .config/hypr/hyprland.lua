@@ -5,7 +5,7 @@
 -- on every config load / reload so `bitbeast <theme>`, `bitbeast style ...`
 -- and `bitbeast touchpad` keep working.
 
-local HOME = os.getenv("HOME") or "/home/dranzer"
+local HOME = os.getenv("HOME") or ""
 
 local function trim(s)
     return (s:gsub("^%s+", ""):gsub("%s+$", ""))
@@ -171,7 +171,7 @@ local group_inactive = gradient(get(theme, "group.col.border_inactive", secondar
 
 local mod = "SUPER"
 local terminal = "kitty"
-local browser = "google-chrome-stable"
+local browser = "~/.local/bin/bitbeast-browser"
 local menu = "rofi -show drun -config ~/.config/rofi/config.rasi"
 local bitbeast = "~/.local/bin/bitbeast"
 local lock = "~/.local/bin/bitbeast lock"
@@ -200,6 +200,7 @@ hl.env("HYPRCURSOR_SIZE", "24")
 
 hl.on("hyprland.start", function()
     hl.exec_cmd("waybar")
+    hl.exec_cmd("swaync")
     hl.exec_cmd("hyprctl plugin load ~/.local/share/hyprland-plugins/Hyprspace.so")
     hl.exec_cmd(bitbeast .. " session-init")
     hl.exec_cmd("~/.local/bin/bitbeast-battery-watcher")
@@ -246,10 +247,13 @@ hl.config({
     },
 })
 
-hl.device({
-    name = get(touchpad, "device.name", "elan0001:00-04f3:31ad-touchpad"),
-    sensitivity = clamp_sensitivity(get(touchpad, "device.sensitivity", 0)),
-})
+local touchpad_name = get(touchpad, "device.name", "")
+if touchpad_name ~= "" then
+    hl.device({
+        name = touchpad_name,
+        sensitivity = clamp_sensitivity(get(touchpad, "device.sensitivity", 0)),
+    })
+end
 
 ---------------------
 ---- LOOK & FEEL ----
