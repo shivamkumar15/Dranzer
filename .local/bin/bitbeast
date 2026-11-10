@@ -73,6 +73,7 @@ Usage:
   bitbeast zsh list
   bitbeast zsh cycle
   bitbeast zsh pick
+  bitbeast zsh prompt
   bitbeast auto-theme
   bitbeast gradient
   bitbeast touchpad
@@ -1273,7 +1274,7 @@ apply_wallpaper() {
         fi
     fi
 
-    warn 'No wallpaper backend available. Install awww (recommended) or swww or swaybg.'
+    warn 'No wallpaper backend available. Install swaybg (required) or awww/swww for animated transitions.'
     return 1
 }
 
@@ -1428,7 +1429,7 @@ function trim(s) {
 function normalize(s) {
     gsub(/\$mod/, "SUPER", s)
     gsub(/\$terminal/, "kitty", s)
-    gsub(/\$browser/, "google-chrome-stable", s)
+    gsub(/\$browser/, "bitbeast-browser", s)
     gsub(/\$menu/, "rofi", s)
     gsub(/\$bitbeast/, "bitbeast", s)
     return s
@@ -1619,7 +1620,6 @@ activate_theme() {
     swaync-client -rs >/dev/null 2>&1 || true
     reload_cursor "$theme_dir/colors.conf"
 
-    update_zsh_theme "$theme_name" || true
     generate_zsh_prompt_colors
 
     restore_gradient_state || true
@@ -1680,6 +1680,21 @@ EOF_LIST
     fi
 }
 
+detect_touchpad_device() {
+    for name_file in /sys/class/input/event*/device/name; do
+        [ -r "$name_file" ] || continue
+        name=$(cat "$name_file" 2>/dev/null) || continue
+        lower_name=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
+        case "$lower_name" in
+            *touchpad*)
+                printf '%s\n' "$name"
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
 pick_touchpad() {
     if ! command -v rofi >/dev/null 2>&1; then
         printf 'rofi is required for bitbeast touchpad\n' >&2
@@ -1688,6 +1703,10 @@ pick_touchpad() {
 
     touchpad_conf="$HYPR_DIR/touchpad.conf"
     device_name=$(sed -n 's/^[[:space:]]*name[[:space:]]*=[[:space:]]*//p' "$touchpad_conf" 2>/dev/null | tail -n 1)
+    detected_name=$(detect_touchpad_device || true)
+    case "$device_name" in
+        ""|elan0001*) device_name=${detected_name:-$device_name} ;;
+    esac
     device_name=${device_name:-elan0001:00-04f3:31ad-touchpad}
 
     current=$(sed -n 's/^[[:space:]]*sensitivity[[:space:]]*=[[:space:]]*//p' "$touchpad_conf" 2>/dev/null | tail -n 1)
@@ -1950,9 +1969,13 @@ EOF_ZSH
 }
 
 list_zsh_themes() {
-    if [ -d "$HOME/.oh-my-zsh/themes" ]; then
-        ls "$HOME/.oh-my-zsh/themes"/*.zsh-theme 2>/dev/null | xargs -n1 basename | sed 's/\.zsh-theme$//' | sort
-    fi
+    for theme_dir in "$HOME/.oh-my-zsh/themes" "$HOME/.oh-my-zsh/custom/themes"; do
+        [ -d "$theme_dir" ] || continue
+        for theme_file in "$theme_dir"/*.zsh-theme; do
+            [ -e "$theme_file" ] || continue
+            basename "$theme_file" .zsh-theme
+        done
+    done | sort -u
 }
 
 cycle_zsh_theme() {
@@ -2295,6 +2318,9 @@ EOF_COLORS
                 ;;
             pick)
                 pick_zsh_theme
+                ;;
+            prompt)
+                generate_zsh_prompt_colors
                 ;;
             *)
                 [ $# -eq 2 ] || {
