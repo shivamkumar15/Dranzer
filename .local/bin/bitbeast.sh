@@ -1272,7 +1272,7 @@ apply_wallpaper() {
         fi
     fi
 
-    warn 'No wallpaper backend available. Install awww (recommended) or swww or swaybg.'
+    warn 'No wallpaper backend available. Install swaybg (required) or awww/swww for animated transitions.'
     return 1
 }
 
@@ -1427,7 +1427,7 @@ function trim(s) {
 function normalize(s) {
     gsub(/\$mod/, "SUPER", s)
     gsub(/\$terminal/, "kitty", s)
-    gsub(/\$browser/, "google-chrome-stable", s)
+    gsub(/\$browser/, "bitbeast-browser", s)
     gsub(/\$menu/, "rofi", s)
     gsub(/\$bitbeast/, "bitbeast", s)
     return s
@@ -1618,7 +1618,6 @@ activate_theme() {
     swaync-client -rs >/dev/null 2>&1 || true
     reload_cursor "$theme_dir/colors.conf"
 
-    update_zsh_theme "$theme_name" || true
     generate_zsh_prompt_colors
 
     restore_gradient_state || true
