@@ -1,0 +1,39 @@
+#!/bin/sh
+# Launch the user's preferred browser without hard-coding a single package.
+# Override with BITBEAST_BROWSER=/path/to/browser.
+set -eu
+
+if [ -n "${BITBEAST_BROWSER:-}" ]; then
+    if command -v "$BITBEAST_BROWSER" >/dev/null 2>&1; then
+        exec "$BITBEAST_BROWSER" "$@"
+    fi
+    printf 'BitBeast: BITBEAST_BROWSER is set to "%s" but was not found.\n' "$BITBEAST_BROWSER" >&2
+fi
+
+for candidate in \
+    google-chrome-stable \
+    google-chrome \
+    chromium \
+    chromium-browser \
+    brave-browser \
+    brave \
+    microsoft-edge \
+    microsoft-edge-stable \
+    vivaldi \
+    vivaldi-stable \
+    firefox \
+    firefox-esr; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        exec "$candidate" "$@"
+    fi
+done
+
+if command -v xdg-open >/dev/null 2>&1; then
+    exec xdg-open "$@"
+fi
+
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a BitBeast "No browser found" "Install Firefox, Chromium, Chrome, Brave, or set BITBEAST_BROWSER."
+fi
+printf 'BitBeast: no supported browser found. Set BITBEAST_BROWSER or install one.\n' >&2
+exit 1
