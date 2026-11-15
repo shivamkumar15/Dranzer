@@ -361,6 +361,19 @@ hl.animation({ leaf = "workspaces", enabled = true, speed = 6, bezier = "default
 ---- GESTURES ------
 --------------------
 
+-- Hyprland 0.57 parses `hyprctl dispatch` arguments as Lua, so the legacy
+-- `hyprctl dispatch overview:toggle` call fails. Hyprspace exposes its own Lua
+-- API instead; resolve it at call time because the plugin is loaded after the
+-- config is parsed.
+local function toggle_overview()
+    local overview = hl.plugin and hl.plugin.overview
+    if overview and overview.toggle then
+        overview.toggle()
+    else
+        hl.exec_cmd("~/.local/bin/bitbeast-workspace-picker")
+    end
+end
+
 hl.gesture({
     fingers = 3,
     direction = "horizontal",
@@ -370,9 +383,7 @@ hl.gesture({
 hl.gesture({
     fingers = 3,
     direction = "up",
-    action = function()
-        hl.exec_cmd("hyprctl dispatch overview:toggle")
-    end,
+    action = toggle_overview,
 })
 
 -------------------
@@ -389,7 +400,7 @@ hl.bind(mod .. " + b", hl.dsp.exec_cmd(browser))
 hl.bind(mod .. " + e", hl.dsp.exec_cmd("dolphin"))
 hl.bind(mod .. " + h", hl.dsp.exec_cmd(bitbeast .. " keybindings"))
 hl.bind(mod .. " + C", hl.dsp.exec_cmd("~/.local/bin/bitbeast-control-center"))
-hl.bind(mod .. " + g", hl.dsp.exec_cmd("hyprctl dispatch overview:toggle"))
+hl.bind(mod .. " + g", toggle_overview)
 hl.bind(mod .. " + SHIFT + g", hl.dsp.exec_cmd("~/.local/bin/bitbeast-workspace-picker"))
 hl.bind(mod .. " + SHIFT + E", hl.dsp.exec_cmd(terminal .. " -e yazi"))
 hl.bind(mod .. " + W", hl.dsp.exec_cmd(bitbeast .. " pick"))
