@@ -806,8 +806,20 @@ setup_hyprspace() {
     info "=== Hyprspace Plugin ==="
     if "$BIN_DIR/bitbeast-hyprspace" build; then
         info "Hyprspace built and installed."
+
+        # If the installer is run from inside Hyprland, load the plugin now so
+        # the 3-finger swipe-up overview works without waiting for a relogin.
+        if hyprctl version >/dev/null 2>&1; then
+            if "$BIN_DIR/bitbeast-hyprspace" load; then
+                info "Hyprspace loaded into the running Hyprland session."
+            else
+                warn "Could not load Hyprspace into the running session; it will load at next login."
+            fi
+        else
+            info "Hyprspace will load automatically when Hyprland starts."
+        fi
     else
-        warn "Hyprspace could not be built. The desktop will still work, but the workspace overview will be unavailable."
+        warn "Hyprspace could not be built. The 3-finger swipe-up gesture will fall back to the workspace picker."
     fi
 }
 

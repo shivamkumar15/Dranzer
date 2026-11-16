@@ -72,7 +72,7 @@ The installer will:
 - Install the Lua config for Hyprland 0.57+ and the legacy config for older releases.
 - Detect your touchpad and write a matching `~/.config/hypr/touchpad.conf`.
 - Install Oh My Zsh, the BitBeast zsh theme, and the prompt helpers (already-present installations are reused).
-- Build the Hyprspace workspace-overview plugin for the installed Hyprland version.
+- Build the Hyprspace workspace-overview plugin for the installed Hyprland version and load it automatically, including into an already-running session.
 - Enable NetworkManager, Bluetooth, and power-profiles-daemon when they are installed.
 - Add `~/.local/bin` to your shell PATH and install the touchpad udev rule for the volume-gesture daemon.
 
@@ -199,7 +199,7 @@ Don't worry about your current configs! The installer automatically creates back
 - **Wallpaper not changing**: `swaybg` is installed by default; `swww`/`awww` are optional. Check which backend is available with `command -v swaybg swww awww`.
 - **Wallpaper picker is blank**: Install WebKit2GTK 4.1 (or 4.0) and PyGObject, then rerun `./install.sh`. The selector uses the GTK layer shell when available and a fullscreen GTK window otherwise.
 - **Super+B does not open a browser**: Run `bitbeast-browser`, or set `BITBEAST_BROWSER` to your browser command and restart Hyprland.
-- **Hyprspace overview is missing**: Run `bitbeast-hyprspace build` after installing `make`, `gcc`/`g++`, `pkg-config`, and the Hyprland development headers. On Hyprland 0.57 the stock upstream plugin is used.
+- **Hyprspace overview is missing**: Run `bitbeast-hyprspace all` after installing `make`, `gcc`/`g++`, `pkg-config`, and the Hyprland development headers. On Hyprland 0.57 the stock upstream plugin is used. If the plugin cannot load, the 3-finger swipe-up gesture falls back to the Rofi workspace picker.
 - **Audio visualizer (Cava) empty**: Check your `~/.config/cava/config` for the correct audio source.
 - **`zsh: corrupt history file`**: This is caused by a concurrent-shell history write race. The `.zshrc` now uses `INC_APPEND_HISTORY` with `HIST_FCNTL_LOCK` exclusively (the redundant `APPEND_HISTORY` exit-time append has been removed). Delete any stale `~/.zsh_history.corrupt.*` / `.bad` / `.backup` files. If it persists, run `fc -W` to flush the current session and restart your shell.
 

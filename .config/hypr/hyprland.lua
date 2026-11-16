@@ -6,6 +6,8 @@
 -- and `bitbeast touchpad` keep working.
 
 local HOME = os.getenv("HOME") or ""
+local DATA_HOME = os.getenv("XDG_DATA_HOME") or (HOME .. "/.local/share")
+local HYPRSPACE_PLUGIN = DATA_HOME .. "/hyprland-plugins/Hyprspace.so"
 
 local function trim(s)
     return (s:gsub("^%s+", ""):gsub("%s+$", ""))
@@ -19,6 +21,15 @@ local function read_file(path)
     local data = f:read("*a")
     f:close()
     return data
+end
+
+local function file_exists(path)
+    local f = io.open(path, "r")
+    if not f then
+        return false
+    end
+    f:close()
+    return true
 end
 
 -- Parse the small KEY = VALUE / SECTION { ... } dialect used by the
@@ -194,6 +205,18 @@ hl.monitor({
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 
+---------------
+---- PLUGINS ----
+---------------
+
+-- Load through the config loader so Hyprspace stays registered across config
+-- reloads and its Lua API (`hl.plugin.overview`) is available to the gesture
+-- handler below. If the plugin was not built, the gesture falls back to the
+-- Rofi workspace picker.
+if file_exists(HYPRSPACE_PLUGIN) and hl.plugin and hl.plugin.load then
+    hl.plugin.load(HYPRSPACE_PLUGIN)
+end
+
 -------------------
 ---- AUTOSTART ----
 -------------------
@@ -201,7 +224,6 @@ hl.env("HYPRCURSOR_SIZE", "24")
 hl.on("hyprland.start", function()
     hl.exec_cmd("waybar")
     hl.exec_cmd("swaync")
-    hl.exec_cmd("hyprctl plugin load ~/.local/share/hyprland-plugins/Hyprspace.so")
     hl.exec_cmd(bitbeast .. " session-init")
     hl.exec_cmd("~/.local/bin/bitbeast-battery-watcher")
     hl.exec_cmd("wl-paste --type text --watch cliphist store")
