@@ -111,7 +111,15 @@ The `bitbeast` command is your main tool for managing theme
 Press **`Super + H`** at any time to open the premium keyboard shortcuts panel. It features a masonry layout, live search, and dynamic grouping directly generated from your `hyprland.conf` comments.
 
 ### Control Center (Quick Settings + Power Panel)
-Press **`Super + C`** to open the macOS-style control center. It is a single panel with two columns: quick settings on the left, and the live system / power column on the right.
+Press **`Super + C`** to open the macOS-style control center. It is a single panel with two columns: everyday controls on the left, and at-a-glance system status and power on the right.
+
+The left column keeps the things you reach for most:
+
+- **Wi-Fi / Bluetooth / Power mode** — live status with inline radio switches, plus a detail chevron. Power mode cycles Balanced → Performance → Battery saver.
+- **Do Not Disturb and capture** — one-tap focus, screenshots and screen recording.
+- **Beast theme** — color swatches for every BitBeast theme, with the active theme named.
+- **Display & sound** — brightness and volume in one card, with mute and live percentages.
+- **Quick actions** — Airplane mode, Network settings and Lock screen.
 
 The Wi-Fi and Bluetooth rows open a full detail popover:
 
@@ -119,13 +127,12 @@ The Wi-Fi and Bluetooth rows open a full detail popover:
 - **Bluetooth** — power switch, connected/paired/nearby devices, device-type icons, battery percentage, pairing/connecting, disconnecting, and manual scan.
 - The Waybar Wi-Fi and Bluetooth icons open the matching panel directly (`bitbeast-control-center show wifi` / `show bluetooth`), while `Super + C` still toggles the whole panel.
 
-The right column carries the power panel that used to live in `bitbeast-power-popup`:
+The right column is the at-a-glance view:
 
-- **Clock** with live CPU / RAM / Disk / Battery chips.
-- **Notifications** — summary with a DND hint, click to open the swaync panel.
-- **Now Playing** — track, artist, progress bar and previous / play-pause / next transport.
-- **Quick Toggles** — Airplane mode and Network Settings (`nmtui`).
-- **Session** — Suspend, Logout, Restart and Shutdown via `bitbeast-session`.
+- **Clock** with a friendly greeting, date, and CPU / RAM / Disk / Battery meters with usage bars.
+- **Notifications** — unread count, summary, and a click-through to the swaync panel.
+- **Now playing** — album art, track, artist, source app, progress and previous / play-pause / next transport.
+- **Session** — Sleep, Log out, Restart and Shut down via `bitbeast-session`.
 - The Waybar clock and power icons open the same panel, so there is one launcher: `bitbeast-control-center`.
 
 ### Waybar Styles
