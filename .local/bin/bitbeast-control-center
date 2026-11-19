@@ -10,13 +10,14 @@ Usage:
   bitbeast-control-center close           # close panel
 
 Left column:
-  Wi-Fi / Bluetooth / Power Mode rows, Do Not Disturb, Screenshot, Screen
-  Record, System Theme circles (beast themes), Brightness + Volume sliders.
+  Wi-Fi / Bluetooth / Power Mode rows with inline radio switches, Do Not
+  Disturb, Screenshot, Screen Record, Beast theme swatches, grouped Brightness
+  + Volume sliders, and quick actions (Airplane mode, Network settings, Lock).
 
 Right column (merged from the old power popup):
-  Clock with live CPU / RAM / Disk / Battery chips, Notifications, Now Playing
-  media transport, Airplane mode + Network Settings toggles, and session
-  actions (Suspend / Logout / Restart / Shutdown).
+  Clock with a greeting and live CPU / RAM / Disk / Battery meters,
+  Notifications, Now Playing with album art, and session actions (Sleep /
+  Log out / Restart / Shut down).
 
 The Wi-Fi and Bluetooth rows open a macOS-style detail popover with a network
 picker, password entry, Bluetooth scanning, pairing and battery information.
@@ -28,6 +29,7 @@ removes the panel itself.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
@@ -37,6 +39,8 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 import gi
@@ -45,7 +49,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 gi.require_version("Pango", "1.0")
-from gi.repository import Gdk, GLib, Gtk, GtkLayerShell, Pango  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell, Pango  # noqa: E402
 
 CACHE_DIR = Path.home() / ".cache" / "bitbeast"
 SOCKET_PATH = CACHE_DIR / "cc.sock"
@@ -96,6 +100,7 @@ I_MONITOR = "󰍹"
 I_WATCH = "󰖟"
 I_POWER = "󰓅"
 I_BELL = "󰂚"
+I_BELL_ON = "󰂛"
 I_AIRPLANE = "󰀝"
 I_SETTINGS = "󰒓"
 I_PREV = "󰒮"
@@ -104,10 +109,43 @@ I_PLAY = "󰐊"
 I_PAUSE = "󰏤"
 I_MUTE = "󰝟"
 I_VOLUME = "󰕾"
+I_VOLUME_LOW = "󰕿"
+I_VOLUME_MID = "󰖀"
 I_SUSPEND = "󰤄"
 I_LOGOUT = "󰍃"
 I_RESTART = "󰜉"
 I_SHUTDOWN = "⏻"
+I_BRIGHTNESS = "󰃟"
+I_SCREENSHOT = "󰄀"
+I_RECORD = "󰑊"
+I_MUSIC = "󰝚"
+I_CHIP = "󰓅"
+I_MEMORY = "󰍛"
+I_DISK = "󰋊"
+I_BATTERY = "󰁹"
+I_BATTERY_CHARGING = "󰂄"
+I_LOCK_SMALL = "󰌾"
+
+BEAST_LABELS = {
+    "burningcerbrus": "Burning Cerbrus",
+    "draciel": "Draciel",
+    "dragoon": "Dragoon",
+    "dranzer": "Dranzer",
+    "driger": "Driger",
+    "galeon": "Galeon",
+}
+
+PLAYER_LABELS = {
+    "spotify": "Spotify",
+    "chromium": "Chromium",
+    "chrome": "Chrome",
+    "firefox": "Firefox",
+    "mpv": "mpv",
+    "vlc": "VLC",
+    "rhythmbox": "Rhythmbox",
+    "cmus": "cmus",
+    "youtube": "YouTube",
+}
 
 BT_ICON_MAP = {
     "audio-headset": I_HEADPHONES,
@@ -187,6 +225,39 @@ def hex_to_rgba(hex_color: str, alpha: float) -> str:
     h = hex_color.lstrip("#")
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
     return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+def beast_label(name: str) -> str:
+    return BEAST_LABELS.get(name.lower(), name[:1].upper() + name[1:11])
+
+
+def beast_short(name: str) -> str:
+    return beast_label(name).split(" ")[0]
+
+
+def greeting() -> str:
+    hour = time.localtime().tm_hour
+    if hour < 5:
+        return "Still up?"
+    if hour < 12:
+        return "Good morning"
+    if hour < 17:
+        return "Good afternoon"
+    return "Good evening"
+
+
+def human_player(player: str) -> str:
+    """Turn `chromium.instance4421` into something a person can read."""
+    if not player:
+        return ""
+    base = re.split(r"[.\-]", player.split(":")[0].lower())[0]
+    if base in PLAYER_LABELS:
+        return PLAYER_LABELS[base]
+    if "chromium" in player.lower():
+        return "Chromium"
+    if "chrome" in player.lower():
+        return "Chrome"
+    return base.replace("_", " ").title() or player
 
 
 def _split_nmcli(line: str) -> list[str]:
@@ -708,7 +779,91 @@ def fmt_time(seconds) -> str:
         total = int(float(seconds))
     except (TypeError, ValueError):
         return "0:00"
+    if total < 0 or total > 86_400:
+        return "--:--"
+    if total >= 3600:
+        return f"{total // 3600}:{(total % 3600) // 60:02d}:{total % 60:02d}"
     return f"{total // 60}:{total % 60:02d}"
+
+
+ART_CACHE = CACHE_DIR / "art"
+ART_FAILED: set[str] = set()
+
+
+def media_art(player: str) -> str | None:
+    """Return a local image path for the current track, if the player has one."""
+    url = cmd(["playerctl", "-p", player, "metadata", "mpris:artUrl"], timeout=2)
+    if not url:
+        return None
+    if url.startswith("file://"):
+        path = Path(urllib.parse.unquote(url[7:]))
+        return str(path) if path.is_file() else None
+    if not url.startswith(("http://", "https://")):
+        return None
+    if url in ART_FAILED:
+        return None
+
+    ART_CACHE.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha1(url.encode("utf-8")).hexdigest()
+    suffix = Path(urllib.parse.urlparse(url).path).suffix.lower()
+    if suffix not in (".jpg", ".jpeg", ".png", ".webp"):
+        suffix = ".jpg"
+    target = ART_CACHE / f"{digest}{suffix}"
+    if target.is_file() and target.stat().st_size > 0:
+        return str(target)
+
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "BitBeast/1.0"})
+        with urllib.request.urlopen(request, timeout=3) as response:
+            data = response.read(4 * 1024 * 1024)
+        target.write_bytes(data)
+        return str(target)
+    except Exception:
+        ART_FAILED.add(url)
+        return None
+
+
+def rounded_art(path: str | None, size: int = 56, radius: int = 14):
+    """Load album art and round its corners for the Now Playing card."""
+    if not path:
+        return None
+    try:
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+    except Exception:
+        return None
+    width, height = pixbuf.get_width(), pixbuf.get_height()
+    if width <= 0 or height <= 0:
+        return None
+    scale = max(size / width, size / height)
+    scaled_w = max(size, int(width * scale + 0.999))
+    scaled_h = max(size, int(height * scale + 0.999))
+    pixbuf = pixbuf.scale_simple(
+        scaled_w, scaled_h, GdkPixbuf.InterpType.BILINEAR
+    )
+    x = max(0, (pixbuf.get_width() - size) // 2)
+    y = max(0, (pixbuf.get_height() - size) // 2)
+    sub = pixbuf.new_subpixbuf(x, y, size, size)
+    if sub is None:
+        return None
+    pixbuf = sub.copy()
+
+    try:
+        import cairo  # type: ignore
+
+        out = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+        ctx = cairo.Context(out)
+        ctx.new_sub_path()
+        ctx.arc(size - radius, radius, radius, -1.5708, 0)
+        ctx.arc(size - radius, size - radius, radius, 0, 1.5708)
+        ctx.arc(radius, size - radius, radius, 1.5708, 3.1416)
+        ctx.arc(radius, radius, radius, 3.1416, 4.7124)
+        ctx.close_path()
+        ctx.clip()
+        Gdk.cairo_set_source_pixbuf(ctx, pixbuf, 0, 0)
+        ctx.paint()
+        return Gdk.pixbuf_get_from_surface(out, 0, 0, size, size)
+    except Exception:
+        return pixbuf
 
 
 def media_state(player: str) -> dict:
@@ -716,22 +871,28 @@ def media_state(player: str) -> dict:
         return cmd(["playerctl", "-p", player, "metadata", key])
 
     try:
-        duration = int(meta("mpris:length")) / 1_000_000
-    except ValueError:
-        duration = 0.0
+        length = int(float(meta("mpris:length")))
+    except (TypeError, ValueError):
+        length = 0
+    # Some browsers report INT64_MAX for live streams. Treat nonsense as unknown.
+    duration = length / 1_000_000 if 0 < length <= 86_400_000_000 else 0.0
     try:
         position = float(cmd(["playerctl", "-p", player, "position"]))
-    except ValueError:
+    except (TypeError, ValueError):
+        position = 0.0
+    if position < 0 or position > 86_400:
         position = 0.0
 
     return {
         "player": player,
+        "player_name": human_player(player),
         "status": cmd(["playerctl", "-p", player, "status"]),
         "title": (meta("title") or "Unknown Track")[:52],
         "artist": (meta("artist") or meta("album") or "Unknown Artist")[:40],
         "position": position,
         "duration": duration,
         "fraction": min(position / duration, 1.0) if duration > 0 else 0.0,
+        "art": media_art(player),
     }
 
 
@@ -759,11 +920,11 @@ def notification_count() -> int:
 
 def notification_summary() -> str:
     if dnd_state():
-        return "Do Not Disturb on"
+        return "Do Not Disturb is on"
     count = notification_count()
     if count == 0:
-        return "No new notifications"
-    return f"{count} new notification" + ("" if count == 1 else "s")
+        return "You're all caught up"
+    return f"{count} notification" + ("" if count == 1 else "s") + " waiting"
 
 
 def battery_status() -> tuple[int, bool] | None:
@@ -883,6 +1044,7 @@ class ConnectionDetail(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.set_name("cc-panel")
         self.set_size_request(372, -1)
+        self.set_valign(Gtk.Align.START)
         self.cc = cc
         self.mode = "wifi"
         self._networks: list[dict] = []
@@ -995,8 +1157,8 @@ class ConnectionDetail(Gtk.Box):
 
         self.scrolled = Gtk.ScrolledWindow()
         self.scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.scrolled.set_min_content_height(360)
-        self.scrolled.set_max_content_height(360)
+        self.scrolled.set_min_content_height(248)
+        self.scrolled.set_max_content_height(328)
         self.scrolled.set_propagate_natural_height(False)
         self.scrolled.set_overlay_scrolling(True)
         self.list_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -1843,14 +2005,17 @@ class ControlCenter(Gtk.Window):
         self.detail: ConnectionDetail | None = None
         self._bright_dragging = False
         self._vol_dragging = False
+        self._syncing_sliders = False
+        self._sync_switches = False
         self._live_running = False
         self._prev_cpu = None
+        self._art_path = "__unset__"
 
         GtkLayerShell.init_for_window(self)
         GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 54)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 12)
         GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, 14)
         GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
         GtkLayerShell.set_namespace(self, "bitbeast-cc")
@@ -1888,44 +2053,61 @@ class ControlCenter(Gtk.Window):
         window {{ background: transparent; }}
 
         #cc-panel {{
-            background-color: {hex_to_rgba(bg, 0.82)};
-            border: 1px solid {hex_to_rgba(primary, 0.22)};
-            border-radius: 22px;
-            padding: 14px;
+            background-color: {hex_to_rgba(bg, 0.84)};
+            background-image: linear-gradient(155deg,
+                {hex_to_rgba(primary, 0.10)}, {hex_to_rgba(bg, 0.0)} 34%);
+            border: 1px solid {hex_to_rgba(primary, 0.18)};
+            border-radius: 26px;
+            padding: 16px;
         }}
+
         #cc-card {{
-            background-color: {hex_to_rgba(bg, 0.92)};
-            border: 1px solid {hex_to_rgba(text, 0.07)};
+            background-color: {hex_to_rgba(text, 0.032)};
+            background-image: linear-gradient(160deg,
+                {hex_to_rgba(text, 0.018)}, {hex_to_rgba(text, 0.0)} 55%);
+            border: 1px solid {hex_to_rgba(text, 0.055)};
             border-radius: 18px;
             padding: 14px 16px;
         }}
+
         #cc-card-title {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 14px;
-            font-weight: 800;
-            color: {text};
-            margin-bottom: 10px;
+            font-family: "Inter", "Inter Display", sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.62)};
+            letter-spacing: 0.2px;
         }}
+
+        #cc-eyebrow {{
+            font-family: "Inter", sans-serif;
+            font-size: 9.5px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.42)};
+            letter-spacing: 0.7px;
+        }}
+
         #cc-row {{
-            border-radius: 12px;
-            padding: 6px 8px;
-            margin: 2px 0;
+            border-radius: 13px;
+            padding: 7px 7px;
+            margin: 1px 0;
         }}
-        #cc-row:hover {{ background-color: {hex_to_rgba(text, 0.06)}; }}
+        #cc-row:hover {{ background-color: {hex_to_rgba(text, 0.045)}; }}
         #cc-row-active {{
-            border-radius: 12px;
-            padding: 6px 8px;
-            margin: 2px 0;
-            background-color: {hex_to_rgba(primary, 0.13)};
-            border: 1px solid {hex_to_rgba(primary, 0.22)};
+            border-radius: 13px;
+            padding: 7px 7px;
+            margin: 1px 0;
+            background-color: {hex_to_rgba(primary, 0.10)};
+            border: 1px solid {hex_to_rgba(primary, 0.18)};
         }}
+        #cc-row-active:hover {{ background-color: {hex_to_rgba(primary, 0.14)}; }}
+
         #cc-icon-box {{
-            min-width: 40px;
-            min-height: 40px;
+            min-width: 38px;
+            min-height: 38px;
             border-radius: 12px;
-            background-image: linear-gradient(135deg,
-                {hex_to_rgba(primary, 0.30)}, {hex_to_rgba(accent, 0.16)});
-            border: 1px solid {hex_to_rgba(primary, 0.35)};
+            background-image: linear-gradient(145deg,
+                {hex_to_rgba(primary, 0.32)}, {hex_to_rgba(primary, 0.12)});
+            border: 1px solid {hex_to_rgba(primary, 0.22)};
         }}
         #cc-icon {{
             font-family: "JetBrainsMono Nerd Font";
@@ -1938,91 +2120,275 @@ class ControlCenter(Gtk.Window):
         }}
         #cc-icon-btn:hover {{ background-color: {hex_to_rgba(text, 0.09)}; }}
         #cc-title {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 13px;
-            font-weight: 800;
+            font-family: "Inter", "Inter Display", sans-serif;
+            font-size: 12.5px;
+            font-weight: 600;
             color: {text};
         }}
         #cc-sub {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 11px;
-            color: {hex_to_rgba(text, 0.55)};
+            font-family: "Inter", sans-serif;
+            font-size: 10.5px;
+            color: {hex_to_rgba(text, 0.56)};
+        }}
+        #cc-sub-strong {{
+            font-family: "Inter", sans-serif;
+            font-size: 10.5px;
+            font-weight: 500;
+            color: {hex_to_rgba(text, 0.78)};
         }}
         #cc-chev {{
             font-family: "JetBrainsMono Nerd Font";
-            font-size: 14px;
-            color: {hex_to_rgba(text, 0.45)};
-            margin-left: 6px;
+            font-size: 13px;
+            color: {hex_to_rgba(text, 0.32)};
+            margin-left: 2px;
         }}
-        #cc-circle {{
-            min-width: 46px;
-            min-height: 46px;
-            border-radius: 23px;
-            border: 2px solid transparent;
-        }}
-        #cc-circle-active {{
-            min-width: 46px;
-            min-height: 46px;
-            border-radius: 23px;
-            border: 2px solid {text};
-        }}
-        #cc-circle-label {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 10px;
-            font-weight: 700;
-            color: {hex_to_rgba(text, 0.70)};
-            margin-top: 5px;
-        }}
-        #cc-big-toggle {{
+
+        #cc-focus {{
+            background-color: {hex_to_rgba(text, 0.032)};
+            border: 1px solid {hex_to_rgba(text, 0.055)};
             border-radius: 16px;
-            padding: 10px 8px;
+            padding: 11px 13px;
         }}
-        #cc-big-active {{
+        #cc-focus:hover {{ background-color: {hex_to_rgba(text, 0.05)}; }}
+        #cc-focus-active {{
             background-image: linear-gradient(135deg,
-                {hex_to_rgba(primary, 0.45)}, {hex_to_rgba(accent, 0.25)});
-            border: 1px solid {hex_to_rgba(primary, 0.55)};
+                {hex_to_rgba(primary, 0.30)}, {hex_to_rgba(accent, 0.12)});
+            border: 1px solid {hex_to_rgba(primary, 0.35)};
             border-radius: 16px;
-            padding: 10px 8px;
+            padding: 11px 13px;
         }}
-        #cc-tile {{
+        #cc-focus-active:hover {{
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.38)}, {hex_to_rgba(accent, 0.16)});
+        }}
+        #cc-focus-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 18px;
+            color: {hex_to_rgba(text, 0.82)};
+        }}
+        #cc-focus-dot {{
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.62)};
+        }}
+
+        #cc-capture {{
+            padding: 5px;
+        }}
+        #cc-capture-tile {{
+            border-radius: 13px;
+            padding: 12px 6px;
+        }}
+        #cc-capture-tile:hover {{ background-color: {hex_to_rgba(text, 0.05)}; }}
+        #cc-capture-active {{
+            border-radius: 13px;
+            padding: 12px 6px;
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.32)}, {hex_to_rgba(accent, 0.10)});
+            border: 1px solid {hex_to_rgba(primary, 0.30)};
+        }}
+        #cc-capture-label {{
+            font-family: "Inter", sans-serif;
+            font-size: 10px;
+            font-weight: 500;
+            color: {hex_to_rgba(text, 0.72)};
+        }}
+        #cc-rec {{ color: {primary}; font-weight: 600; }}
+
+        #cc-theme-item {{
+            border-radius: 12px;
+            padding: 4px 2px;
+        }}
+        #cc-theme-item:hover {{ background-color: {hex_to_rgba(text, 0.05)}; }}
+        #cc-theme-swatch {{
+            min-width: 30px;
+            min-height: 30px;
+            border-radius: 999px;
+            border: 2px solid {hex_to_rgba(text, 0.10)};
+        }}
+        #cc-theme-swatch-on {{
+            min-width: 30px;
+            min-height: 30px;
+            border-radius: 999px;
+            border: 2px solid {text};
+            box-shadow: 0 0 0 3px {hex_to_rgba(primary, 0.22)};
+        }}
+        #cc-theme-name {{
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            color: {hex_to_rgba(text, 0.48)};
+            margin-top: 3px;
+        }}
+        #cc-theme-name-on {{
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            font-weight: 600;
+            color: {text};
+            margin-top: 3px;
+        }}
+        #cc-theme-current {{
+            font-family: "Inter", sans-serif;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: {hex_to_rgba(accent, 0.95)};
+        }}
+
+        #cc-slider-head {{
+            font-family: "Inter", sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            color: {hex_to_rgba(text, 0.82)};
+        }}
+        #cc-slider-value {{
+            font-family: "Inter", sans-serif;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.55)};
+        }}
+        #cc-slider-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 15px;
+            color: {hex_to_rgba(text, 0.65)};
+        }}
+
+        #cc-quick-tile {{
             border-radius: 14px;
-            padding: 10px 6px;
+            padding: 12px 6px;
+            background-color: {hex_to_rgba(text, 0.025)};
+            border: 1px solid {hex_to_rgba(text, 0.05)};
         }}
-        #cc-tile:hover {{ background-color: {hex_to_rgba(text, 0.07)}; }}
-        #cc-rec {{
-            color: {primary};
+        #cc-quick-tile:hover {{ background-color: {hex_to_rgba(text, 0.06)}; }}
+        #cc-quick-active {{
+            border-radius: 14px;
+            padding: 12px 6px;
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.34)}, {hex_to_rgba(accent, 0.12)});
+            border: 1px solid {hex_to_rgba(primary, 0.35)};
+        }}
+        #cc-quick-active:hover {{
+            background-image: linear-gradient(135deg,
+                {hex_to_rgba(primary, 0.42)}, {hex_to_rgba(accent, 0.16)});
+        }}
+        #cc-quick-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 20px;
+            color: {hex_to_rgba(text, 0.86)};
+        }}
+        #cc-quick-label {{
+            font-family: "Inter", sans-serif;
+            font-size: 10.5px;
+            font-weight: 500;
+            color: {hex_to_rgba(text, 0.82)};
+        }}
+        #cc-quick-sub {{
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            color: {hex_to_rgba(text, 0.46)};
+        }}
+
+        #cc-clock {{
+            font-family: "Inter Display", "Inter", sans-serif;
+            font-size: 46px;
             font-weight: 800;
+            color: {text};
+            letter-spacing: -1px;
         }}
+        #cc-date {{
+            font-family: "Inter", sans-serif;
+            font-size: 10.5px;
+            color: {hex_to_rgba(text, 0.48)};
+        }}
+        #cc-greeting {{
+            font-family: "Inter", sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            color: {hex_to_rgba(accent, 0.92)};
+        }}
+
+        #cc-stats {{
+            background-color: {hex_to_rgba(text, 0.025)};
+            border: 1px solid {hex_to_rgba(text, 0.05)};
+            border-radius: 14px;
+            padding: 2px;
+        }}
+        #cc-metric {{
+            border-radius: 11px;
+            padding: 8px 10px;
+        }}
+        #cc-metric:hover {{ background-color: {hex_to_rgba(text, 0.04)}; }}
+        #cc-metric-head {{
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.44)};
+            letter-spacing: 0.5px;
+        }}
+        #cc-metric-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 11px;
+            color: {hex_to_rgba(primary, 0.90)};
+        }}
+        #cc-metric-value {{
+            font-family: "Inter", sans-serif;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: {text};
+        }}
+        #cc-metric-bar trough {{
+            min-height: 3px;
+            border-radius: 999px;
+            background-color: {hex_to_rgba(text, 0.09)};
+            border: none;
+        }}
+        #cc-metric-bar progress {{
+            min-height: 3px;
+            border-radius: 999px;
+            background-image: linear-gradient(90deg, {primary}, {accent});
+        }}
+
+        #cc-notify-badge {{
+            font-family: "Inter", sans-serif;
+            font-size: 9.5px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.80)};
+            background-color: {hex_to_rgba(primary, 0.28)};
+            border-radius: 999px;
+            padding: 2px 7px;
+            margin-right: 4px;
+        }}
+        #cc-notify-badge-off {{ color: transparent; background-color: transparent; padding: 2px 0; }}
+
         #cc-detail-title {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-family: "Inter", "Inter Display", sans-serif;
             font-size: 16px;
-            font-weight: 800;
+            font-weight: 700;
             color: {text};
         }}
         #cc-detail-status {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-family: "Inter", sans-serif;
             font-size: 13px;
-            font-weight: 800;
+            font-weight: 600;
             color: {text};
         }}
         #cc-field-label {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 10.5px;
-            font-weight: 700;
-            color: {hex_to_rgba(text, 0.55)};
+            font-family: "Inter", sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.52)};
             margin-top: 2px;
         }}
         #cc-status-card {{
-            background-color: {hex_to_rgba(text, 0.045)};
-            border: 1px solid {hex_to_rgba(text, 0.07)};
+            background-color: {hex_to_rgba(text, 0.04)};
+            border: 1px solid {hex_to_rgba(text, 0.06)};
             border-radius: 14px;
             padding: 11px 13px;
         }}
         #cc-section-title {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 11px;
-            font-weight: 800;
-            color: {hex_to_rgba(text, 0.48)};
+            font-family: "Inter", sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            color: {hex_to_rgba(text, 0.44)};
             letter-spacing: 0.6px;
         }}
         #cc-net-row {{
@@ -2030,31 +2396,31 @@ class ControlCenter(Gtk.Window):
             padding: 8px 10px;
             margin: 1px 0;
         }}
-        #cc-net-row:hover {{ background-color: {hex_to_rgba(text, 0.07)}; }}
+        #cc-net-row:hover {{ background-color: {hex_to_rgba(text, 0.06)}; }}
         #cc-net-row-active {{
             border-radius: 12px;
             padding: 8px 10px;
             margin: 1px 0;
-            background-color: {hex_to_rgba(primary, 0.13)};
-            border: 1px solid {hex_to_rgba(primary, 0.20)};
+            background-color: {hex_to_rgba(primary, 0.11)};
+            border: 1px solid {hex_to_rgba(primary, 0.18)};
         }}
-        #cc-net-row-active:hover {{ background-color: {hex_to_rgba(primary, 0.19)}; }}
+        #cc-net-row-active:hover {{ background-color: {hex_to_rgba(primary, 0.16)}; }}
         #cc-net-icon {{
             font-family: "JetBrainsMono Nerd Font";
             font-size: 18px;
-            color: {hex_to_rgba(text, 0.72)};
+            color: {hex_to_rgba(text, 0.70)};
             min-width: 24px;
         }}
         #cc-net-icon-active {{ color: {primary}; }}
         #cc-net-name {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 12.5px;
-            font-weight: 700;
+            font-family: "Inter", sans-serif;
+            font-size: 12px;
+            font-weight: 500;
             color: {text};
         }}
         #cc-net-sub {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 10.5px;
+            font-family: "Inter", sans-serif;
+            font-size: 10px;
             color: {hex_to_rgba(text, 0.50)};
         }}
         #cc-net-side {{
@@ -2063,35 +2429,36 @@ class ControlCenter(Gtk.Window):
             color: {primary};
         }}
         #cc-empty {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 11.5px;
-            color: {hex_to_rgba(text, 0.45)};
+            font-family: "Inter", sans-serif;
+            font-size: 11px;
+            color: {hex_to_rgba(text, 0.44)};
             padding: 26px 10px;
         }}
         #cc-error {{ color: #ff6b7a; font-size: 11px; }}
+
         button {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+            font-family: "Inter", sans-serif;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 600;
         }}
         #cc-pill {{
             border-radius: 999px;
             padding: 5px 12px;
-            background-color: {hex_to_rgba(text, 0.08)};
-            border: 1px solid {hex_to_rgba(text, 0.10)};
+            background-color: {hex_to_rgba(text, 0.07)};
+            border: 1px solid {hex_to_rgba(text, 0.09)};
             color: {text};
             box-shadow: none;
         }}
         #cc-pill:hover {{
-            background-color: {hex_to_rgba(primary, 0.20)};
-            border-color: {hex_to_rgba(primary, 0.40)};
+            background-color: {hex_to_rgba(primary, 0.18)};
+            border-color: {hex_to_rgba(primary, 0.35)};
         }}
         #cc-primary {{
             border-radius: 10px;
             padding: 8px 20px;
             background-image: linear-gradient(135deg,
-                {hex_to_rgba(primary, 0.95)}, {hex_to_rgba(accent, 0.85)});
-            border: 1px solid {hex_to_rgba(primary, 0.55)};
+                {hex_to_rgba(primary, 0.95)}, {hex_to_rgba(accent, 0.82)});
+            border: 1px solid {hex_to_rgba(primary, 0.50)};
             color: #ffffff;
             box-shadow: 0 4px 14px {hex_to_rgba(bg, 0.45)};
         }}
@@ -2101,97 +2468,73 @@ class ControlCenter(Gtk.Window):
         }}
         #cc-primary:disabled {{ opacity: 0.55; }}
         entry {{
-            background-color: {hex_to_rgba(text, 0.07)};
-            border: 1px solid {hex_to_rgba(text, 0.12)};
+            background-color: {hex_to_rgba(text, 0.06)};
+            border: 1px solid {hex_to_rgba(text, 0.11)};
             border-radius: 10px;
             padding: 9px 11px;
             color: {text};
             caret-color: {primary};
         }}
         entry:focus {{
-            border-color: {hex_to_rgba(primary, 0.65)};
-            background-color: {hex_to_rgba(text, 0.09)};
+            border-color: {hex_to_rgba(primary, 0.60)};
+            background-color: {hex_to_rgba(text, 0.08)};
         }}
         switch {{
-            min-width: 42px;
-            min-height: 24px;
+            min-width: 36px;
+            min-height: 21px;
             border-radius: 999px;
-            background-color: {hex_to_rgba(text, 0.16)};
-            border: 1px solid {hex_to_rgba(text, 0.10)};
+            background-color: {hex_to_rgba(text, 0.13)};
+            border: 1px solid {hex_to_rgba(text, 0.08)};
         }}
         switch:checked {{
             background-color: {primary};
-            border-color: {hex_to_rgba(primary, 0.75)};
+            border-color: {hex_to_rgba(primary, 0.70)};
         }}
         switch slider {{
-            min-width: 18px;
-            min-height: 18px;
+            min-width: 15px;
+            min-height: 15px;
             border-radius: 999px;
             background-color: {text};
             margin: 2px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.30);
         }}
         spinner {{ color: {primary}; }}
         scrolledwindow {{ background: transparent; border: none; }}
         scrollbar {{ background: transparent; border: none; }}
         scrollbar slider {{
-            background-color: {hex_to_rgba(text, 0.18)};
+            background-color: {hex_to_rgba(text, 0.16)};
             border-radius: 999px;
             min-width: 4px;
             min-height: 28px;
         }}
-        scrollbar slider:hover {{ background-color: {hex_to_rgba(primary, 0.45)}; }}
+        scrollbar slider:hover {{ background-color: {hex_to_rgba(primary, 0.40)}; }}
+
         scale trough {{
-            min-height: 7px;
+            min-height: 6px;
             border-radius: 999px;
-            background-color: {hex_to_rgba(text, 0.12)};
+            background-color: {hex_to_rgba(text, 0.10)};
             border: none;
         }}
         scale highlight {{
-            min-height: 7px;
+            min-height: 6px;
             border-radius: 999px;
             background-image: linear-gradient(90deg, {primary}, {accent});
             border: none;
         }}
         scale slider {{
-            min-width: 20px;
-            min-height: 20px;
-            border-radius: 10px;
+            min-width: 16px;
+            min-height: 16px;
+            border-radius: 8px;
             background-color: {text};
-            border: none;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
-            margin: -7px 0;
+            border: 2px solid {hex_to_rgba(primary, 0.55)};
+            box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45);
+            margin: -5px 0;
         }}
-        #cc-clock {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 30px;
-            font-weight: 900;
-            color: {text};
-            letter-spacing: 1px;
-        }}
-        #cc-chip {{
-            background-color: {hex_to_rgba(text, 0.06)};
-            border: 1px solid {hex_to_rgba(text, 0.08)};
-            border-radius: 999px;
-            padding: 4px 8px;
-        }}
-        #cc-chip-label {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 10px;
-            font-weight: 700;
-            color: {hex_to_rgba(text, 0.72)};
-        }}
-        #cc-tile-active {{
-            border-radius: 14px;
-            padding: 10px 6px;
-            background-image: linear-gradient(135deg,
-                {hex_to_rgba(primary, 0.45)}, {hex_to_rgba(accent, 0.25)});
-            border: 1px solid {hex_to_rgba(primary, 0.55)};
-        }}
+
         #cc-progress trough {{
             min-height: 6px;
             border-radius: 999px;
-            background-color: {hex_to_rgba(text, 0.12)};
+            background-color: {hex_to_rgba(text, 0.16)};
             border: none;
         }}
         #cc-progress progress {{
@@ -2199,59 +2542,97 @@ class ControlCenter(Gtk.Window):
             border-radius: 999px;
             background-image: linear-gradient(90deg, {primary}, {accent});
         }}
-        #cc-transport {{
-            min-width: 44px;
-            min-height: 44px;
-            border-radius: 22px;
-            background-color: {hex_to_rgba(text, 0.06)};
-            border: 1px solid {hex_to_rgba(text, 0.08)};
+
+        #cc-art {{
+            min-width: 56px;
+            min-height: 56px;
+            border-radius: 14px;
+            background-image: linear-gradient(145deg,
+                {hex_to_rgba(primary, 0.35)}, {hex_to_rgba(accent, 0.14)});
+            border: 1px solid {hex_to_rgba(primary, 0.18)};
         }}
-        #cc-transport:hover {{ background-color: {hex_to_rgba(text, 0.13)}; }}
+        #cc-art-icon {{
+            font-family: "JetBrainsMono Nerd Font";
+            font-size: 22px;
+            color: {hex_to_rgba(text, 0.86)};
+        }}
+        #cc-media-title {{
+            font-family: "Inter", sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: {text};
+        }}
+        #cc-media-artist {{
+            font-family: "Inter", sans-serif;
+            font-size: 10.5px;
+            color: {hex_to_rgba(text, 0.52)};
+        }}
+        #cc-media-source {{
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            font-weight: 600;
+            color: {hex_to_rgba(accent, 0.85)};
+            letter-spacing: 0.4px;
+        }}
+        #cc-media-time {{
+            font-family: "Inter", sans-serif;
+            font-size: 9.5px;
+            color: {hex_to_rgba(text, 0.38)};
+        }}
+        #cc-transport {{
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 18px;
+            background-color: {hex_to_rgba(text, 0.05)};
+            border: 1px solid {hex_to_rgba(text, 0.06)};
+        }}
+        #cc-transport:hover {{ background-color: {hex_to_rgba(text, 0.11)}; }}
         #cc-play-btn {{
-            min-width: 54px;
-            min-height: 54px;
-            border-radius: 27px;
+            min-width: 46px;
+            min-height: 46px;
+            border-radius: 23px;
             background-image: linear-gradient(135deg,
-                {hex_to_rgba(primary, 0.95)}, {hex_to_rgba(accent, 0.85)});
-            border: 1px solid {hex_to_rgba(primary, 0.55)};
-            box-shadow: 0 4px 16px {hex_to_rgba(primary, 0.30)};
+                {hex_to_rgba(primary, 0.95)}, {hex_to_rgba(accent, 0.82)});
+            border: 1px solid {hex_to_rgba(primary, 0.50)};
+            box-shadow: 0 4px 16px {hex_to_rgba(primary, 0.28)};
         }}
         #cc-play-btn:hover {{
             background-image: linear-gradient(135deg,
                 {hex_to_rgba(primary, 1.0)}, {hex_to_rgba(accent, 0.95)});
         }}
         #cc-mute-btn {{
-            min-width: 34px;
-            min-height: 34px;
-            border-radius: 11px;
-            background-color: {hex_to_rgba(text, 0.08)};
-            border: 1px solid {hex_to_rgba(text, 0.10)};
-            margin-left: 6px;
-        }}
-        #cc-mute-btn:hover {{ background-color: {hex_to_rgba(primary, 0.25)}; }}
-        #cc-session-btn {{
-            border-radius: 14px;
-            padding: 12px 10px;
-            background-color: {hex_to_rgba(text, 0.05)};
+            min-width: 28px;
+            min-height: 28px;
+            border-radius: 9px;
+            background-color: {hex_to_rgba(text, 0.06)};
             border: 1px solid {hex_to_rgba(text, 0.08)};
+            margin-left: 4px;
         }}
-        #cc-session-btn:hover {{ background-color: {hex_to_rgba(text, 0.12)}; }}
+        #cc-mute-btn:hover {{ background-color: {hex_to_rgba(primary, 0.20)}; }}
+
+        #cc-session-btn {{
+            border-radius: 13px;
+            padding: 11px 8px;
+            background-color: {hex_to_rgba(text, 0.035)};
+            border: 1px solid {hex_to_rgba(text, 0.055)};
+        }}
+        #cc-session-btn:hover {{ background-color: {hex_to_rgba(text, 0.09)}; }}
         #cc-session-danger {{
-            border-radius: 14px;
-            padding: 12px 10px;
-            background-color: {hex_to_rgba(primary, 0.16)};
-            border: 1px solid {hex_to_rgba(primary, 0.32)};
+            border-radius: 13px;
+            padding: 11px 8px;
+            background-color: {hex_to_rgba(primary, 0.11)};
+            border: 1px solid {hex_to_rgba(primary, 0.24)};
         }}
-        #cc-session-danger:hover {{ background-color: {hex_to_rgba(primary, 0.28)}; }}
+        #cc-session-danger:hover {{ background-color: {hex_to_rgba(primary, 0.20)}; }}
         #cc-danger-icon {{
             font-family: "JetBrainsMono Nerd Font";
-            font-size: 18px;
+            font-size: 17px;
             color: {primary};
         }}
         #cc-danger-label {{
-            font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-            font-size: 13px;
-            font-weight: 800;
+            font-family: "Inter", sans-serif;
+            font-size: 12px;
+            font-weight: 600;
             color: {primary};
         }}
         """
@@ -2284,10 +2665,10 @@ class ControlCenter(Gtk.Window):
         box.set_name("cc-card")
         return box
 
-    def _row(self, icon: str, title: str, on_click):
+    def _row(self, icon: str, title: str, on_click, right_widget=None):
         ev = Gtk.EventBox()
         ev.set_name("cc-row")
-        h = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        h = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=11)
 
         ibox = Gtk.Box()
         ibox.set_name("cc-icon-box")
@@ -2312,6 +2693,9 @@ class ControlCenter(Gtk.Window):
         mid.pack_start(slab, False, False, 0)
         h.pack_start(mid, True, True, 0)
 
+        if right_widget is not None:
+            h.pack_start(right_widget, False, False, 0)
+
         chev = Gtk.Label(label=I_CHEVRON_RIGHT)
         chev.set_name("cc-chev")
         chev.set_valign(Gtk.Align.CENTER)
@@ -2323,15 +2707,60 @@ class ControlCenter(Gtk.Window):
         set_hand_cursor(ev)
         return ev, tlab, slab, chev
 
+    def _device_row(self, icon: str, title: str, on_click, on_toggle):
+        """Connection row with an inline power switch and a details chevron."""
+        ev = Gtk.EventBox()
+        ev.set_name("cc-row")
+        h = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+
+        ibox = Gtk.Box()
+        ibox.set_name("cc-icon-box")
+        ibox.set_valign(Gtk.Align.CENTER)
+        ilab = Gtk.Label(label=icon)
+        ilab.set_name("cc-icon")
+        ilab.set_halign(Gtk.Align.CENTER)
+        ilab.set_valign(Gtk.Align.CENTER)
+        ibox.pack_start(ilab, True, True, 0)
+        h.pack_start(ibox, False, False, 0)
+
+        mid = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        mid.set_valign(Gtk.Align.CENTER)
+        tlab = Gtk.Label(label=title)
+        tlab.set_name("cc-title")
+        tlab.set_halign(Gtk.Align.START)
+        mid.pack_start(tlab, False, False, 0)
+        slab = Gtk.Label(label="…")
+        slab.set_name("cc-sub")
+        slab.set_halign(Gtk.Align.START)
+        slab.set_ellipsize(Pango.EllipsizeMode.END)
+        mid.pack_start(slab, False, False, 0)
+        h.pack_start(mid, True, True, 0)
+
+        switch = Gtk.Switch()
+        switch.set_valign(Gtk.Align.CENTER)
+        switch.set_tooltip_text(f"Turn {title} on or off")
+        switch.connect("notify::active", lambda sw, _p: on_toggle(bool(sw.get_active())))
+        h.pack_start(switch, False, False, 0)
+
+        chev = Gtk.Label(label=I_CHEVRON_RIGHT)
+        chev.set_name("cc-chev")
+        chev.set_valign(Gtk.Align.CENTER)
+        h.pack_start(chev, False, False, 0)
+
+        ev.add(h)
+        ev.connect("button-press-event", lambda w, e: on_click() or True)
+        set_hand_cursor(ev)
+        return ev, tlab, slab, switch, chev
+
     def _tile(self, icon: str, label: str, on_click):
         ev = Gtk.EventBox()
-        ev.set_name("cc-tile")
-        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        ev.set_name("cc-capture-tile")
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         ilab = Gtk.Label(label=icon)
         ilab.set_name("cc-icon")
         v.pack_start(ilab, False, False, 0)
         lab = Gtk.Label(label=label)
-        lab.set_name("cc-sub")
+        lab.set_name("cc-capture-label")
         lab.set_justify(Gtk.Justification.CENTER)
         v.pack_start(lab, False, False, 0)
         ev.add(v)
@@ -2353,7 +2782,27 @@ class ControlCenter(Gtk.Window):
         set_hand_cursor(ev)
         return ev, lab
 
-    # -- right column: clock, notifications, media, toggles, session ----
+    def _quick_tile(self, icon: str, label: str, sub: str, on_click):
+        ev = Gtk.EventBox()
+        ev.set_name("cc-quick-tile")
+        v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        ilab = Gtk.Label(label=icon)
+        ilab.set_name("cc-quick-icon")
+        v.pack_start(ilab, False, False, 0)
+        lab = Gtk.Label(label=label)
+        lab.set_name("cc-quick-label")
+        lab.set_justify(Gtk.Justification.CENTER)
+        v.pack_start(lab, False, False, 0)
+        slab = Gtk.Label(label=sub)
+        slab.set_name("cc-quick-sub")
+        slab.set_justify(Gtk.Justification.CENTER)
+        v.pack_start(slab, False, False, 0)
+        ev.add(v)
+        ev.connect("button-press-event", lambda w, e: on_click() or True)
+        set_hand_cursor(ev)
+        return ev, lab, slab
+
+    # -- right column: clock, notifications, media, session ------------
 
     def _build_clock_card(self) -> Gtk.Box:
         card = self._card()
@@ -2362,32 +2811,73 @@ class ControlCenter(Gtk.Window):
         self.clock_label = Gtk.Label(label=time.strftime("%H:%M"))
         self.clock_label.set_name("cc-clock")
         self.clock_label.set_halign(Gtk.Align.START)
+        self.clock_label.set_valign(Gtk.Align.START)
         head.pack_start(self.clock_label, True, True, 0)
-        self.date_label = Gtk.Label(label=time.strftime("%A, %b %d"))
-        self.date_label.set_name("cc-sub")
+
+        meta = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        meta.set_valign(Gtk.Align.END)
+        self.greeting_label = Gtk.Label(label=greeting())
+        self.greeting_label.set_name("cc-greeting")
+        self.greeting_label.set_halign(Gtk.Align.END)
+        self.date_label = Gtk.Label(label=time.strftime("%A, %d %B"))
+        self.date_label.set_name("cc-date")
         self.date_label.set_halign(Gtk.Align.END)
-        self.date_label.set_valign(Gtk.Align.END)
-        head.pack_end(self.date_label, False, False, 0)
+        meta.pack_start(self.greeting_label, False, False, 0)
+        meta.pack_start(self.date_label, False, False, 0)
+        head.pack_end(meta, False, False, 0)
         card.pack_start(head, False, False, 0)
 
-        stats = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        stats.set_homogeneous(True)
+        stats = Gtk.Grid()
+        stats.set_name("cc-stats")
+        stats.set_row_spacing(2)
+        stats.set_column_spacing(2)
+        stats.set_column_homogeneous(True)
+        stats.set_row_homogeneous(True)
         self.stat_labels: dict[str, Gtk.Label] = {}
-        for key in ("CPU", "RAM", "Disk", "BAT"):
-            chip = Gtk.Box()
-            chip.set_name("cc-chip")
-            lab = Gtk.Label(label=f"{key} —")
-            lab.set_name("cc-chip-label")
-            chip.pack_start(lab, True, True, 0)
-            self.stat_labels[key] = lab
-            stats.pack_start(chip, True, True, 0)
+        self.stat_bars: dict[str, Gtk.ProgressBar] = {}
+        self.stat_icons: dict[str, Gtk.Label] = {}
+        for index, (key, icon) in enumerate((
+            ("CPU", I_CHIP),
+            ("RAM", I_MEMORY),
+            ("Disk", I_DISK),
+            ("BAT", I_BATTERY),
+        )):
+            metric = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            metric.set_name("cc-metric")
+            metric_head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+            icon_label = Gtk.Label(label=icon)
+            icon_label.set_name("cc-metric-icon")
+            icon_label.set_valign(Gtk.Align.CENTER)
+            self.stat_icons[key] = icon_label
+            name_label = Gtk.Label(label=key.upper())
+            name_label.set_name("cc-metric-head")
+            name_label.set_valign(Gtk.Align.CENTER)
+            metric_head.pack_start(icon_label, False, False, 0)
+            metric_head.pack_start(name_label, True, True, 0)
+            value_label = Gtk.Label(label="—")
+            value_label.set_name("cc-metric-value")
+            value_label.set_halign(Gtk.Align.END)
+            value_label.set_valign(Gtk.Align.CENTER)
+            metric_head.pack_end(value_label, False, False, 0)
+            metric.pack_start(metric_head, False, False, 0)
+            bar = Gtk.ProgressBar()
+            bar.set_name("cc-metric-bar")
+            bar.set_show_text(False)
+            bar.set_fraction(0.0)
+            metric.pack_start(bar, False, False, 0)
+            self.stat_labels[key] = value_label
+            self.stat_bars[key] = bar
+            stats.attach(metric, index % 2, index // 2, 1, 1)
         card.pack_start(stats, False, False, 0)
         return card
 
     def _build_notifications_card(self) -> Gtk.Box:
         card = self._card()
+        self.notify_badge = Gtk.Label(label="0")
+        self.notify_badge.set_name("cc-notify-badge")
+        self.notify_badge.set_no_show_all(True)
         row, _title, self.notify_sub, _chev = self._row(
-            I_BELL, "Notifications", self._open_notifications
+            I_BELL, "Notifications", self._open_notifications, self.notify_badge
         )
         card.pack_start(row, False, False, 0)
         return card
@@ -2395,31 +2885,43 @@ class ControlCenter(Gtk.Window):
     def _build_media_card(self) -> Gtk.Box:
         card = self._card()
 
-        title = Gtk.Label(label="Now Playing")
+        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        title = Gtk.Label(label="Now playing")
         title.set_name("cc-card-title")
         title.set_halign(Gtk.Align.START)
-        card.pack_start(title, False, False, 0)
+        head.pack_start(title, True, True, 0)
+        self.media_source = Gtk.Label(label="")
+        self.media_source.set_name("cc-media-source")
+        self.media_source.set_halign(Gtk.Align.END)
+        head.pack_end(self.media_source, False, False, 0)
+        card.pack_start(head, False, False, 0)
 
-        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        art = Gtk.Image()
-        art.set_from_icon_name("audio-x-generic", Gtk.IconSize.DIALOG)
-        art.set_valign(Gtk.Align.CENTER)
-        head.pack_start(art, False, False, 0)
+        body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        art_holder = Gtk.EventBox()
+        art_holder.set_name("cc-art")
+        art_holder.set_size_request(56, 56)
+        art_holder.set_valign(Gtk.Align.CENTER)
+        self.art_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.art_content.set_halign(Gtk.Align.CENTER)
+        self.art_content.set_valign(Gtk.Align.CENTER)
+        art_holder.add(self.art_content)
+        self._set_media_art(None)
+        body.pack_start(art_holder, False, False, 0)
 
-        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         info.set_valign(Gtk.Align.CENTER)
-        self.media_title = Gtk.Label(label="No active media")
-        self.media_title.set_name("cc-title")
+        self.media_title = Gtk.Label(label="Nothing playing")
+        self.media_title.set_name("cc-media-title")
         self.media_title.set_halign(Gtk.Align.START)
         self.media_title.set_ellipsize(Pango.EllipsizeMode.END)
-        self.media_artist = Gtk.Label(label="Start a player to see controls")
-        self.media_artist.set_name("cc-sub")
+        self.media_artist = Gtk.Label(label="Start something and it will show up here.")
+        self.media_artist.set_name("cc-media-artist")
         self.media_artist.set_halign(Gtk.Align.START)
         self.media_artist.set_ellipsize(Pango.EllipsizeMode.END)
         info.pack_start(self.media_title, False, False, 0)
         info.pack_start(self.media_artist, False, False, 0)
-        head.pack_start(info, True, True, 0)
-        card.pack_start(head, False, False, 0)
+        body.pack_start(info, True, True, 0)
+        card.pack_start(body, False, False, 0)
 
         self.media_progress = Gtk.ProgressBar()
         self.media_progress.set_name("cc-progress")
@@ -2427,16 +2929,16 @@ class ControlCenter(Gtk.Window):
 
         times = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.media_pos = Gtk.Label(label="0:00")
-        self.media_pos.set_name("cc-sub")
+        self.media_pos.set_name("cc-media-time")
         self.media_pos.set_halign(Gtk.Align.START)
         self.media_dur = Gtk.Label(label="0:00")
-        self.media_dur.set_name("cc-sub")
+        self.media_dur.set_name("cc-media-time")
         self.media_dur.set_halign(Gtk.Align.END)
         times.pack_start(self.media_pos, True, True, 0)
         times.pack_end(self.media_dur, False, False, 0)
         card.pack_start(times, False, False, 0)
 
-        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         controls.set_halign(Gtk.Align.CENTER)
         prev_ev, _pl = self._icon_button(
             I_PREV, "cc-transport", lambda: media_action("previous"), "Previous"
@@ -2455,28 +2957,32 @@ class ControlCenter(Gtk.Window):
     def _build_quick_card(self) -> Gtk.Box:
         card = self._card()
 
-        title = Gtk.Label(label="Quick Toggles")
+        title = Gtk.Label(label="Quick actions")
         title.set_name("cc-card-title")
         title.set_halign(Gtk.Align.START)
         card.pack_start(title, False, False, 0)
 
-        tiles = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        tiles = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         tiles.set_homogeneous(True)
-        self.airplane_tile, self.airplane_label = self._tile(
-            I_AIRPLANE, "Airplane\nMode", self._on_airplane
+        self.airplane_tile, self.airplane_label, self.airplane_sub = self._quick_tile(
+            I_AIRPLANE, "Airplane", "Off", self._on_airplane
         )
-        net_tile, _nlab = self._tile(
-            I_SETTINGS, "Network\nSettings", self._open_network_settings
+        net_tile, _nlab, _nsub = self._quick_tile(
+            I_SETTINGS, "Network", "Settings", self._open_network_settings
+        )
+        lock_tile, _llab, _lsub = self._quick_tile(
+            I_LOCK_SMALL, "Lock", "Screen", self._lock_screen
         )
         tiles.pack_start(self.airplane_tile, True, True, 0)
         tiles.pack_start(net_tile, True, True, 0)
+        tiles.pack_start(lock_tile, True, True, 0)
         card.pack_start(tiles, False, False, 0)
         return card
 
     def _session_button(self, icon: str, label: str, action: str, danger: bool = False):
         ev = Gtk.EventBox()
         ev.set_name("cc-session-danger" if danger else "cc-session-btn")
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         box.set_halign(Gtk.Align.CENTER)
         ilab = Gtk.Label(label=icon)
         ilab.set_name("cc-danger-icon" if danger else "cc-icon")
@@ -2496,20 +3002,26 @@ class ControlCenter(Gtk.Window):
     def _build_session_card(self) -> Gtk.Box:
         card = self._card()
 
+        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         title = Gtk.Label(label="Session")
         title.set_name("cc-card-title")
         title.set_halign(Gtk.Align.START)
-        card.pack_start(title, False, False, 0)
+        head.pack_start(title, True, True, 0)
+        user = Gtk.Label(label=os.environ.get("USER", ""))
+        user.set_name("cc-sub")
+        user.set_halign(Gtk.Align.END)
+        head.pack_end(user, False, False, 0)
+        card.pack_start(head, False, False, 0)
 
         grid = Gtk.Grid()
-        grid.set_row_spacing(10)
-        grid.set_column_spacing(10)
+        grid.set_row_spacing(8)
+        grid.set_column_spacing(8)
         grid.set_column_homogeneous(True)
-        grid.attach(self._session_button(I_SUSPEND, "Suspend", "suspend"), 0, 0, 1, 1)
-        grid.attach(self._session_button(I_LOGOUT, "Logout", "logout"), 1, 0, 1, 1)
+        grid.attach(self._session_button(I_SUSPEND, "Sleep", "suspend"), 0, 0, 1, 1)
+        grid.attach(self._session_button(I_LOGOUT, "Log out", "logout"), 1, 0, 1, 1)
         grid.attach(self._session_button(I_RESTART, "Restart", "reboot"), 0, 1, 1, 1)
         grid.attach(
-            self._session_button(I_SHUTDOWN, "Shutdown", "shutdown", danger=True),
+            self._session_button(I_SHUTDOWN, "Shut down", "shutdown", danger=True),
             1, 1, 1, 1,
         )
         card.pack_start(grid, False, False, 0)
@@ -2518,11 +3030,10 @@ class ControlCenter(Gtk.Window):
     def _build_side(self) -> Gtk.Box:
         side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         side.set_name("cc-panel")
-        side.set_size_request(376, -1)
+        side.set_size_request(388, -1)
         side.pack_start(self._build_clock_card(), False, False, 0)
         side.pack_start(self._build_notifications_card(), False, False, 0)
         side.pack_start(self._build_media_card(), False, False, 0)
-        side.pack_start(self._build_quick_card(), False, False, 0)
         side.pack_start(self._build_session_card(), False, False, 0)
         return side
 
@@ -2533,42 +3044,57 @@ class ControlCenter(Gtk.Window):
 
         panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         panel.set_name("cc-panel")
-        panel.set_size_request(470, -1)
+        panel.set_size_request(468, -1)
 
-        # ── Row 1: connectivity | (dnd + capture) ──
+        # ── Row 1: connectivity | (focus + capture) ──
         top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
 
         conn = self._card()
-        self.wifi_row, self.wifi_title, self.wifi_sub, self.wifi_chev = self._row(
-            I_WIFI, "Wi-Fi", lambda: self.toggle_detail("wifi")
+        self.wifi_row, self.wifi_title, self.wifi_sub, self.wifi_switch, self.wifi_chev = (
+            self._device_row(
+                I_WIFI, "Wi-Fi", lambda: self.toggle_detail("wifi"), self._on_wifi_switch
+            )
         )
-        self.bt_row, self.bt_title, self.bt_sub, self.bt_chev = self._row(
-            I_BLUETOOTH, "Bluetooth", lambda: self.toggle_detail("bluetooth")
+        self.bt_row, self.bt_title, self.bt_sub, self.bt_switch, self.bt_chev = (
+            self._device_row(
+                I_BLUETOOTH, "Bluetooth", lambda: self.toggle_detail("bluetooth"),
+                self._on_bt_switch,
+            )
         )
         self.pw_row, self.pw_title, self.pw_sub, self.pw_chev = self._row(
-            I_POWER, "Power Mode", power_cycle
+            I_POWER, "Power mode", power_cycle
         )
         for r in (self.wifi_row, self.bt_row, self.pw_row):
             conn.pack_start(r, False, False, 0)
+        self.wifi_row.set_tooltip_text("Manage Wi-Fi networks")
+        self.bt_row.set_tooltip_text("Manage Bluetooth devices")
+        self.pw_row.set_tooltip_text("Click to cycle balanced, performance, and saver")
         top.pack_start(conn, True, True, 0)
 
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        right.set_size_request(176, -1)
 
         dnd_outer = Gtk.EventBox()
-        self.dnd_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        self.dnd_box.set_name("cc-big-toggle")
-        dlab = Gtk.Label(label="󰂛")
-        dlab.set_name("cc-icon")
-        dlab.set_valign(Gtk.Align.CENTER)
-        self.dnd_box.pack_start(dlab, False, False, 4)
-        dtext = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        dt1 = Gtk.Label(label="Do Not")
-        dt2 = Gtk.Label(label="Disturb")
-        for w in (dt1, dt2):
-            w.set_name("cc-title")
-            w.set_halign(Gtk.Align.START)
-            dtext.pack_start(w, False, False, 0)
+        self.dnd_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.dnd_box.set_name("cc-focus")
+        dicon = Gtk.Label(label=I_BELL_ON)
+        dicon.set_name("cc-focus-icon")
+        dicon.set_valign(Gtk.Align.CENTER)
+        self.dnd_box.pack_start(dicon, False, False, 0)
+        dtext = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        dtitle = Gtk.Label(label="Do Not Disturb")
+        dtitle.set_name("cc-title")
+        dtitle.set_halign(Gtk.Align.START)
+        dtext.pack_start(dtitle, False, False, 0)
+        self.dnd_sub = Gtk.Label(label="Alerts are on")
+        self.dnd_sub.set_name("cc-sub")
+        self.dnd_sub.set_halign(Gtk.Align.START)
+        dtext.pack_start(self.dnd_sub, False, False, 0)
         self.dnd_box.pack_start(dtext, True, True, 0)
+        self.dnd_state = Gtk.Label(label="Off")
+        self.dnd_state.set_name("cc-focus-dot")
+        self.dnd_state.set_valign(Gtk.Align.CENTER)
+        self.dnd_box.pack_end(self.dnd_state, False, False, 0)
         dnd_outer.add(self.dnd_box)
         dnd_outer.connect("button-press-event", lambda w, e: dnd_toggle() or True)
         set_hand_cursor(dnd_outer)
@@ -2577,38 +3103,52 @@ class ControlCenter(Gtk.Window):
 
         cap = self._card(vertical=False)
         cap.set_homogeneous(True)
-        shot_ev, _ = self._tile("󰄀", "Screen\nshot", screenshot)
-        self.rec_ev, self.rec_lab = self._tile("󰑊", "Screen\nRecord", self._on_record)
+        shot_ev, _ = self._tile(I_SCREENSHOT, "Screenshot", screenshot)
+        self.rec_ev, self.rec_lab = self._tile(I_RECORD, "Record", self._on_record)
         cap.pack_start(shot_ev, True, True, 0)
         cap.pack_start(self.rec_ev, True, True, 0)
         right.pack_start(cap, True, True, 0)
 
-        top.pack_start(right, True, True, 0)
+        top.pack_start(right, False, False, 0)
         panel.pack_start(top, False, False, 0)
 
-        # ── System theme ──
+        # ── Beast theme ──
         theme_card = self._card()
-        ttitle = Gtk.Label(label="System Theme")
+        thead = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        ttitle = Gtk.Label(label="Beast theme")
         ttitle.set_name("cc-card-title")
         ttitle.set_halign(Gtk.Align.START)
-        theme_card.pack_start(ttitle, False, False, 0)
-        self.theme_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        thead.pack_start(ttitle, True, True, 0)
+        self.theme_current = Gtk.Label(label="")
+        self.theme_current.set_name("cc-theme-current")
+        self.theme_current.set_halign(Gtk.Align.END)
+        thead.pack_end(self.theme_current, False, False, 0)
+        theme_card.pack_start(thead, False, False, 0)
+        self.theme_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         self.theme_box.set_halign(Gtk.Align.CENTER)
         theme_card.pack_start(self.theme_box, False, False, 0)
         self._build_theme_circles()
         panel.pack_start(theme_card, False, False, 0)
 
-        # ── Brightness ──
-        bright_card = self._card()
-        btitle = Gtk.Label(label="Brightness")
-        btitle.set_name("cc-card-title")
-        btitle.set_halign(Gtk.Align.START)
-        bright_card.pack_start(btitle, False, False, 0)
-        brow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        bicon = Gtk.Label(label="󰃟")
-        bicon.set_name("cc-icon")
-        bicon.set_valign(Gtk.Align.CENTER)
-        brow.pack_start(bicon, False, False, 0)
+        # ── Brightness & volume ──
+        slider_card = self._card()
+        stitle = Gtk.Label(label="Display & sound")
+        stitle.set_name("cc-card-title")
+        stitle.set_halign(Gtk.Align.START)
+        slider_card.pack_start(stitle, False, False, 0)
+
+        bright_head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+        bicon = Gtk.Label(label=I_BRIGHTNESS)
+        bicon.set_name("cc-slider-icon")
+        bright_head.pack_start(bicon, False, False, 0)
+        blabel = Gtk.Label(label="Brightness")
+        blabel.set_name("cc-slider-head")
+        blabel.set_halign(Gtk.Align.START)
+        bright_head.pack_start(blabel, True, True, 0)
+        self.bright_val = Gtk.Label(label="—")
+        self.bright_val.set_name("cc-slider-value")
+        bright_head.pack_end(self.bright_val, False, False, 0)
+        slider_card.pack_start(bright_head, False, False, 0)
         self.bright_scale = Gtk.Scale.new_with_range(
             Gtk.Orientation.HORIZONTAL, 1, 100, 1
         )
@@ -2618,24 +3158,26 @@ class ControlCenter(Gtk.Window):
         self.bright_scale.connect("button-release-event", self._bright_release)
         self.bright_scale.connect(
             "value-changed",
-            lambda s: set_brightness(int(s.get_value()))
-            if not self._bright_dragging else None,
+            lambda s: self._on_brightness_changed(int(s.get_value())),
         )
-        brow.pack_start(self.bright_scale, True, True, 0)
-        bright_card.pack_start(brow, False, False, 0)
-        panel.pack_start(bright_card, False, False, 0)
+        slider_card.pack_start(self.bright_scale, False, False, 4)
 
-        # ── Volume ──
-        vol_card = self._card()
-        vtitle = Gtk.Label(label="Volume")
-        vtitle.set_name("cc-card-title")
-        vtitle.set_halign(Gtk.Align.START)
-        vol_card.pack_start(vtitle, False, False, 0)
-        vrow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        vol_head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
         self.vol_icon = Gtk.Label(label=I_VOLUME)
-        self.vol_icon.set_name("cc-icon")
-        self.vol_icon.set_valign(Gtk.Align.CENTER)
-        vrow.pack_start(self.vol_icon, False, False, 0)
+        self.vol_icon.set_name("cc-slider-icon")
+        vol_head.pack_start(self.vol_icon, False, False, 0)
+        vlabel = Gtk.Label(label="Volume")
+        vlabel.set_name("cc-slider-head")
+        vlabel.set_halign(Gtk.Align.START)
+        vol_head.pack_start(vlabel, True, True, 0)
+        self.mute_ev, self.mute_label = self._icon_button(
+            I_VOLUME, "cc-mute-btn", self._on_mute, "Mute / Unmute"
+        )
+        vol_head.pack_end(self.mute_ev, False, False, 0)
+        self.vol_val = Gtk.Label(label="—")
+        self.vol_val.set_name("cc-slider-value")
+        vol_head.pack_end(self.vol_val, False, False, 0)
+        slider_card.pack_start(vol_head, False, False, 0)
         self.vol_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
         self.vol_scale.set_draw_value(False)
         self.vol_scale.set_value(get_volume())
@@ -2643,23 +3185,82 @@ class ControlCenter(Gtk.Window):
         self.vol_scale.connect("button-release-event", self._vol_release)
         self.vol_scale.connect(
             "value-changed",
-            lambda s: set_volume(int(s.get_value()))
-            if not self._vol_dragging else None,
+            lambda s: self._on_volume_changed(int(s.get_value())),
         )
-        vrow.pack_start(self.vol_scale, True, True, 0)
+        slider_card.pack_start(self.vol_scale, False, False, 4)
+        panel.pack_start(slider_card, False, False, 0)
 
-        self.mute_ev, self.mute_label = self._icon_button(
-            I_VOLUME, "cc-mute-btn", self._on_mute, "Mute / Unmute"
-        )
-        vrow.pack_end(self.mute_ev, False, False, 0)
-
-        vol_card.pack_start(vrow, False, False, 0)
-        panel.pack_start(vol_card, False, False, 0)
+        panel.pack_start(self._build_quick_card(), False, False, 0)
 
         self.root.pack_start(panel, False, False, 0)
         self.side = self._build_side()
         self.root.pack_start(self.side, False, False, 0)
         self.add(self.root)
+
+    def _set_media_art(self, path: str | None) -> None:
+        if path == self._art_path:
+            return
+        self._art_path = path
+        for child in self.art_content.get_children():
+            self.art_content.remove(child)
+            child.destroy()
+        pixbuf = rounded_art(path) if path else None
+        if pixbuf is not None:
+            image = Gtk.Image.new_from_pixbuf(pixbuf)
+            image.set_halign(Gtk.Align.CENTER)
+            image.set_valign(Gtk.Align.CENTER)
+            self.art_content.pack_start(image, True, True, 0)
+            self.art_content.set_border_width(0)
+        else:
+            icon = Gtk.Label(label=I_MUSIC)
+            icon.set_name("cc-art-icon")
+            icon.set_halign(Gtk.Align.CENTER)
+            icon.set_valign(Gtk.Align.CENTER)
+            self.art_content.pack_start(icon, True, True, 0)
+        self.art_content.show_all()
+
+    def _on_brightness_changed(self, value: int) -> None:
+        self.bright_val.set_text(f"{value}%")
+        if not self._syncing_sliders and not self._bright_dragging:
+            set_brightness(value)
+
+    def _on_volume_changed(self, value: int) -> None:
+        self.vol_val.set_text(f"{value}%")
+        if not self._syncing_sliders and not self._vol_dragging:
+            set_volume(value)
+
+    def _lock_screen(self) -> None:
+        spawn("$HOME/.local/bin/bitbeast lock")
+        self.close()
+
+    def _on_wifi_switch(self, on: bool) -> None:
+        if self._sync_switches:
+            return
+        self.wifi_sub.set_text("Turning on…" if on else "Turning off…")
+
+        def work():
+            result = wifi_set_power(on)
+            GLib.idle_add(lambda: self._radio_done(result, self.wifi_sub))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_bt_switch(self, on: bool) -> None:
+        if self._sync_switches:
+            return
+        self.bt_sub.set_text("Turning on…" if on else "Turning off…")
+
+        def work():
+            result = bt_set_power(on)
+            GLib.idle_add(lambda: self._radio_done(result, self.bt_sub))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _radio_done(self, result, sub_label: Gtk.Label) -> bool:
+        ok, message = result
+        if not ok:
+            sub_label.set_text(message)
+        self.refresh_states()
+        return False
 
     def _on_mute(self) -> None:
         toggle_volume_mute()
@@ -2676,7 +3277,10 @@ class ControlCenter(Gtk.Window):
         self.close()
 
     def _open_network_settings(self) -> None:
-        spawn("kitty -e nmtui")
+        if shutil.which("nm-connection-editor"):
+            spawn("nm-connection-editor")
+        else:
+            spawn("kitty -e nmtui")
         self.close()
 
     def _session_action(self, action: str) -> None:
@@ -2711,32 +3315,36 @@ class ControlCenter(Gtk.Window):
         for child in self.theme_box.get_children():
             self.theme_box.remove(child)
         current = current_beast_theme()
-        for name, primary, accent in list_beast_themes():
+        if hasattr(self, "theme_current"):
+            self.theme_current.set_text(beast_label(current) if current else "Choose")
+        for index, (name, primary, accent) in enumerate(list_beast_themes()):
             ev = Gtk.EventBox()
+            ev.set_name("cc-theme-item")
             ev.set_valign(Gtk.Align.START)
+            ev.set_tooltip_text(beast_label(name))
+            ev.set_size_request(52, -1)
             v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
             circ = Gtk.Box()
+            circ.set_halign(Gtk.Align.CENTER)
             ctx = circ.get_style_context()
-            if name == current:
-                circ.set_name("cc-circle-active")
-            else:
-                circ.set_name("cc-circle")
-                css = f"""
-                #cc-circle-{name} {{
-                    background-image: linear-gradient(135deg, {primary}, {accent});
-                }}
-                """
-                prov = Gtk.CssProvider()
-                prov.load_from_data(css.encode("utf-8"))
-                ctx.add_provider(prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-                ctx.add_class(f"cc-circle-{name}")
+            circ.set_name("cc-theme-swatch-on" if name == current else "cc-theme-swatch")
+            css = f"""
+            .cc-theme-swatch-{index} {{
+                background-image: linear-gradient(135deg, {primary}, {accent});
+            }}
+            """
+            prov = Gtk.CssProvider()
+            prov.load_from_data(css.encode("utf-8"))
+            ctx.add_provider(prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            ctx.add_class(f"cc-theme-swatch-{index}")
             gl = Gtk.Label(label="")
             gl.set_name("cc-icon")
             circ.pack_start(gl, True, True, 0)
-            circ.set_size_request(46, 46)
+            circ.set_size_request(30, 30)
             v.pack_start(circ, False, False, 0)
-            lab = Gtk.Label(label=name[:9])
-            lab.set_name("cc-circle-label")
+            lab = Gtk.Label(label=beast_short(name))
+            lab.set_name("cc-theme-name-on" if name == current else "cc-theme-name")
+            lab.set_justify(Gtk.Justification.CENTER)
             v.pack_start(lab, False, False, 0)
             ev.add(v)
 
@@ -2846,21 +3454,25 @@ class ControlCenter(Gtk.Window):
                 cpu, self._prev_cpu = cpu_usage_percent(self._prev_cpu)
                 battery = battery_status()
                 if battery is None:
-                    bat_text = "BAT —"
+                    bat_text = "—"
+                    charging = False
                 else:
                     percent, charging = battery
-                    bat_text = f"{'⚡' if charging else 'BAT'} {percent}%"
+                    bat_text = f"{percent}%"
 
                 player = get_player()
                 return {
                     "clock": time.strftime("%H:%M"),
-                    "date": time.strftime("%A, %b %d"),
+                    "date": time.strftime("%A, %d %B"),
+                    "greeting": greeting(),
                     "notify": notification_summary(),
+                    "notify_count": notification_count(),
                     "airplane": airplane_enabled(),
+                    "battery_charging": charging,
                     "stats": {
-                        "CPU": f"CPU {int(round(cpu))}%",
-                        "RAM": f"RAM {ram_usage_percent()}%",
-                        "Disk": f"Disk {disk_usage_percent()}%",
+                        "CPU": f"{int(round(cpu))}%",
+                        "RAM": f"{ram_usage_percent()}%",
+                        "Disk": f"{disk_usage_percent()}%",
                         "BAT": bat_text,
                     },
                     "media": media_state(player) if player else None,
@@ -2881,36 +3493,57 @@ class ControlCenter(Gtk.Window):
 
     def _apply_live(self, state: dict) -> None:
         self.clock_label.set_text(state.get("clock", ""))
+        self.greeting_label.set_text(state.get("greeting", greeting()))
         self.date_label.set_text(state.get("date", ""))
         self.notify_sub.set_text(state.get("notify", ""))
+        count = int(state.get("notify_count", 0) or 0)
+        self.notify_badge.set_text(str(count))
+        if count > 0:
+            self.notify_badge.show()
+        else:
+            self.notify_badge.hide()
         self.airplane_tile.set_name(
-            "cc-tile-active" if state.get("airplane") else "cc-tile"
+            "cc-quick-active" if state.get("airplane") else "cc-quick-tile"
         )
+        self.airplane_sub.set_text("On" if state.get("airplane") else "Off")
         stats = state.get("stats") or {}
         for key, label in self.stat_labels.items():
-            label.set_text(stats.get(key, f"{key} —"))
+            value = stats.get(key, "—")
+            label.set_text(value)
+            try:
+                percent = int(str(value).strip("%"))
+            except ValueError:
+                percent = 0
+            self.stat_bars[key].set_fraction(max(0.0, min(percent / 100.0, 1.0)))
+        self.stat_icons["BAT"].set_text(
+            I_BATTERY_CHARGING if state.get("battery_charging") else I_BATTERY
+        )
         self._apply_media(state.get("media"))
 
     def _apply_media(self, media: dict | None) -> None:
         if not media:
-            self.media_title.set_text("No active media")
-            self.media_artist.set_text("Start a player to see controls")
+            self.media_title.set_text("Nothing playing")
+            self.media_artist.set_text("Start something and it will show up here.")
+            self.media_source.set_text("")
             self.media_progress.set_fraction(0.0)
             self.media_pos.set_text("0:00")
             self.media_dur.set_text("0:00")
             self.play_label.set_text(I_PLAY)
+            self._set_media_art(None)
             return
 
         self.media_title.set_text(media.get("title", "Unknown Track"))
-        self.media_artist.set_text(
-            f"{media.get('artist', '')} · {media.get('player', '')}".strip(" ·")
-        )
+        self.media_artist.set_text(media.get("artist", "Unknown Artist"))
+        source = media.get("player_name", "")
+        status = media.get("status", "")
+        self.media_source.set_text(source.upper() if source else "")
         self.media_progress.set_fraction(float(media.get("fraction", 0.0)))
-        self.media_pos.set_text(fmt_time(media.get("position", 0)))
-        self.media_dur.set_text(fmt_time(media.get("duration", 0)))
-        self.play_label.set_text(
-            I_PAUSE if media.get("status") == "Playing" else I_PLAY
-        )
+        position = media.get("position", 0)
+        duration = float(media.get("duration", 0) or 0)
+        self.media_pos.set_text(fmt_time(position))
+        self.media_dur.set_text(fmt_time(duration) if duration > 0 else "LIVE")
+        self.play_label.set_text(I_PAUSE if status == "Playing" else I_PLAY)
+        self._set_media_art(media.get("art"))
 
     def refresh_states(self) -> bool:
         if self._refresh_running:
@@ -2983,30 +3616,54 @@ class ControlCenter(Gtk.Window):
         else:
             self.bt_title.set_text("Bluetooth")
             if len(bt_names) > 1:
-                self.bt_sub.set_text(f"{len(bt_names)} devices")
+                self.bt_sub.set_text(f"{len(bt_names)} connected")
             else:
                 self.bt_sub.set_text(bt_names[0] if bt_names else "On")
 
-        self.pw_sub.set_text(str(state.get("power", "balanced")).capitalize())
+        self._sync_switches = True
+        try:
+            self.wifi_switch.set_sensitive(bool(wifi_available))
+            self.wifi_switch.set_active(wifi_on)
+            self.bt_switch.set_sensitive(bool(bt_available_))
+            self.bt_switch.set_active(bt_on)
+        finally:
+            self._sync_switches = False
+
+        power = str(state.get("power", "balanced")).lower()
+        self.pw_sub.set_text({
+            "power-saver": "Battery saver",
+            "performance": "Performance",
+            "balanced": "Balanced",
+        }.get(power, power.replace("-", " ").title()))
 
         dnd = bool(state.get("dnd"))
-        self.dnd_box.set_name("cc-big-active" if dnd else "cc-big-toggle")
+        self.dnd_box.set_name("cc-focus-active" if dnd else "cc-focus")
+        self.dnd_sub.set_text("Silencing alerts" if dnd else "Alerts are on")
+        self.dnd_state.set_text("On" if dnd else "Off")
         self.dnd_outer.queue_draw()
 
         rec = bool(state.get("recording"))
-        self.rec_lab.set_text("Stop\nRec" if rec else "Screen\nRecord")
+        self.rec_lab.set_text("Stop" if rec else "Record")
+        self.rec_ev.set_name("cc-capture-active" if rec else "cc-capture-tile")
         self.rec_lab.get_style_context().remove_class("cc-rec")
         if rec:
             self.rec_lab.get_style_context().add_class("cc-rec")
 
-        if not self._bright_dragging:
-            self.bright_scale.set_value(int(state.get("brightness", 50)))
+        brightness = int(state.get("brightness", 50))
         vol = int(state.get("volume", 0))
-        if not self._vol_dragging:
-            self.vol_scale.set_value(vol)
+        self._syncing_sliders = True
+        try:
+            if not self._bright_dragging:
+                self.bright_scale.set_value(brightness)
+            if not self._vol_dragging:
+                self.vol_scale.set_value(vol)
+        finally:
+            self._syncing_sliders = False
+        self.bright_val.set_text(f"{brightness}%")
+        self.vol_val.set_text(f"{vol}%")
         muted = bool(state.get("muted", vol == 0))
         self.vol_icon.set_text(
-            I_MUTE if muted else ("󰕿" if vol < 34 else ("󰖀" if vol < 67 else I_VOLUME))
+            I_MUTE if muted else (I_VOLUME_LOW if vol < 34 else (I_VOLUME_MID if vol < 67 else I_VOLUME))
         )
         self.mute_label.set_text(I_MUTE if muted else I_VOLUME)
 
