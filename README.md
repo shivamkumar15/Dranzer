@@ -179,20 +179,6 @@ Three cava profiles are available after installation:
 The profile configs are installed to `~/.config/cava/`, and the GLSL shaders used by `cava-spiral` are installed to `~/.config/cava/shaders/`.
 
 ---
-
-## Included Themes
-
-| Theme | Vibe |
-| :--- | :--- |
-| **Dranzer** | Phoenix Red |
-| **Dragoon** | Storm Blue |
-| **Driger** | White Tiger |
-| **Draciel** | Shield Green |
-| **Galeon** | Dark Purple |
-| **BurningCerbrus** | Molten Orange |
-
----
-
 ## Backups
 Don't worry about your current configs! The installer automatically creates backups here:
 `~/.local/state/bitbeast-installer/backups/<timestamp>/`
